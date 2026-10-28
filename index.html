@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f6f2">
+    <title>Avaluatró — Avaluació per competències</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/iconoir-icons/iconoir@7.12.1/css/iconoir.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://accounts.google.com/gsi/client" defer></script>
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#" aria-label="Avaluatró, inici">
+          <span class="brand-mark">a.</span>
+          <span class="brand-name">avaluatró<span class="brand-dot">.</span></span>
+        </a>
+        <div class="school-label">ESPAI DOCENT</div>
+        <nav class="main-nav" aria-label="Navegació principal">
+          <button class="nav-link active" data-view="overview"><i class="nav-icon iconoir-home" aria-hidden="true"></i> Resum</button>
+          <button class="nav-link" data-view="students"><i class="nav-icon iconoir-group" aria-hidden="true"></i> Alumnes</button>
+          <button class="nav-link" data-view="groups"><i class="nav-icon iconoir-view-grid" aria-hidden="true"></i> Grups classe</button>
+          <button class="nav-link" data-view="subjects"><i class="nav-icon iconoir-book-stack" aria-hidden="true"></i> Assignatures</button>
+          <button class="nav-link" data-view="activities"><i class="nav-icon iconoir-list-select" aria-hidden="true"></i> Activitats i proves</button>
+          <button class="nav-link" data-view="daily-followup"><i class="nav-icon iconoir-calendar" aria-hidden="true"></i> Seguiment diari</button>
+          <button class="nav-link" data-view="competencies"><i class="nav-icon iconoir-brain" aria-hidden="true"></i> Competències</button>
+        </nav>
+        <button class="sidebar-bottom profile-button" id="teacher-profile-button" type="button" aria-label="Perfil docent i configuració de Google Drive">
+          <span class="teacher-avatar">M</span>
+          <span class="profile-copy"><strong>Espai personal</strong><small id="drive-profile-status">Configura Google Drive</small></span>
+          <i class="iconoir-settings profile-settings-icon" aria-hidden="true"></i>
+        </button>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar">
+          <div class="breadcrumbs"><span>Espai docent</span><span class="crumb-separator">/</span><strong id="current-section">Resum</strong></div>
+          <div class="top-actions">
+            <span class="save-indicator"><span class="save-dot"></span><span id="save-status">Desat al dispositiu</span></span>
+            <button class="button button-quiet" id="import-button" type="button" aria-label="Importa dades"><i class="iconoir-upload" aria-hidden="true"></i><span class="action-button-label"> Importa</span></button>
+            <button class="button button-quiet" id="export-button" type="button" aria-label="Exporta dades JSON"><i class="iconoir-download" aria-hidden="true"></i><span class="action-button-label"> Exporta JSON</span></button>
+            <button class="button button-quiet" id="drive-save-button" type="button" aria-label="Desa a Google Drive" title="Desa a Google Drive"><i class="iconoir-cloud-upload" aria-hidden="true"></i><span class="drive-button-label"> Desa a Drive</span></button>
+            <button class="button button-quiet" id="drive-load-button" type="button" aria-label="Restaura des de Google Drive" title="Restaura des de Google Drive"><i class="iconoir-cloud-download" aria-hidden="true"></i><span class="drive-button-label"> Restaura Drive</span></button>
+            <input id="import-file" type="file" accept="application/json,.json" hidden>
+          </div>
+        </header>
+        <section id="app-content" class="content" aria-live="polite"></section>
+        <footer class="privacy-note"><i class="iconoir-shield-check" aria-hidden="true"></i> Les dades es desen al dispositiu. Si ho configures, també pots fer-ne una còpia privada a Google Drive.</footer>
+      </main>
+    </div>
+    <dialog id="app-dialog" class="app-dialog">
+      <form id="dialog-form" method="dialog">
+        <div id="dialog-content"></div>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
