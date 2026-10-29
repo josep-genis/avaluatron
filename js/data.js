@@ -11,16 +11,150 @@ export function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-export function validateData(value, makeId) {
-  if (!value || value.schemaVersion !== 1 || !["students", "competencies", "activities", "assessments"].every(key => Array.isArray(value[key]))) {
-    throw new Error("el fitxer no té un format Avaluatró vàlid (versió 1).");
-  }
+export function getSequenceActivities(level) {
+  return level.situations.flatMap(situation => situation.activities);
+}
+
+export function getCurrentAcademicYear(data) {
+  return data.academicYears.find(year => year.id === data.currentAcademicYearId) || null;
+}
+
+export function getStudentEnrollment(student, academicYearId) {
+  return student.enrollments?.find(enrollment => enrollment.academicYearId === academicYearId) ||
+    (student.academicYearId === academicYearId
+      ? {
+          academicYearId,
+          classGroupId: student.classGroupId,
+          subgroupId: student.subgroupId,
+          additionalGroupIds: student.additionalGroupIds || []
+        }
+      : null);
+}
+
+export function getOfferingStudents(data, offering) {
+  const classGroupIds = new Set(offering.classGroupIds);
+  const additionalGroupIds = new Set(offering.additionalGroupIds);
+  return data.students.filter(student => {
+    const enrollment = getStudentEnrollment(student, offering.academicYearId);
+    return enrollment && (
+      classGroupIds.has(enrollment.classGroupId) ||
+      enrollment.additionalGroupIds.some(groupId => additionalGroupIds.has(groupId))
+    );
+  });
+}
+
+export function isStudentAssociatedWithOffering(data, offering, studentId) {
+  return offering.studentIds?.includes(studentId) ||
+    getOfferingStudents(data, offering).some(student => student.id === studentId);
+}
+
+export function getActivityOffers(data, activityId, currentOnly = true) {
+  return data.teachingOffers.filter(offering => {
+    if (currentOnly && (offering.status !== "active" || offering.academicYearId !== data.currentAcademicYearId)) return false;
+    const level = data.subjects.find(subject => subject.id === offering.subjectId)
+      ?.levels.find(item => item.id === offering.levelId);
+    return level && getSequenceActivities(level).some(item => item.activityId === activityId);
+  });
+}
+
+export function getLevelOffers(data, levelId, subjectId = null, currentOnly = true) {
+  return data.teachingOffers.filter(offer =>
+    offer.levelId === levelId &&
+    (!subjectId || offer.subjectId === subjectId) &&
+    (!currentOnly || offer.status === "active" && offer.academicYearId === data.currentAcademicYearId)
+  );
+}
+
+export function getLevelStudents(students, level, academicYearId = null) {
+  const classGroupIds = new Set(level.classGroupIds);
+  const additionalGroupIds = new Set(level.additionalGroupIds || []);
+  return students.filter(student => {
+    const enrollment = academicYearId ? getStudentEnrollment(student, academicYearId) : student;
+    return enrollment && (
+      classGroupIds.has(enrollment.classGroupId) ||
+      (enrollment.additionalGroupIds || []).some(groupId => additionalGroupIds.has(groupId))
+    );
+  });
+}
+
+function currentAcademicYearName(date = new Date()) {
+  const startYear = date.getMonth() >= 8 ? date.getFullYear() : date.getFullYear() - 1;
+  return `${startYear}-${String(startYear + 1).slice(-2)}`;
+}
+
+function migrateVersionOne(value, makeId) {
+  const academicYear = { id: makeId("curs"), name: currentAcademicYearName(), isCurrent: true };
+  value.academicYears = [academicYear];
+  value.currentAcademicYearId = academicYear.id;
   value.classGroups ??= [];
+  for (const group of value.classGroups) group.academicYearId = academicYear.id;
+  for (const student of value.students) {
+    student.academicYearId = academicYear.id;
+    student.enrollments = [{
+      academicYearId: academicYear.id,
+      classGroupId: student.classGroupId || "",
+      subgroupId: student.subgroupId || "",
+      additionalGroupIds: student.additionalGroupIds || []
+    }];
+  }
+  value.teachingOffers = [];
+  for (const subject of value.subjects || []) {
+    for (const level of subject.levels || []) {
+      const classGroupIds = [...new Set(level.classGroupIds || [])];
+      const additionalGroupIds = [...new Set(level.additionalGroupIds || [])];
+      if (!classGroupIds.length && !additionalGroupIds.length) continue;
+      value.teachingOffers.push({
+        id: makeId("oferta"),
+        subjectId: subject.id,
+        levelId: level.id,
+        academicYearId: academicYear.id,
+        classGroupIds,
+        additionalGroupIds,
+        studentIds: [],
+        status: "active"
+      });
+    }
+  }
+  for (const offer of value.teachingOffers) {
+    offer.studentIds = getOfferingStudents(value, offer).map(student => student.id);
+  }
+  const assessments = value.assessments || [];
+  value.assessments = assessments.flatMap(assessment => {
+    const matchingOffers = value.teachingOffers.filter(offer => {
+      const level = value.subjects.find(subject => subject.id === offer.subjectId)?.levels.find(item => item.id === offer.levelId);
+      return level?.situations?.some(situation =>
+        situation.activities.some(item => item.activityId === assessment.activityId)
+      ) && getOfferingStudents(value, offer).some(student => student.id === assessment.studentId);
+    });
+    return matchingOffers.length
+      ? matchingOffers.map(offer => ({ ...assessment, levels: { ...assessment.levels }, offeringId: offer.id }))
+      : [{ ...assessment, offeringId: "" }];
+  });
+  for (const subject of value.subjects) {
+    for (const level of subject.levels || []) {
+      delete level.classGroupIds;
+      delete level.additionalGroupIds;
+    }
+  }
+  value.schemaVersion = 2;
+}
+
+export function validateData(value, makeId) {
+  if (!value || ![1, 2].includes(value.schemaVersion) || !["students", "competencies", "activities", "assessments"].every(key => Array.isArray(value[key]))) {
+    throw new Error("el fitxer no té un format Avaluatró vàlid (versió 1 o 2).");
+  }
+  if (value.schemaVersion === 2 && (!Array.isArray(value.academicYears) || !Array.isArray(value.teachingOffers))) {
+    throw new Error("les llistes de cursos acadèmics i ofertes docents no són vàlides.");
+  }
+  if (value.schemaVersion === 2) value.currentAcademicYearId ??= "";
+  value.classGroups ??= [];
+  value.additionalGroups ??= [];
   value.subjects ??= [];
   value.dailyAssessments ??= [];
   value.subjectExemptions ??= [];
   value.activityExemptions ??= [];
   if (!Array.isArray(value.classGroups)) throw new Error("la llista de grups classe no és vàlida.");
+  if (!Array.isArray(value.additionalGroups)) throw new Error("la llista de grups addicionals no és vàlida.");
   if (!Array.isArray(value.subjects)) throw new Error("la llista d'assignatures no és vàlida.");
   if (!Array.isArray(value.dailyAssessments)) throw new Error("la llista de seguiments diaris no és vàlida.");
   if (!Array.isArray(value.subjectExemptions)) throw new Error("la llista d'exempcions d'assignatura no és vàlida.");
@@ -33,7 +167,8 @@ export function validateData(value, makeId) {
         id: makeId("niv"),
         name: subject.level || "",
         classGroupIds: subject.classGroupIds || [],
-        sequence: subject.sequence || []
+        sequence: subject.sequence || [],
+        situations: subject.situations || []
       }];
       delete subject.level;
       delete subject.classGroupIds;
@@ -64,13 +199,15 @@ export function validateData(value, makeId) {
     delete student.name;
     student.classGroupId ||= "";
     student.subgroupId ||= "";
+    student.additionalGroupIds ||= [];
     delete student.group;
   }
   for (const classGroup of value.classGroups) classGroup.subgroups ||= [];
+  if (value.schemaVersion === 1) migrateVersionOne(value, makeId);
   const ids = new Set();
-  for (const listName of ["students", "competencies", "activities", "classGroups"]) {
+  for (const listName of ["students", "competencies", "activities", "classGroups", "additionalGroups", "academicYears", "teachingOffers"]) {
     for (const record of value[listName]) {
-      if (!record || typeof record.id !== "string" || !record.id || typeof record.name !== "string" && !["activities", "students"].includes(listName)) {
+      if (!record || typeof record.id !== "string" || !record.id || typeof record.name !== "string" && !["activities", "students", "teachingOffers"].includes(listName)) {
         throw new Error(`hi ha un registre invàlid a «${listName}».`);
       }
       if (ids.has(record.id)) throw new Error("hi ha identificadors duplicats.");
@@ -84,6 +221,9 @@ export function validateData(value, makeId) {
           ids.add(subgroup.id);
         }
       }
+      if (listName === "academicYears" && (typeof record.name !== "string" || !record.name.trim())) {
+        throw new Error("hi ha un curs acadèmic invàlid.");
+      }
     }
     for (const student of value.students) {
       if (typeof student.firstName !== "string" || !student.firstName.trim() || typeof student.lastName !== "string") {
@@ -94,7 +234,57 @@ export function validateData(value, makeId) {
   const studentIds = new Set(value.students.map(student => student.id));
   const classGroupIds = new Set(value.classGroups.map(classGroup => classGroup.id));
   const subgroupIds = new Set(value.classGroups.flatMap(classGroup => classGroup.subgroups.map(subgroup => subgroup.id)));
+  const additionalGroupIds = new Set(value.additionalGroups.map(group => group.id));
+  const academicYearIds = new Set(value.academicYears.map(year => year.id));
+  if (!value.academicYears.length || !academicYearIds.has(value.currentAcademicYearId) ||
+    value.academicYears.filter(year => year.isCurrent).length !== 1 ||
+    !value.academicYears.find(year => year.id === value.currentAcademicYearId)?.isCurrent) {
+    throw new Error("cal que hi hagi exactament un curs acadèmic vigent.");
+  }
+  for (const group of value.classGroups) group.academicYearId ||= value.currentAcademicYearId;
+  if (value.classGroups.some(group => !academicYearIds.has(group.academicYearId))) {
+    throw new Error("hi ha un grup classe sense curs acadèmic vàlid.");
+  }
   for (const student of value.students) {
+    student.academicYearId ||= value.currentAcademicYearId;
+    student.enrollments ??= [{
+      academicYearId: student.academicYearId,
+      classGroupId: student.classGroupId || "",
+      subgroupId: student.subgroupId || "",
+      additionalGroupIds: student.additionalGroupIds || []
+    }];
+    if (!Array.isArray(student.enrollments) || student.enrollments.some(enrollment =>
+      !academicYearIds.has(enrollment.academicYearId) ||
+      enrollment.classGroupId && !classGroupIds.has(enrollment.classGroupId) ||
+      enrollment.subgroupId && !subgroupIds.has(enrollment.subgroupId) ||
+      !Array.isArray(enrollment.additionalGroupIds) ||
+      enrollment.additionalGroupIds.some(id => !additionalGroupIds.has(id)) ||
+      new Set(enrollment.additionalGroupIds).size !== enrollment.additionalGroupIds.length
+    )) {
+      throw new Error("hi ha una matrícula d'alumne invàlida.");
+    }
+    if (new Set(student.enrollments.map(enrollment => enrollment.academicYearId)).size !== student.enrollments.length ||
+      student.enrollments.some(enrollment => {
+        const group = value.classGroups.find(item => item.id === enrollment.classGroupId);
+        const subgroup = group?.subgroups.find(item => item.id === enrollment.subgroupId);
+        return enrollment.classGroupId && group?.academicYearId !== enrollment.academicYearId ||
+          enrollment.subgroupId && (!subgroup || !group?.subgroups.some(item => item.id === enrollment.subgroupId));
+      })) {
+      throw new Error("un alumne té matrícules duplicades o una assignació de grup invàlida.");
+    }
+    const currentEnrollment = getStudentEnrollment(student, value.currentAcademicYearId);
+    Object.assign(student, {
+      academicYearId: value.currentAcademicYearId,
+      classGroupId: currentEnrollment?.classGroupId || "",
+      subgroupId: currentEnrollment?.subgroupId || "",
+      additionalGroupIds: currentEnrollment?.additionalGroupIds || []
+    });
+  }
+  for (const student of value.students) {
+    if (!Array.isArray(student.additionalGroupIds) || student.additionalGroupIds.some(id => !additionalGroupIds.has(id)) ||
+      new Set(student.additionalGroupIds).size !== student.additionalGroupIds.length) {
+      throw new Error("hi ha un alumne assignat a un grup addicional inexistent o repetit.");
+    }
     if (student.classGroupId && !classGroupIds.has(student.classGroupId)) throw new Error("hi ha un alumne assignat a un grup classe inexistent.");
     if (student.subgroupId && !subgroupIds.has(student.subgroupId)) throw new Error("hi ha un alumne assignat a un desdoblament inexistent.");
     const assignedClassGroup = value.classGroups.find(classGroup => classGroup.id === student.classGroupId);
@@ -137,7 +327,6 @@ export function validateData(value, makeId) {
   for (const subject of value.subjects) {
     if (!Array.isArray(subject.levels)) throw new Error("la llista de nivells d'una assignatura no és vàlida.");
     const levelNames = new Set();
-    const assignedGroups = new Set();
     for (const level of subject.levels) {
       if (!level || typeof level.id !== "string" || !level.id || typeof level.name !== "string" || level.name && !EDUCATIONAL_LEVEL_NAMES.includes(level.name) || ids.has(level.id)) {
         throw new Error("hi ha un nivell educatiu invàlid o amb un identificador duplicat.");
@@ -149,47 +338,114 @@ export function validateData(value, makeId) {
       if (!Array.isArray(level.competencyIds) || level.competencyIds.some(id => !competencyIds.has(id)) || new Set(level.competencyIds).size !== level.competencyIds.length) {
         throw new Error("hi ha una llista de competències invàlida per a un nivell.");
       }
-      if (!Array.isArray(level.classGroupIds) || level.classGroupIds.some(id => !classGroupIds.has(id))) {
-        throw new Error("hi ha un nivell vinculat a un grup classe inexistent.");
-      }
-      for (const classGroupId of level.classGroupIds) {
-        if (assignedGroups.has(classGroupId)) throw new Error("un grup classe no es pot assignar a més d'un nivell de la mateixa assignatura.");
-        assignedGroups.add(classGroupId);
-      }
-      if (!Array.isArray(level.sequence)) throw new Error("la seqüència d'un nivell no és vàlida.");
+      delete level.classGroupIds;
+      delete level.additionalGroupIds;
       if (level.situations !== undefined && !Array.isArray(level.situations)) throw new Error("la llista de situacions d'aprenentatge no és vàlida.");
-      const situations = new Map((level.situations || []).map(situation => {
-        if (typeof situation !== "string" || !situation.trim() || situation.trim().length > 100) {
+      const situationRecords = [];
+      const situationsByName = new Map();
+      const addSituation = (name, id = makeId("sit"), activities = []) => {
+        if (typeof name !== "string" || !name.trim() || name.trim().length > 100) {
           throw new Error("hi ha una situació d'aprenentatge invàlida.");
         }
-        return [situation.trim().toLocaleLowerCase("ca"), situation.trim()];
-      }));
-      for (const item of level.sequence) {
-        if (!item || typeof item.id !== "string" || !item.id || !activityIds.has(item.activityId) || !Number.isFinite(Number(item.hours)) || Number(item.hours) <= 0) {
-          throw new Error("hi ha un element de seqüència d'assignatura invàlid.");
+        const normalizedName = name.trim();
+        const key = normalizedName.toLocaleLowerCase("ca");
+        if (situationsByName.has(key)) return situationsByName.get(key);
+        const situation = { id, name: normalizedName, activities };
+        situationRecords.push(situation);
+        situationsByName.set(key, situation);
+        return situation;
+      };
+      const storedSituations = level.situations || [];
+      const isNestedSequence = storedSituations.length
+        ? storedSituations.every(situation =>
+          situation && typeof situation === "object" && !Array.isArray(situation) && Array.isArray(situation.activities)
+        )
+        : !Array.isArray(level.sequence);
+      if (isNestedSequence) {
+        for (const situation of storedSituations) {
+          if (typeof situation.name === "string" && situationsByName.has(situation.name.trim().toLocaleLowerCase("ca"))) {
+            throw new Error("hi ha situacions d'aprenentatge repetides en un nivell.");
+          }
+          addSituation(situation.name, situation.id, situation.activities);
         }
-        if (typeof item.situation !== "string" || !item.situation.trim()) item.situation = "Situació d'aprenentatge 1";
-        else item.situation = item.situation.trim();
-        if (item.situation.length > 100) throw new Error("el nom d'una situació d'aprenentatge no pot superar els 100 caràcters.");
-        const situationKey = item.situation.toLocaleLowerCase("ca");
-        if (!situations.has(situationKey)) situations.set(situationKey, item.situation);
-        item.situation = situations.get(situationKey);
-        if (ids.has(item.id) || activitySequenceIds.has(`${subject.id}:${level.id}:${item.activityId}`)) {
-          throw new Error("hi ha identificadors duplicats o activitats repetides a la seqüència del nivell.");
+      } else {
+        for (const situation of storedSituations) {
+          if (typeof situation !== "string") throw new Error("hi ha una situació d'aprenentatge invàlida.");
+          addSituation(situation);
         }
-        ids.add(item.id);
-        activitySequenceIds.add(`${subject.id}:${level.id}:${item.activityId}`);
-        if (!item.contributions || typeof item.contributions !== "object" || Object.entries(item.contributions).some(([competencyId, weight]) => !level.competencyIds.includes(competencyId) || !Number.isFinite(Number(weight)) || Number(weight) < 0 || Number(weight) > 100)) {
-          throw new Error("hi ha una contribució a competències invàlida.");
+        if (!Array.isArray(level.sequence)) throw new Error("la seqüència d'un nivell no és vàlida.");
+        for (const item of level.sequence) {
+          const name = typeof item?.situation === "string" && item.situation.trim()
+            ? item.situation.trim()
+            : "Situació d'aprenentatge 1";
+          addSituation(name).activities.push(item);
         }
       }
-      level.situations = [...situations.values()];
+      delete level.sequence;
+      const sequenceActivityIds = new Set();
+      for (const situation of situationRecords) {
+        if (typeof situation.id !== "string" || !situation.id || ids.has(situation.id) || !Array.isArray(situation.activities)) {
+          throw new Error("hi ha una situació d'aprenentatge invàlida o amb un identificador duplicat.");
+        }
+        ids.add(situation.id);
+        for (const item of situation.activities) {
+          if (!item || typeof item.id !== "string" || !item.id || !activityIds.has(item.activityId) || !Number.isFinite(Number(item.hours)) || Number(item.hours) <= 0) {
+            throw new Error("hi ha un element de seqüència d'assignatura invàlid.");
+          }
+          if (ids.has(item.id) || sequenceActivityIds.has(item.activityId)) {
+            throw new Error("hi ha identificadors duplicats o activitats repetides a la seqüència del nivell.");
+          }
+          ids.add(item.id);
+          sequenceActivityIds.add(item.activityId);
+          activitySequenceIds.add(`${subject.id}:${level.id}:${item.activityId}`);
+          delete item.contributions;
+        }
+      }
+      level.situations = situationRecords;
     }
   }
+  const offerKeys = new Set();
+  for (const offer of value.teachingOffers) {
+    if (!offer || typeof offer !== "object") throw new Error("hi ha una oferta docent invàlida.");
+    const subject = value.subjects.find(item => item.id === offer.subjectId);
+    const level = subject?.levels.find(item => item.id === offer.levelId);
+    const key = `${offer.subjectId}\u0000${offer.levelId}\u0000${offer.academicYearId}`;
+    offer.studentIds ??= [];
+    if (!level || !academicYearIds.has(offer.academicYearId) ||
+      !Array.isArray(offer.classGroupIds) || offer.classGroupIds.some(id => !classGroupIds.has(id)) ||
+      new Set(offer.classGroupIds).size !== offer.classGroupIds.length ||
+      !Array.isArray(offer.additionalGroupIds) || offer.additionalGroupIds.some(id => !additionalGroupIds.has(id)) ||
+      new Set(offer.additionalGroupIds).size !== offer.additionalGroupIds.length ||
+      !offer.classGroupIds.length && !offer.additionalGroupIds.length ||
+      !Array.isArray(offer.studentIds) || offer.studentIds.some(id => !studentIds.has(id)) ||
+      new Set(offer.studentIds).size !== offer.studentIds.length ||
+      !["active", "archived"].includes(offer.status) || offerKeys.has(key)) {
+      throw new Error("hi ha una oferta docent invàlida o duplicada.");
+    }
+    if (offer.classGroupIds.some(id => value.classGroups.find(group => group.id === id)?.academicYearId !== offer.academicYearId)) {
+      throw new Error("una oferta docent inclou un grup classe d'un altre curs acadèmic.");
+    }
+    offerKeys.add(key);
+  }
+  const assessmentKeys = new Set();
   for (const assessment of value.assessments) {
-    if (!assessment || !studentIds.has(assessment.studentId) || !activityIds.has(assessment.activityId) || !assessment.levels || typeof assessment.levels !== "object") {
+    if (!assessment || !studentIds.has(assessment.studentId) || !activityIds.has(assessment.activityId) ||
+      assessment.offeringId && !value.teachingOffers.some(offer => offer.id === assessment.offeringId) ||
+      !assessment.levels || typeof assessment.levels !== "object") {
       throw new Error("hi ha una avaluació sense alumne o activitat vàlids.");
     }
+    if (assessment.offeringId) {
+      const offer = value.teachingOffers.find(item => item.id === assessment.offeringId);
+      const level = value.subjects.find(subject => subject.id === offer.subjectId)?.levels.find(item => item.id === offer.levelId);
+      if (!offer.studentIds.includes(assessment.studentId) &&
+        !getOfferingStudents(value, offer).some(student => student.id === assessment.studentId) ||
+        !getSequenceActivities(level).some(item => item.activityId === assessment.activityId)) {
+        throw new Error("hi ha una avaluació fora de la matrícula o la seqüència de l'oferta docent.");
+      }
+    }
+    const key = `${assessment.offeringId || "legacy"}\u0000${assessment.studentId}\u0000${assessment.activityId}`;
+    if (assessmentKeys.has(key)) throw new Error("hi ha avaluacions duplicades per alumne, activitat i oferta docent.");
+    assessmentKeys.add(key);
     for (const level of Object.values(assessment.levels)) {
       if (!Number.isInteger(level) || level < 0 || level > 4) throw new Error("hi ha un nivell d'avaluació invàlid.");
     }
@@ -236,5 +492,6 @@ export function validateData(value, makeId) {
       throw new Error("hi ha un nivell o una observació invàlids en un seguiment diari.");
     }
   }
+  value.schemaVersion = 2;
   return value;
 }

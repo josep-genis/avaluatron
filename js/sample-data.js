@@ -46,10 +46,21 @@ export const sampleData = {
           name: "4t d'ESO",
           classGroupIds: ["gc-1", "gc-2"],
           competencyIds: ["co-1", "co-2"],
-          situations: ["El cicle de vida d'un mòbil", "Disseny d'una tecnologia sostenible"],
-          sequence: [
-            { id: "seq-1", activityId: "ac-1", situation: "El cicle de vida d'un mòbil", hours: 3, contributions: { "co-1": 100, "co-2": 100 } },
-            { id: "seq-2", activityId: "ac-2", situation: "Disseny d'una tecnologia sostenible", hours: 5, contributions: { "co-1": 100, "co-2": 100 } }
+          situations: [
+            {
+              id: "sit-1",
+              name: "El cicle de vida d'un mòbil",
+              activities: [
+                { id: "seq-1", activityId: "ac-1", hours: 3 }
+              ]
+            },
+            {
+              id: "sit-2",
+              name: "Disseny d'una tecnologia sostenible",
+              activities: [
+                { id: "seq-2", activityId: "ac-2", hours: 5 }
+              ]
+            }
           ]
         }
       ]
