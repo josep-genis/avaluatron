@@ -7,7 +7,6 @@
     <title>Avaluatró — Avaluació per competències</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/iconoir-icons/iconoir@7.12.1/css/iconoir.css">
     <link rel="stylesheet" href="styles.css">
-    <script src="https://accounts.google.com/gsi/client" defer></script>
     <script type="module" src="app.js"></script>
   </head>
   <body>
@@ -27,10 +26,10 @@
           <button class="nav-link" data-view="daily-followup"><i class="nav-icon iconoir-calendar" aria-hidden="true"></i> Seguiment diari</button>
           <button class="nav-link" data-view="competencies"><i class="nav-icon iconoir-brain" aria-hidden="true"></i> Competències</button>
         </nav>
-        <button class="sidebar-bottom profile-button" id="teacher-profile-button" type="button" aria-label="Perfil docent i configuració de Google Drive">
-          <span class="teacher-avatar">M</span>
-          <span class="profile-copy"><strong>Espai personal</strong><small id="drive-profile-status">Configura Google Drive</small></span>
-          <i class="iconoir-settings profile-settings-icon" aria-hidden="true"></i>
+        <button class="sidebar-bottom profile-button" id="teacher-profile-button" type="button" aria-label="Perfil docent">
+          <span class="teacher-avatar" id="sidebar-profile-avatar">D</span>
+          <span class="profile-copy"><strong id="sidebar-profile-name">Perfil docent</strong><small id="sidebar-profile-detail">Professional de l'educació</small></span>
+          <i class="iconoir-nav-arrow-right profile-settings-icon" aria-hidden="true"></i>
         </button>
       </aside>
 
@@ -41,13 +40,11 @@
             <span class="save-indicator"><span class="save-dot"></span><span id="save-status">Desat al dispositiu</span></span>
             <button class="button button-quiet" id="import-button" type="button" aria-label="Importa dades"><i class="iconoir-upload" aria-hidden="true"></i><span class="action-button-label"> Importa</span></button>
             <button class="button button-quiet" id="export-button" type="button" aria-label="Exporta dades JSON"><i class="iconoir-download" aria-hidden="true"></i><span class="action-button-label"> Exporta JSON</span></button>
-            <button class="button button-quiet" id="drive-save-button" type="button" aria-label="Desa a Google Drive" title="Desa a Google Drive"><i class="iconoir-cloud-upload" aria-hidden="true"></i><span class="drive-button-label"> Desa a Drive</span></button>
-            <button class="button button-quiet" id="drive-load-button" type="button" aria-label="Restaura des de Google Drive" title="Restaura des de Google Drive"><i class="iconoir-cloud-download" aria-hidden="true"></i><span class="drive-button-label"> Restaura Drive</span></button>
             <input id="import-file" type="file" accept="application/json,.json" hidden>
           </div>
         </header>
         <section id="app-content" class="content" aria-live="polite"></section>
-        <footer class="privacy-note"><i class="iconoir-shield-check" aria-hidden="true"></i> Les dades es desen al dispositiu. Si ho configures, també pots fer-ne una còpia privada a Google Drive.</footer>
+        <footer class="privacy-note"><i class="iconoir-shield-check" aria-hidden="true"></i> Les dades es desen al dispositiu.</footer>
       </main>
     </div>
     <dialog id="app-dialog" class="app-dialog">

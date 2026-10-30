@@ -1,23 +1,24 @@
 import {
   clone, DAILY_FOLLOWUP_CRITERIA, getActivityOffers,
-  getOfferingStudents, getSequenceActivities, getStudentEnrollment,
+  getOfferingStudents, getSequenceActivities, getSequenceItems, getStudentEnrollment,
   validateData as validateStoredData
 } from "./js/data.js";
 import { data, state, setData } from "./js/state.js";
 import {
   setView, render, getClassGroup, classGroupOptions, subgroupOptions,
   renderClassGroups, renderSubjectDetail, renderLevelDetail, renderLevelSequence, renderActivityDetail, renderActivityStudentReport, renderStudentDetail, renderStudentSubjectReport, studentDisplayName,
-  updateActivityAssessmentRow
+  updateActivityAssessmentRow, refreshActivityGroups, competencyOutcomeMarkup, competencyCriterionMarkup, competencyTagChip
 } from "./js/views.js";
 import {
   SCORE_BY_LEVEL, getAssessment as calculateAssessment, getActivityGrade as calculateActivityGrade
 } from "./js/grades.js";
 import { sampleData } from "./js/sample-data.js";
+import { startIconDecorator } from "./js/decorate-icons.js";
 import { escapeHtml, icon, formatDate, gradeColorClass } from "./js/formatting.js";
 import { EDUCATIONAL_LEVELS } from "./js/education.js";
-import { loadFromDrive, saveToDrive } from "./js/drive.js";
-import { getGoogleClientId, saveGoogleClientId } from "./js/config.js";
-import { openActivityReport } from "./js/activity-report.js";
+import { withoutUnmodifiedBank, getBankCompetency } from "./js/competency-bank.js";
+import { openActivityReport, openActivityGroupReports } from "./js/activity-report.js";
+import { exportActivityTable, exportActivityGroupsTable } from "./js/activity-export.js";
 
 const STORAGE_KEY = "avaluatro.data.v1";
 const content = document.querySelector("#app-content");
@@ -31,13 +32,14 @@ function loadData() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (!saved) {
     const initialData = validateData(clone(sampleData));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(initialData));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(withoutUnmodifiedBank(initialData)));
     return initialData;
   }
   const storedData = JSON.parse(saved);
   const validatedData = validateData(storedData);
-  if (JSON.stringify(validatedData) !== saved) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(validatedData));
+  const serialized = JSON.stringify(withoutUnmodifiedBank(validatedData));
+  if (serialized !== saved) {
+    localStorage.setItem(STORAGE_KEY, serialized);
   }
   return validatedData;
 }
@@ -56,7 +58,7 @@ function validateData(value) {
 
 function saveData() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(withoutUnmodifiedBank(data)));
     setSaveStatus("Desat al dispositiu");
     return true;
   } catch (error) {
@@ -98,11 +100,6 @@ function showToast(message, isError = false) {
   toastTimer = setTimeout(() => toast.classList.remove("visible"), 3300);
 }
 
-function updateDriveProfileStatus() {
-  const status = document.querySelector("#drive-profile-status");
-  if (status) status.textContent = getGoogleClientId() ? "Google Drive preparat" : "Configura Google Drive";
-}
-
 function makeId(prefix) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
 }
@@ -117,34 +114,20 @@ function competencyOptions(selectedId = "") {
 
 function openDialog(title, subtitle, body, submitLabel) {
   dialogContent.innerHTML = `<div class="dialog-heading"><div><h2>${title}</h2><p>${subtitle}</p></div><button class="icon-button" type="button" data-close-dialog aria-label="Tanca">${icon("xmark")}</button></div>${body}
-    <div class="form-actions"><span></span><div class="form-actions-right"><button class="button" type="button" data-close-dialog>Cancel·la</button><button class="button button-primary" type="submit">${submitLabel}</button></div></div>`;
+    <div class="form-actions"><span></span><div class="form-actions-right"><button class="button" type="button" data-close-dialog>${icon("xmark")} Cancel·la</button><button class="button button-primary" type="submit">${icon("check")} ${submitLabel}</button></div></div>`;
   dialog.showModal();
   dialogContent.querySelector("input, select, textarea")?.focus();
 }
 
-function openDriveSettingsDialog() {
-  openDialog("Configura Google Drive", "Introdueix el Client ID OAuth públic de la teva aplicació. Després, Google et demanarà que triïs el compte i n’autoritzi l’accés per desar la còpia actual.", `<div class="form-grid">
-    <div class="field full"><label for="google-client-id">Client ID d’aplicació web</label><input id="google-client-id" name="clientId" type="text" required autocomplete="off" spellcheck="false" placeholder="123456789-abc.apps.googleusercontent.com" value="${escapeHtml(getGoogleClientId())}"><span class="field-hint">No introdueixis la contrasenya de Gmail ni un secret de client. L’inici de sessió es fa a la pàgina segura de Google.</span></div>
-    <div class="field full"><span class="field-hint">A Google Cloud Console, activa Google Drive API, crea un Client ID OAuth de tipus aplicació web i afegeix aquest origen com a origen JavaScript autoritzat: <strong>${escapeHtml(globalThis.location.origin)}</strong>. La còpia s’emmagatzema a l’àrea privada de l’aplicació.</span></div>
-    <div class="field full"><a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">Obre les credencials de Google Cloud</a></div>
-  </div>`, "Desa i connecta");
-  dialogForm.dataset.formType = "drive-settings";
+function openTeacherProfileDialog() {
+  const profile = data.teacherProfile;
+  openDialog("Edita el perfil docent", "Aquestes dades es desen al dispositiu i s'inclouen a les còpies de les teves dades.", `<div class="form-grid">
+    <div class="field full"><label for="teacher-profile-name">Nom i cognoms</label><input id="teacher-profile-name" name="name" type="text" maxlength="120" autocomplete="name" value="${escapeHtml(profile.name)}"></div>
+    <div class="field full"><label for="teacher-profile-role">Funció professional</label><input id="teacher-profile-role" name="role" type="text" maxlength="120" placeholder="Ex.: Professor/a de tecnologia" value="${escapeHtml(profile.role)}"></div>
+    <div class="field full"><label for="teacher-profile-institution">Centre educatiu</label><input id="teacher-profile-institution" name="institution" type="text" maxlength="120" autocomplete="organization" value="${escapeHtml(profile.institution)}"></div>
+  </div>`, "Desa el perfil");
+  dialogForm.dataset.formType = "teacher-profile";
   dialogForm.dataset.recordId = "";
-}
-
-async function connectDriveAndBackup(clientId, submitButton) {
-  submitButton.disabled = true;
-  try {
-    saveGoogleClientId(clientId);
-    updateDriveProfileStatus();
-    await saveToDrive(data);
-    dialog.close();
-    showToast("Compte autoritzat i còpia desada a Google Drive.");
-  } catch (error) {
-    showToast(`No s'ha pogut connectar o desar la còpia a Google Drive: ${error.message}`, true);
-  } finally {
-    submitButton.disabled = false;
-  }
 }
 
 function openStudentDialog() {
@@ -337,10 +320,16 @@ function educationalLevelOptions(selectedLevel = "") {
   return `<option value="">Sense nivell</option>${EDUCATIONAL_LEVELS.map(stage => `<optgroup label="${escapeHtml(stage.stage)}">${stage.levels.map(level => `<option value="${escapeHtml(level)}" ${selectedLevel === level ? "selected" : ""}>${escapeHtml(level)}</option>`).join("")}</optgroup>`).join("")}`;
 }
 
-function subjectSequenceItem(index, item = null) {
+function subjectSequenceItem(index, item = null, kind = item?.kind === "lecture" ? "lecture" : "activity") {
+  if (kind === "lecture") {
+    return `<article class="subject-sequence-item" data-sequence-kind="lecture"><div class="subject-sequence-heading"><strong>Element ${index + 1} · Classe</strong><div><button class="text-button" type="button" data-move-sequence="-1" aria-label="Mou amunt">${icon("nav-arrow-up")}</button><button class="text-button" type="button" data-move-sequence="1" aria-label="Mou avall">${icon("nav-arrow-down")}</button><button class="text-button danger-text" type="button" data-remove-sequence-item>${icon("trash")} Elimina</button></div></div>
+    <input type="hidden" name="sequenceItemId" value="${escapeHtml(item?.id || "")}">
+    <div class="form-grid"><div class="field"><label>Títol de la classe</label><input name="sequenceTitle" type="text" maxlength="140" required placeholder="Ex.: Introducció al cicle de vida" value="${escapeHtml(item?.title || "")}"></div>
+      <div class="field"><label>Temporització (hores)</label><input name="sequenceHours" type="number" min="0.25" max="1000" step="0.25" value="${item ? Number(item.hours) : 1}" required></div></div></article>`;
+  }
   const selectedActivityId = item?.activityId || data.activities[0]?.id || "";
   const activities = data.activities.map(activity => `<option value="${escapeHtml(activity.id)}" ${selectedActivityId === activity.id ? "selected" : ""}>${escapeHtml(activity.title)} · ${escapeHtml(activity.type)}</option>`).join("");
-  return `<article class="subject-sequence-item"><div class="subject-sequence-heading"><strong>Activitat ${index + 1}</strong><div><button class="text-button" type="button" data-move-sequence="-1" aria-label="Mou amunt">${icon("nav-arrow-up")}</button><button class="text-button" type="button" data-move-sequence="1" aria-label="Mou avall">${icon("nav-arrow-down")}</button><button class="text-button danger-text" type="button" data-remove-sequence-item>Elimina</button></div></div>
+  return `<article class="subject-sequence-item" data-sequence-kind="activity"><div class="subject-sequence-heading"><strong>Element ${index + 1} · Activitat</strong><div><button class="text-button" type="button" data-move-sequence="-1" aria-label="Mou amunt">${icon("nav-arrow-up")}</button><button class="text-button" type="button" data-move-sequence="1" aria-label="Mou avall">${icon("nav-arrow-down")}</button><button class="text-button danger-text" type="button" data-remove-sequence-item>${icon("trash")} Elimina</button></div></div>
     <input type="hidden" name="sequenceItemId" value="${escapeHtml(item?.id || "")}">
     <div class="form-grid"><div class="field"><label>Activitat o examen</label><select name="sequenceActivityId" required ${data.activities.length ? "" : "disabled"}>${activities || '<option value="">Crea primer una activitat</option>'}</select></div>
       <div class="field"><label>Temporització (hores)</label><input name="sequenceHours" type="number" min="0.25" max="1000" step="0.25" value="${item ? Number(item.hours) : 1}" required></div></div></article>`;
@@ -352,12 +341,12 @@ function subjectSequenceSituation(index, situation = null) {
     <div class="subject-sequence-situation-heading"><strong>Situació d'aprenentatge ${index + 1}</strong><div>
       <button class="text-button" type="button" data-move-situation="-1" aria-label="Mou situació amunt">${icon("nav-arrow-up")}</button>
       <button class="text-button" type="button" data-move-situation="1" aria-label="Mou situació avall">${icon("nav-arrow-down")}</button>
-      <button class="text-button danger-text" type="button" data-remove-situation>Elimina situació</button>
+      <button class="text-button danger-text" type="button" data-remove-situation>${icon("trash")} Elimina situació</button>
     </div></div>
     <input type="hidden" name="sequenceSituationId" value="${escapeHtml(situation?.id || "")}">
     <div class="field"><label>Nom de la situació d'aprenentatge</label><input name="sequenceSituationName" type="text" maxlength="100" value="${escapeHtml(situation?.name || `Situació d'aprenentatge ${index + 1}`)}" required></div>
     <div class="subject-sequence-activities">${activities.map((item, activityIndex) => subjectSequenceItem(activityIndex, item)).join("")}</div>
-    <button class="button" type="button" data-add-situation-sequence-item ${data.activities.length ? "" : "disabled"}>${icon("plus")} Afegeix activitat a la situació</button>
+    <div class="sequence-add-buttons"><button class="button" type="button" data-add-situation-sequence-item ${data.activities.length ? "" : "disabled"}>${icon("plus")} Afegeix activitat a la situació</button><button class="button" type="button" data-add-situation-lecture-item>${icon("plus")} Afegeix classe a la situació</button></div>
   </section>`;
 }
 
@@ -476,19 +465,114 @@ function openSequenceActivityDialog(situationId) {
   dialogForm.querySelector('[type="submit"]').disabled = !availableActivities.length;
 }
 
-function openCompetencyDialog(competencyId = null) {
-  const competency = competencyId ? data.competencies.find(item => item.id === competencyId) : null;
-  if (competencyId && !competency) {
-    showToast("No s'ha trobat la competència que vols editar.", true);
+function openSequenceLectureDialog(situationId) {
+  const context = getSelectedSequenceLevel();
+  const situation = context?.level.situations.find(item => item.id === situationId);
+  if (!situation) {
+    showToast("No s'ha trobat la situació d'aprenentatge seleccionada.", true);
     return;
   }
-  const editing = Boolean(competency);
-  openDialog(editing ? "Edita la competència" : "Crea una competència", "Descriu una capacitat observable que l'alumnat desenvoluparà.", `<div class="form-grid">
-    <div class="field full"><label for="competency-name">Nom de la competència</label><input id="competency-name" name="name" required maxlength="140" placeholder="Ex.: Avaluar l'impacte ecològic d'una tecnologia" value="${escapeHtml(competency?.name || "")}"></div>
-    <div class="field full"><label for="competency-description">Descripció</label><textarea id="competency-description" name="description" maxlength="500" placeholder="Quines accions o coneixements demostren aquesta competència?">${escapeHtml(competency?.description || "")}</textarea></div>
-  </div>`, editing ? "Desa els canvis" : "Desa la competència");
-  dialogForm.dataset.formType = editing ? "edit-competency" : "competency";
-  dialogForm.dataset.recordId = competency?.id || "";
+  openDialog("Afegeix una classe a la situació", `La classe s'afegirà a «${escapeHtml(situation.name)}». No s'avalua amb rúbrica: l'alumnat es segueix amb el seguiment diari.`, `<div class="form-grid">
+    <div class="field full"><label for="sequence-lecture-title">Títol de la classe</label><input id="sequence-lecture-title" name="sequenceTitle" type="text" maxlength="140" required placeholder="Ex.: Introducció al cicle de vida"></div>
+    <div class="field"><label>Inversió de temps (hores)</label><input name="sequenceHours" type="number" min="0.25" max="1000" step="0.25" value="1" required></div>
+  </div>`, "Afegeix classe");
+  dialogForm.dataset.formType = "sequence-lecture";
+  dialogForm.dataset.recordId = context.level.id;
+  dialogForm.dataset.situationId = situation.id;
+}
+
+function openActivityGroupDialog(groupId = null) {
+  const activity = data.activities.find(item => item.id === state.selectedActivityId);
+  const offering = data.teachingOffers.find(item => item.id === state.selectedOfferingId);
+  if (!activity || !offering) {
+    showToast("Selecciona una oferta per crear agrupaments.", true);
+    return;
+  }
+  const group = groupId ? activity.groups.find(item => item.id === groupId) : null;
+  const students = getOfferingStudents(data, offering).filter(student => {
+    const owner = activity.groups.find(item => item.studentIds.includes(student.id));
+    return !owner || owner.id === groupId;
+  }).sort((a, b) => studentDisplayName(a).localeCompare(studentDisplayName(b), "ca"));
+  openDialog(group ? "Edita l'agrupament" : "Crea un agrupament", "Cada alumne pot pertànyer a un sol agrupament dins l'activitat.", `<div class="form-grid">
+    <div class="field full"><label for="activity-group-name">Nom de l'agrupament</label><input id="activity-group-name" name="groupName" type="text" maxlength="60" required value="${escapeHtml(group?.name || "")}"></div>
+    <div class="field full"><label for="activity-group-search">Membres</label>
+      <div class="member-chips" id="activity-group-chips" aria-live="polite"></div>
+      <div class="member-picker"><input id="activity-group-search" type="search" autocomplete="off" placeholder="Cerca un alumne per afegir-lo…" role="combobox" aria-expanded="false" aria-controls="activity-group-options" ${students.length ? "" : "disabled"}><div class="member-picker-options" id="activity-group-options" role="listbox" hidden></div></div>
+      ${students.length ? "" : '<p class="section-caption">Tots els alumnes ja tenen agrupament.</p>'}</div>
+  </div>`, group ? "Desa" : "Crea agrupament");
+  dialogForm.dataset.formType = "activity-group";
+  dialogForm.dataset.recordId = groupId || "";
+  setupActivityGroupMemberPicker(students, new Set(group?.studentIds || []));
+}
+
+function setupActivityGroupMemberPicker(students, selected) {
+  const search = dialogForm.querySelector("#activity-group-search");
+  const options = dialogForm.querySelector("#activity-group-options");
+  const chips = dialogForm.querySelector("#activity-group-chips");
+  const renderChips = () => {
+    chips.innerHTML = students.filter(student => selected.has(student.id)).map(student =>
+      `<span class="member-chip">${escapeHtml(studentDisplayName(student))}<input type="hidden" name="groupStudent" value="${escapeHtml(student.id)}"><button type="button" data-remove-member="${escapeHtml(student.id)}" aria-label="Treu ${escapeHtml(studentDisplayName(student))}">${icon("xmark")}</button></span>`).join("");
+  };
+  const matches = () => {
+    const query = search.value.trim().toLowerCase();
+    return students.filter(student => !selected.has(student.id) &&
+      (!query || `${studentDisplayName(student)} ${student.lastName} ${student.firstName}`.toLowerCase().includes(query)));
+  };
+  const renderOptions = () => {
+    const found = matches();
+    options.innerHTML = found.length
+      ? found.map(student => `<button type="button" role="option" data-add-member="${escapeHtml(student.id)}">${escapeHtml(studentDisplayName(student))}</button>`).join("")
+      : '<span class="member-picker-empty">Cap alumne disponible</span>';
+    options.hidden = false;
+    search.setAttribute("aria-expanded", "true");
+  };
+  const closeOptions = () => {
+    options.hidden = true;
+    search.setAttribute("aria-expanded", "false");
+  };
+  const add = id => {
+    selected.add(id);
+    search.value = "";
+    renderChips();
+    renderOptions();
+    search.focus();
+  };
+  search.addEventListener("focus", renderOptions);
+  search.addEventListener("input", renderOptions);
+  search.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const first = matches()[0];
+      if (first) add(first.id);
+    } else if (event.key === "Escape" && !options.hidden) {
+      event.stopPropagation();
+      event.preventDefault();
+      closeOptions();
+    }
+  });
+  options.addEventListener("mousedown", event => event.preventDefault());
+  options.addEventListener("click", event => {
+    const button = event.target.closest("[data-add-member]");
+    if (button) add(button.dataset.addMember);
+  });
+  chips.addEventListener("click", event => {
+    const button = event.target.closest("[data-remove-member]");
+    if (!button) return;
+    selected.delete(button.dataset.removeMember);
+    renderChips();
+    if (!options.hidden) renderOptions();
+  });
+  search.addEventListener("blur", closeOptions);
+  renderChips();
+}
+
+function openCompetencyDialog() {
+  openDialog("Crea una competència", "Descriu una capacitat observable. Després hi podràs afegir resultats d'aprenentatge i criteris d'avaluació.", `<div class="form-grid">
+    <div class="field full"><label for="competency-name">Nom de la competència</label><input id="competency-name" name="name" required maxlength="140" placeholder="Ex.: Avaluar l'impacte ecològic d'una tecnologia"></div>
+    <div class="field full"><label for="competency-description">Descripció</label><textarea id="competency-description" name="description" maxlength="500" placeholder="Quines accions o coneixements demostren aquesta competència?"></textarea></div>
+  </div>`, "Desa la competència");
+  dialogForm.dataset.formType = "competency";
+  dialogForm.dataset.recordId = "";
 }
 
 function evidenceFormItem(index, evidence = null) {
@@ -498,14 +582,14 @@ function evidenceFormItem(index, evidence = null) {
     .map(competency => evidenceCompetencyField(competency, evidence?.contributions[competency.id] ?? 100))
     .join("");
   const availableCompetencies = data.competencies.filter(competency => !selectedCompetencies.has(competency.id));
-  return `<div class="rubric-form-item evidence-form-item"><div class="rubric-form-heading"><div class="rubric-form-title">Evidència ${index + 1}</div><button class="text-button rubric-remove" type="button" data-remove-evidence aria-label="Elimina aquesta evidència">Elimina</button></div>
+  return `<div class="rubric-form-item evidence-form-item"><div class="rubric-form-heading"><div class="rubric-form-title">Evidència ${index + 1}</div><button class="text-button rubric-remove" type="button" data-remove-evidence aria-label="Elimina aquesta evidència">${icon("trash")} Elimina</button></div>
     <input name="evidenceId" type="hidden" value="${escapeHtml(evidence?.id || "")}">
     <div class="field"><label>Quina evidència s'observarà?</label><input name="evidenceName" required maxlength="100" placeholder="${index === 0 ? "Ex.: Anàlisi de l'impacte ambiental" : "Ex.: Argumentació amb dades"}" value="${escapeHtml(evidence?.name || "")}"></div>
     <div class="field"><label>Competències a les quals contribueix</label><div class="evidence-competencies">${competencyFields}</div><div class="evidence-competency-warning" role="status" ${selectedCompetencies.size ? "hidden" : ""}>${icon("warning-triangle")} Aquesta evidència no contribueix a cap competència. Afegeix-ne una per poder desar la rúbrica.</div><div class="evidence-competency-add"><select data-evidence-competency-select aria-label="Selecciona una competència" ${availableCompetencies.length ? "" : "disabled"}>${availableCompetencies.length ? availableCompetencies.map(competency => `<option value="${escapeHtml(competency.id)}">${escapeHtml(competency.name)}</option>`).join("") : '<option value="">Totes les competències afegides</option>'}</select><button class="button" type="button" data-add-evidence-competency ${availableCompetencies.length ? "" : "disabled"}>${icon("plus")} Afegeix competència</button></div><span class="field-hint">Defineix l'aportació a cada competència. La suma determina el pes total de l'evidència en la nota de l'activitat.</span></div></div>`;
 }
 
 function evidenceCompetencyField(competency, weight) {
-  return `<div class="evidence-competency-row"><input type="hidden" name="evidenceCompetencyId" value="${escapeHtml(competency.id)}"><span class="evidence-competency-name">${escapeHtml(competency.name)}</span><label class="evidence-contribution"><span>Aportació</span><input type="number" min="1" max="100" step="1" value="${Number(weight)}" data-evidence-contribution="${escapeHtml(competency.id)}" aria-label="Aportació de ${escapeHtml(competency.name)}" required><span>%</span></label><button class="text-button rubric-remove" type="button" data-remove-evidence-competency="${escapeHtml(competency.id)}" aria-label="Treu ${escapeHtml(competency.name)}">Treu</button></div>`;
+  return `<div class="evidence-competency-row"><input type="hidden" name="evidenceCompetencyId" value="${escapeHtml(competency.id)}"><span class="evidence-competency-name">${escapeHtml(competency.name)}</span><label class="evidence-contribution"><span>Aportació</span><input type="number" min="1" max="100" step="1" value="${Number(weight)}" data-evidence-contribution="${escapeHtml(competency.id)}" aria-label="Aportació de ${escapeHtml(competency.name)}" required><span>%</span></label><button class="text-button rubric-remove" type="button" data-remove-evidence-competency="${escapeHtml(competency.id)}" aria-label="Treu ${escapeHtml(competency.name)}">${icon("xmark")} Treu</button></div>`;
 }
 
 function syncEvidenceWarning(evidenceItem) {
@@ -537,23 +621,23 @@ function openActivityDialog(activityId = null) {
     return;
   }
   const editing = Boolean(activity);
-  const typeOptions = ["Prova", "Projecte en grup", "Activitat", "Presentació", "Magistral"];
+  const typeOptions = ["Prova", "Activitat"];
   if (activity && !typeOptions.includes(activity.type)) typeOptions.push(activity.type);
-  openDialog(editing ? "Edita l'activitat i la rúbrica" : "Crea una activitat", editing ? "Actualitza els detalls i les evidències. Les avaluacions existents es conserven per a les evidències que mantinguis." : "Defineix una prova o un projecte i les evidències que permetran avaluar l'alumnat.", `<div class="form-grid">
+  openDialog(editing ? "Edita l'activitat i la rúbrica" : "Crea una activitat", editing ? "Actualitza els detalls i les evidències. Les avaluacions existents es conserven per a les evidències que mantinguis." : "Defineix una prova o una activitat i les evidències que permetran avaluar l'alumnat.", `<div class="form-grid">
     <div class="field full"><label for="activity-title">Nom de l'activitat</label><input id="activity-title" name="title" required maxlength="140" placeholder="Ex.: Projecte de sostenibilitat" value="${escapeHtml(activity?.title || "")}"></div>
     <div class="field"><label for="activity-type">Tipus</label><select id="activity-type" name="type">${typeOptions.map(type => `<option ${activity?.type === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></div>
     <div class="field"><label for="activity-date">Data (opcional)</label><input id="activity-date" name="date" type="date" value="${escapeHtml(activity?.date || "")}"></div>
+    <div class="field full"><label class="checkbox-option"><input type="checkbox" name="isGroup" ${activity?.isGroup ? "checked" : ""}> Activitat en grup (permet crear agrupaments d'alumnes)</label></div>
   </div>
-  <div data-rubric-section ${activity?.type === "Magistral" ? "hidden" : ""}><div class="panel-heading" style="margin:15px 0 10px"><div><h3 class="section-title">Evidències de la rúbrica</h3><span class="section-caption">Cada evidència pot contribuir a una o més competències amb pesos independents. Una activitat sense evidències no és avaluable.</span></div></div>
+  <div data-rubric-section><div class="panel-heading" style="margin:15px 0 10px"><div><h3 class="section-title">Evidències de la rúbrica</h3><span class="section-caption">Cada evidència pot contribuir a una o més competències amb pesos independents. Una activitat sense evidències no és avaluable.</span></div></div>
   <div id="rubric-form-list" class="rubric-form-list">${activity ? activity.evidences.map((evidence, index) => evidenceFormItem(index, evidence)).join("") : evidenceFormItem(0)}</div>
   <button class="button" type="button" data-add-evidence style="margin-top:10px">${icon("plus")} Afegeix evidència</button></div>`, editing ? "Desa els canvis" : "Desa l'activitat");
-  if (activity?.type === "Magistral") dialogContent.querySelectorAll("[data-rubric-section] [required]").forEach(input => { input.disabled = true; });
   dialogForm.dataset.formType = editing ? "edit-activity" : "activity";
   dialogForm.dataset.recordId = activity?.id || "";
 }
 
 function exportData() {
-  const blob = new Blob([`${JSON.stringify(data, null, 2)}\n`], { type: "application/json" });
+  const blob = new Blob([`${JSON.stringify(withoutUnmodifiedBank(data), null, 2)}\n`], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -588,54 +672,10 @@ function importData(file) {
   reader.readAsText(file);
 }
 
-async function backupToDrive() {
-  const button = document.querySelector("#drive-save-button");
-  button.disabled = true;
-  try {
-    await saveToDrive(data);
-    showToast("Còpia desada a la carpeta privada de l'aplicació a Google Drive.");
-  } catch (error) {
-    showToast(`No s'ha pogut desar la còpia a Google Drive: ${error.message}`, true);
-  } finally {
-    button.disabled = false;
-  }
-}
-
-async function restoreFromDrive() {
-  const button = document.querySelector("#drive-load-button");
-  button.disabled = true;
-  try {
-    const stored = await loadFromDrive();
-    if (!stored) {
-      showToast("No hi ha cap còpia d'Avaluatró a Google Drive.", true);
-      return;
-    }
-    const imported = validateData(stored);
-    if (!globalThis.confirm("La còpia de Google Drive substituirà totes les dades actuals d'aquest dispositiu. Vols continuar?")) return;
-    const previous = data;
-    setData(imported);
-    if (!saveData()) {
-      setData(previous);
-      return;
-    }
-    state.currentView = "overview";
-    state.selectedActivityId = null;
-    state.selectedStudentId = null;
-    render();
-    showToast("Còpia de Google Drive restaurada correctament.");
-  } catch (error) {
-    showToast(`No s'ha pogut restaurar la còpia de Google Drive: ${error.message}`, true);
-  } finally {
-    button.disabled = false;
-  }
-}
-
 document.querySelectorAll(".nav-link").forEach(button => button.addEventListener("click", () => setView(button.dataset.view)));
 document.querySelector("#export-button").addEventListener("click", exportData);
-document.querySelector("#teacher-profile-button").addEventListener("click", openDriveSettingsDialog);
+document.querySelector("#teacher-profile-button").addEventListener("click", () => setView("teacher-profile"));
 document.querySelector("#import-button").addEventListener("click", () => document.querySelector("#import-file").click());
-document.querySelector("#drive-save-button").addEventListener("click", backupToDrive);
-document.querySelector("#drive-load-button").addEventListener("click", restoreFromDrive);
 document.querySelector("#import-file").addEventListener("change", event => {
   const file = event.target.files?.[0];
   if (file) importData(file);
@@ -643,10 +683,29 @@ document.querySelector("#import-file").addEventListener("change", event => {
 });
 
 document.addEventListener("click", event => {
+  const groupTableExportButton = event.target.closest("[data-export-activity-groups]");
+  if (groupTableExportButton) {
+    const result = exportActivityGroupsTable(groupTableExportButton.dataset.exportActivityGroups);
+    groupTableExportButton.closest("details")?.removeAttribute("open");
+    showToast(result.message, !result.ok);
+    return;
+  }
+  const tableExportButton = event.target.closest("[data-export-activity-table]");
+  if (tableExportButton) {
+    const result = exportActivityTable(tableExportButton.dataset.exportActivityTable);
+    tableExportButton.closest("details")?.removeAttribute("open");
+    showToast(result.message, !result.ok);
+    return;
+  }
   const studentReportButton = event.target.closest("[data-export-student-report]");
   const activityReportsButton = event.target.closest("[data-export-activity-reports]");
-  if (studentReportButton || activityReportsButton) {
-    const opened = openActivityReport(studentReportButton?.dataset.exportStudentReport || null);
+  const activityGroupReportsButton = event.target.closest("[data-export-activity-group-reports]");
+  if (studentReportButton || activityReportsButton || activityGroupReportsButton) {
+    const exportButton = activityReportsButton || activityGroupReportsButton;
+    exportButton?.closest("details")?.removeAttribute("open");
+    const opened = activityGroupReportsButton
+      ? openActivityGroupReports()
+      : openActivityReport(studentReportButton?.dataset.exportStudentReport || null);
     if (!opened) showToast("No s'ha pogut obrir l'informe. Permet les finestres emergents per desar-lo com a PDF.", true);
     return;
   }
@@ -662,6 +721,7 @@ document.addEventListener("click", event => {
     if (action === "create-additional-group") openAdditionalGroupDialog();
     if (action === "edit-level") openLevelDialog(state.selectedLevelId);
     if (action === "add-learning-situation") openLearningSituationDialog();
+    if (action === "edit-teacher-profile") openTeacherProfileDialog();
   }
   const navigateButton = event.target.closest("[data-navigate]");
   if (navigateButton) setView(navigateButton.dataset.navigate);
@@ -699,6 +759,8 @@ document.addEventListener("click", event => {
   if (addLearningSituationButton) openLearningSituationDialog();
   const addSituationActivityButton = event.target.closest("[data-add-situation-activity]");
   if (addSituationActivityButton) openSequenceActivityDialog(addSituationActivityButton.dataset.addSituationActivity);
+  const addSituationLectureButton = event.target.closest("[data-add-situation-lecture]");
+  if (addSituationLectureButton) openSequenceLectureDialog(addSituationLectureButton.dataset.addSituationLecture);
   if (event.target.closest("[data-open-level-progress]")) {
     state.selectedSequence = false;
     document.querySelector("#current-section").textContent = "Assignatures";
@@ -723,6 +785,9 @@ document.addEventListener("click", event => {
       (!state.selectedLevelId || offer.levelId === state.selectedLevelId)
     );
     state.selectedOfferingId = offers.length === 1 ? offers[0].id : null;
+    if (activityButton.dataset.offeringId && offers.some(offer => offer.id === activityButton.dataset.offeringId)) {
+      state.selectedOfferingId = activityButton.dataset.offeringId;
+    }
     if (offers.length === 1) {
       state.selectedSubjectId = offers[0].subjectId;
       state.selectedLevelId = offers[0].levelId;
@@ -731,6 +796,48 @@ document.addEventListener("click", event => {
     document.querySelectorAll(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.view === "activities"));
     document.querySelector("#current-section").textContent = "Activitats i proves";
     renderActivityDetail();
+  }
+  const dailyTaskButton = event.target.closest("[data-open-daily]");
+  if (dailyTaskButton) {
+    state.dailySelectedSubjectId = dailyTaskButton.dataset.subjectId;
+    state.dailySelectedDate = "";
+    state.dailySelectedClassGroupId = dailyTaskButton.dataset.classGroupId;
+    state.dailySelectedAdditionalGroupId = dailyTaskButton.dataset.additionalGroupId;
+    state.dailySelectedSubgroupId = "";
+    setView("daily-followup");
+  }
+  const gradingModeButton = event.target.closest("[data-set-grading-mode]");
+  if (gradingModeButton) {
+    const activity = data.activities.find(item => item.id === state.selectedActivityId);
+    const mode = gradingModeButton.dataset.setGradingMode === "group" ? "group" : "individual";
+    if (activity && activity.groupGrading !== mode) {
+      activity.groupGrading = mode;
+      saveData();
+      renderActivityDetail();
+      showToast(mode === "group" ? "Qualificació en grup activada." : "Qualificació individual activada.");
+    }
+    return;
+  }
+  if (event.target.closest("[data-create-activity-group]")) {
+    openActivityGroupDialog();
+    return;
+  }
+  const editActivityGroupButton = event.target.closest("[data-edit-activity-group]");
+  if (editActivityGroupButton) {
+    openActivityGroupDialog(editActivityGroupButton.dataset.editActivityGroup);
+    return;
+  }
+  const deleteActivityGroupButton = event.target.closest("[data-delete-activity-group]");
+  if (deleteActivityGroupButton) {
+    const activity = data.activities.find(item => item.id === state.selectedActivityId);
+    const group = activity?.groups.find(item => item.id === deleteActivityGroupButton.dataset.deleteActivityGroup);
+    if (group && globalThis.confirm(`Vols eliminar l'agrupament «${group.name}»? Les notes dels alumnes es conserven.`)) {
+      activity.groups = activity.groups.filter(item => item !== group);
+      saveData();
+      renderActivityDetail();
+      showToast("Agrupament eliminat.");
+    }
+    return;
   }
   const studentActivityReportButton = event.target.closest("[data-open-student-activity-report]");
   if (studentActivityReportButton) {
@@ -746,7 +853,11 @@ document.addEventListener("click", event => {
   const editActivityButton = event.target.closest("[data-edit-activity]");
   if (editActivityButton) openActivityDialog(editActivityButton.dataset.editActivity);
   const editCompetencyButton = event.target.closest("[data-edit-competency]");
-  if (editCompetencyButton) openCompetencyDialog(editCompetencyButton.dataset.editCompetency);
+  if (editCompetencyButton) {
+    state.selectedCompetencyId = editCompetencyButton.dataset.editCompetency;
+    render();
+    window.scrollTo(0, 0);
+  }
   const editStudentButton = event.target.closest("[data-edit-student]");
   if (editStudentButton) openStudentDialogFor(editStudentButton.dataset.editStudent);
   const editClassGroupButton = event.target.closest("[data-edit-class-group]");
@@ -788,6 +899,55 @@ document.addEventListener("click", event => {
     state.selectedStudentLevelId = studentSubjectButton.dataset.studentLevelId;
     state.selectedSubjectId = state.selectedStudentSubjectId;
     renderStudentSubjectReport();
+  }
+  const competencyForm = event.target.closest("#competency-form");
+  if (competencyForm) {
+    const outcomes = competencyForm.querySelector("#competency-outcomes");
+    if (event.target.closest("[data-add-outcome]")) {
+      outcomes.insertAdjacentHTML("beforeend", competencyOutcomeMarkup({ id: makeId("ra"), name: "", description: "", criteria: [] }));
+      outcomes.lastElementChild.querySelector("input").focus();
+    }
+    const addCriterion = event.target.closest("[data-add-criterion]");
+    if (addCriterion) {
+      const list = addCriterion.closest(".outcome-item").querySelector(".criteria-list");
+      list.insertAdjacentHTML("beforeend", competencyCriterionMarkup({ id: makeId("ce"), text: "" }));
+      list.lastElementChild.querySelector("input").focus();
+    }
+    const addTag = event.target.closest("[data-add-tag]");
+    if (addTag) {
+      const editor = addTag.closest(".tag-editor");
+      const select = editor.querySelector("[data-tag-select]");
+      const newInput = editor.querySelector("[data-tag-new]");
+      const value = (newInput?.value.trim() || select.value);
+      if (newInput) newInput.value = "";
+      const list = editor.querySelector(".tag-list");
+      const exists = [...list.querySelectorAll("input")].some(input => input.value === value);
+      if (value && !exists) {
+        list.insertAdjacentHTML("beforeend", competencyTagChip(editor.dataset.tagName, value));
+        select.querySelector(`option[value="${CSS.escape(value)}"]`)?.remove();
+      }
+      select.value = "";
+    }
+    event.target.closest("[data-remove-tag]")?.closest(".tag-chip").remove();
+    event.target.closest("[data-remove-criterion]")?.closest(".criterion-row").remove();
+    event.target.closest("[data-remove-outcome]")?.closest(".outcome-item").remove();
+    if (event.target.closest("[data-restore-competency]")) {
+      const original = getBankCompetency(competencyForm.dataset.competencyId);
+      const index = data.competencies.findIndex(item => item.id === competencyForm.dataset.competencyId);
+      if (original && index >= 0) {
+        const previousData = clone(data);
+        data.competencies[index] = original;
+        if (!saveData()) setData(previousData);
+        render();
+        showToast("Competència restaurada al valor del banc.");
+      }
+    }
+    return;
+  }
+  if (event.target.closest('[data-back="competencies"]')) {
+    state.selectedCompetencyId = null;
+    render();
+    return;
   }
   const backButton = event.target.closest("[data-back]");
   if (backButton) {
@@ -832,7 +992,6 @@ document.addEventListener("click", event => {
       state.selectedSequence = false;
     }
     render();
-    updateDriveProfileStatus();
   }
   if (event.target.closest("[data-close-dialog]")) dialog.close();
   const addStudentAdditionalGroupButton = event.target.closest("[data-add-student-additional-group]");
@@ -867,6 +1026,10 @@ document.addEventListener("click", event => {
     const list = dialogContent.querySelector("#subject-sequence-list");
     list.insertAdjacentHTML("beforeend", subjectSequenceSituation(list.children.length));
   }
+  if (event.target.closest("[data-add-situation-lecture-item]")) {
+    const list = event.target.closest(".subject-sequence-situation").querySelector(".subject-sequence-activities");
+    list.insertAdjacentHTML("beforeend", subjectSequenceItem(list.children.length, null, "lecture"));
+  }
   if (event.target.closest("[data-add-situation-sequence-item]")) {
     const situation = event.target.closest(".subject-sequence-situation");
     const list = situation.querySelector(".subject-sequence-activities");
@@ -897,7 +1060,7 @@ document.addEventListener("click", event => {
     if (direction < 0 && item.previousElementSibling) listMoveBefore(item, item.previousElementSibling);
     if (direction > 0 && item.nextElementSibling) listMoveBefore(item.nextElementSibling, item);
     list.querySelectorAll(".subject-sequence-item > .subject-sequence-heading > strong").forEach((label, index) => {
-      label.textContent = `Activitat ${index + 1}`;
+      label.textContent = `Element ${index + 1} · ${label.closest(".subject-sequence-item").dataset.sequenceKind === "lecture" ? "Classe" : "Activitat"}`;
     });
   }
   const removeSequenceItemButton = event.target.closest("[data-remove-sequence-item]");
@@ -906,7 +1069,7 @@ document.addEventListener("click", event => {
     const list = item.parentElement;
     item.remove();
     list.querySelectorAll(".subject-sequence-item > .subject-sequence-heading > strong").forEach((label, index) => {
-      label.textContent = `Activitat ${index + 1}`;
+      label.textContent = `Element ${index + 1} · ${label.closest(".subject-sequence-item").dataset.sequenceKind === "lecture" ? "Classe" : "Activitat"}`;
     });
   }
   if (event.target.closest("[data-add-evidence]")) {
@@ -949,12 +1112,6 @@ function listMoveBefore(item, reference) {
 }
 
 dialogContent.addEventListener("change", event => {
-  if (event.target.id === "activity-type") {
-    const section = dialogContent.querySelector("[data-rubric-section]");
-    section.hidden = event.target.value === "Magistral";
-    section.querySelectorAll("[required]").forEach(input => { input.disabled = section.hidden; });
-    return;
-  }
   if (event.target.id === "teaching-offer-year") {
     const classGroupIds = [...dialogContent.querySelectorAll('[name="offerClassGroupIds"]:checked')].map(input => input.value);
     const additionalGroupIds = [...dialogContent.querySelectorAll('[name="offerAdditionalGroupIds"]:checked')].map(input => input.value);
@@ -973,22 +1130,17 @@ dialogContent.addEventListener("change", event => {
 dialogForm.addEventListener("submit", event => {
   event.preventDefault();
   const formType = dialogForm.dataset.formType;
-  if (formType === "drive-settings") {
-    const clientId = String(new FormData(dialogForm).get("clientId") || "").trim();
-    if (!/^[\w-]+\.apps\.googleusercontent\.com$/.test(clientId)) {
-      showToast("Introdueix un Client ID OAuth d’aplicació web vàlid (acaba en .apps.googleusercontent.com).", true);
-      return;
-    }
-    try {
-      void connectDriveAndBackup(clientId, dialogForm.querySelector('[type="submit"]'));
-    } catch (error) {
-      showToast(`No s'ha pogut desar la configuració de Google Drive: ${error.message}`, true);
-    }
-    return;
-  }
   const recordId = dialogForm.dataset.recordId;
   const formData = new FormData(dialogForm);
   const previousData = clone(data);
+  if (formType === "teacher-profile") {
+    data.teacherProfile = {
+      name: String(formData.get("name") || "").trim(),
+      role: String(formData.get("role") || "").trim(),
+      institution: String(formData.get("institution") || "").trim()
+    };
+    state.currentView = "teacher-profile";
+  }
   if (formType === "learning-situation") {
     const level = data.subjects.find(subject => subject.id === state.selectedSubjectId)?.levels.find(item => item.id === recordId);
     if (!level) {
@@ -1005,6 +1157,44 @@ dialogForm.addEventListener("submit", event => {
       return;
     }
     level.situations.push({ id: makeId("sit"), name, activities: [] });
+    state.currentView = "subjects";
+    state.selectedSequence = true;
+  }
+  if (formType === "activity-group") {
+    const activity = data.activities.find(item => item.id === state.selectedActivityId);
+    const name = String(formData.get("groupName") || "").trim();
+    if (!activity || !name) {
+      showToast("Indica un nom per a l'agrupament.", true);
+      return;
+    }
+    if (activity.groups.some(item => item.id !== recordId && item.name.toLowerCase() === name.toLowerCase())) {
+      showToast("Ja hi ha un agrupament amb aquest nom.", true);
+      return;
+    }
+    const studentIds = formData.getAll("groupStudent").map(String);
+    const group = recordId ? activity.groups.find(item => item.id === recordId) : null;
+    if (group) {
+      const offeringIds = new Set(data.teachingOffers.find(item => item.id === state.selectedOfferingId) ? getOfferingStudents(data, data.teachingOffers.find(item => item.id === state.selectedOfferingId)).map(student => student.id) : []);
+      group.name = name;
+      group.studentIds = [...group.studentIds.filter(id => !offeringIds.has(id)), ...studentIds];
+    } else {
+      activity.groups.push({ id: makeId("grp"), name, studentIds });
+    }
+  }
+  if (formType === "sequence-lecture") {
+    const level = data.subjects.find(subject => subject.id === state.selectedSubjectId)?.levels.find(item => item.id === recordId);
+    const situation = level?.situations.find(item => item.id === dialogForm.dataset.situationId);
+    const title = String(formData.get("sequenceTitle") || "").trim();
+    const hours = Number(formData.get("sequenceHours"));
+    if (!level || !situation) {
+      showToast("No s'ha trobat la situació d'aprenentatge seleccionada.", true);
+      return;
+    }
+    if (!title || !Number.isFinite(hours) || hours <= 0) {
+      showToast("Revisa el títol i les hores de la classe.", true);
+      return;
+    }
+    situation.activities.push({ id: makeId("seq"), kind: "lecture", title, hours });
     state.currentView = "subjects";
     state.selectedSequence = true;
   }
@@ -1242,25 +1432,29 @@ dialogForm.addEventListener("submit", event => {
       return;
     }
     const existingSituations = new Map((level?.situations || []).map(situation => [situation.id, situation]));
-    const existingItems = new Map(getSequenceActivities(level || { situations: [] }).map(item => [item.id, item]));
+    const existingItems = new Map(getSequenceItems(level || { situations: [] }).map(item => [item.id, item]));
     const situations = [...dialogContent.querySelectorAll(".subject-sequence-situation")].map(situationElement => ({
       requestedId: situationElement.querySelector('[name="sequenceSituationId"]').value,
       name: situationElement.querySelector('[name="sequenceSituationName"]').value.trim(),
       activities: [...situationElement.querySelectorAll(".subject-sequence-item")].map(sequenceItem => ({
         requestedId: sequenceItem.querySelector('[name="sequenceItemId"]').value,
-        activityId: sequenceItem.querySelector('[name="sequenceActivityId"]').value,
+        kind: sequenceItem.dataset.sequenceKind,
+        title: sequenceItem.querySelector('[name="sequenceTitle"]')?.value.trim() || "",
+        activityId: sequenceItem.querySelector('[name="sequenceActivityId"]')?.value || "",
         hours: Number(sequenceItem.querySelector('[name="sequenceHours"]').value)
       }))
     }));
     const situationNames = situations.map(situation => situation.name.toLocaleLowerCase("ca"));
     const sequenceItems = situations.flatMap(situation => situation.activities);
+    const activityItems = sequenceItems.filter(item => item.kind !== "lecture");
     if (situations.some(situation => !situation.name || situation.name.length > 100) ||
       new Set(situationNames).size !== situationNames.length ||
-      sequenceItems.some(item => !data.activities.some(activity => activity.id === item.activityId) || !Number.isFinite(item.hours) || item.hours <= 0)) {
+      sequenceItems.some(item => item.kind === "lecture" ? !item.title : !data.activities.some(activity => activity.id === item.activityId)) ||
+      sequenceItems.some(item => !Number.isFinite(item.hours) || item.hours <= 0)) {
       showToast("Revisa els noms de les situacions, les activitats i les hores.", true);
       return;
     }
-    if (new Set(sequenceItems.map(item => item.activityId)).size !== sequenceItems.length) {
+    if (new Set(activityItems.map(item => item.activityId)).size !== activityItems.length) {
       showToast("No repeteixis una activitat a la seqüència d'aquest nivell.", true);
       return;
     }
@@ -1271,11 +1465,10 @@ dialogForm.addEventListener("submit", event => {
         name: situation.name,
         activities: situation.activities.map(item => {
           const existingItem = existingItems.get(item.requestedId);
-          return {
-            id: existingItem?.id || makeId("seq"),
-            activityId: item.activityId,
-            hours: item.hours
-          };
+          const id = existingItem?.id || makeId("seq");
+          return item.kind === "lecture"
+            ? { id, kind: "lecture", title: item.title, hours: item.hours }
+            : { id, activityId: item.activityId, hours: item.hours };
         })
       };
     });
@@ -1287,16 +1480,10 @@ dialogForm.addEventListener("submit", event => {
     state.selectedSequence = formType === "edit-level" && dialogForm.dataset.returnToSequence === "true";
   }
   if (formType === "competency") {
-    data.competencies.push({ id: makeId("co"), name: String(formData.get("name")).trim(), description: String(formData.get("description")).trim() });
-  }
-  if (formType === "edit-competency") {
-    const competency = data.competencies.find(item => item.id === recordId);
-    if (!competency) {
-      showToast("No s'ha trobat la competència que vols editar.", true);
-      return;
-    }
-    competency.name = String(formData.get("name")).trim();
-    competency.description = String(formData.get("description")).trim();
+    const competency = { id: makeId("co"), name: String(formData.get("name")).trim(), description: String(formData.get("description")).trim(), learningOutcomes: [], educationalLevels: [], subjects: [] };
+    data.competencies.push(competency);
+    state.selectedCompetencyId = competency.id;
+    state.currentView = "competencies";
   }
   if (formType === "activity" || formType === "edit-activity") {
     const evidenceItems = [...dialogContent.querySelectorAll(".evidence-form-item")].map(item => {
@@ -1310,8 +1497,6 @@ dialogForm.addEventListener("submit", event => {
         contributions
       };
     });
-    const nonAssessed = String(formData.get("type")) === "Magistral";
-    if (nonAssessed) evidenceItems.length = 0;
     const unlinked = evidenceItems.filter(item => !Object.keys(item.contributions).length);
     if (unlinked.length) {
       dialogContent.querySelectorAll(".evidence-form-item").forEach(item => {
@@ -1348,6 +1533,9 @@ dialogForm.addEventListener("submit", event => {
       title: String(formData.get("title")).trim(),
       type: String(formData.get("type")),
       date: String(formData.get("date") || ""),
+      isGroup: formData.get("isGroup") === "on",
+      groups: activity?.groups || [],
+      groupGrading: activity?.groupGrading || "individual",
       evidences
     };
     if (activity) {
@@ -1384,12 +1572,38 @@ dialogForm.addEventListener("submit", event => {
     "edit-level": "Nivell actualitzat.",
     "learning-situation": "Situació d'aprenentatge afegida.",
     "sequence-activity": "Activitat afegida a la situació d'aprenentatge.",
+    "sequence-lecture": "Classe afegida a la situació d'aprenentatge.",
     competency: "Competència creada.",
-    "edit-competency": "Competència actualitzada.",
     activity: "Activitat creada.",
-    "edit-activity": "Activitat i rúbrica actualitzades."
+    "edit-activity": "Activitat i rúbrica actualitzades.",
+    "teacher-profile": "Perfil docent actualitzat."
   };
   showToast(messages[formType]);
+});
+
+content.addEventListener("submit", event => {
+  const form = event.target.closest("#competency-form");
+  if (!form) return;
+  event.preventDefault();
+  const competency = data.competencies.find(item => item.id === form.dataset.competencyId);
+  if (!competency) return;
+  const previousData = clone(data);
+  const field = (root, name) => String(root.querySelector(`[name="${name}"]`).value).trim();
+  const learningOutcomes = [...form.querySelectorAll(".outcome-item")].map(item => ({
+    id: item.dataset.outcomeId,
+    name: field(item, "outcomeName"),
+    description: field(item, "outcomeDescription"),
+    criteria: [...item.querySelectorAll(".criterion-row")].map(row => ({ id: row.dataset.criterionId, text: field(row, "criterionText") }))
+  }));
+  const educationalLevels = [...form.querySelectorAll('[name="educationalLevel"]')].map(input => input.value);
+  const subjects = [...form.querySelectorAll('[name="subject"]')].map(input => input.value);
+  Object.assign(competency, { name: field(form, "name"), description: field(form, "description"), educationalLevels, subjects, learningOutcomes });
+  if (!saveData()) {
+    setData(previousData);
+    return;
+  }
+  render();
+  showToast("Competència actualitzada.");
 });
 
 dialog.addEventListener("click", event => {
@@ -1397,6 +1611,45 @@ dialog.addEventListener("click", event => {
 });
 
 content.addEventListener("change", event => {
+  const activityFeedback = event.target.closest("[data-activity-feedback]");
+  if (activityFeedback) {
+    const activityId = activityFeedback.dataset.activityId;
+    const studentId = activityFeedback.dataset.studentId;
+    const offeringId = activityFeedback.dataset.offeringId;
+    const feedback = activityFeedback.value.trim();
+    const previousData = clone(data);
+    const activity = data.activities.find(item => item.id === activityId);
+    const student = data.students.find(item => item.id === studentId);
+    const offering = offeringId ? data.teachingOffers.find(item => item.id === offeringId) : null;
+    if (!activity || !student || offeringId && (!offering ||
+      !getActivityOffers(data, activityId).some(item => item.id === offeringId) ||
+      !getOfferingStudents(data, offering).some(item => item.id === studentId))) {
+      showToast("No s'ha pogut desar la retroacció: l'alumne, l'activitat o l'oferta ja no són vàlids.", true);
+      render();
+      return;
+    }
+    let assessment = data.assessments.find(item =>
+      item.studentId === studentId && item.activityId === activityId &&
+      (offeringId ? item.offeringId === offeringId : !item.offeringId)
+    );
+    if (!assessment && feedback) {
+      assessment = { studentId, activityId, ...(offeringId ? { offeringId } : {}), levels: {}, feedback };
+      data.assessments.push(assessment);
+    } else if (assessment) {
+      if (feedback) assessment.feedback = feedback;
+      else delete assessment.feedback;
+      if (!Object.keys(assessment.levels).length && !assessment.feedback) {
+        data.assessments = data.assessments.filter(item => item !== assessment);
+      }
+    }
+    if (!saveData()) {
+      setData(previousData);
+      renderActivityStudentReport();
+      return;
+    }
+    showToast("Retroacció desada per a l'alumne.");
+    return;
+  }
   const currentYearSelect = event.target.closest("[data-current-year]");
   if (currentYearSelect) {
     const previousData = clone(data);
@@ -1585,7 +1838,9 @@ content.addEventListener("change", event => {
   select.className = `grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}`;
   const activityGrade = calculateActivityGrade(data, studentId, activity, offering.subjectId, offering.id);
   updateActivityAssessmentRow(studentId, activityGrade);
+  refreshActivityGroups(studentId);
   showToast("Avaluació desada. Les notes competencials s'han actualitzat.");
 });
 
 render();
+startIconDecorator();

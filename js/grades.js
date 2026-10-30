@@ -63,10 +63,8 @@ export function getActivityCompetencyContribution(activity, competencyId) {
   );
 }
 
-export const NON_ASSESSED_ACTIVITY_TYPE = "Magistral";
-
 export function isNonAssessedActivity(activity) {
-  return activity.type === NON_ASSESSED_ACTIVITY_TYPE || !activity.evidences.length;
+  return !activity.evidences.length;
 }
 
 export function areAllActivityEvidencesAssessed(activity, assessment) {
@@ -76,6 +74,49 @@ export function areAllActivityEvidencesAssessed(activity, assessment) {
   });
 }
 
+function isValidLevel(level) {
+  return Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
+}
+
+export function getActivityGroupEvidenceScore(data, activity, group, offeringId, evidenceId) {
+  const offering = data.teachingOffers.find(item => item.id === offeringId);
+  const scores = [];
+  for (const memberId of group.studentIds) {
+    if (offering && !isStudentAssociatedWithOffering(data, offering, memberId)) continue;
+    if (isStudentExemptFromActivity(data, memberId, activity.id) ||
+      offering && isStudentExemptFromSubject(data, memberId, offering.subjectId)) continue;
+    const level = getAssessment(data, memberId, activity.id, offeringId)?.levels[evidenceId];
+    if (isValidLevel(level)) scores.push(SCORE_BY_LEVEL[level]);
+  }
+  return scores.length ? scores.reduce((total, score) => total + score, 0) / scores.length : null;
+}
+
+export function getActivityGroupGrade(data, activity, group, offeringId) {
+  let weightedScore = 0;
+  let totalWeight = 0;
+  for (const evidence of activity.evidences) {
+    const score = getActivityGroupEvidenceScore(data, activity, group, offeringId, evidence.id);
+    const weight = getEvidenceActivityWeight(evidence);
+    if (score !== null) {
+      weightedScore += score * weight;
+      totalWeight += weight;
+    }
+  }
+  return totalWeight ? weightedScore / totalWeight : null;
+}
+
+// En mode grupal, la nota d'una evidència és la mitjana de les avaluacions individuals dels membres de l'agrupament.
+export function getEvidenceScore(data, activity, studentId, offeringId, evidenceId) {
+  const group = activity.isGroup && activity.groupGrading === "group"
+    ? (activity.groups || []).find(item => item.studentIds.includes(studentId))
+    : null;
+  if (!group) {
+    const level = getAssessment(data, studentId, activity.id, offeringId)?.levels[evidenceId];
+    return isValidLevel(level) ? SCORE_BY_LEVEL[level] : null;
+  }
+  return getActivityGroupEvidenceScore(data, activity, group, offeringId, evidenceId);
+}
+
 export function getCompetencyGrade(data, studentId, competencyId) {
   let weightedScore = 0;
   let totalWeight = 0;
@@ -83,13 +124,11 @@ export function getCompetencyGrade(data, studentId, competencyId) {
     for (const offering of getRelevantOfferings(data, activity.id, studentId)) {
       if (isStudentExemptFromActivity(data, studentId, activity.id) ||
         isStudentExemptFromSubject(data, studentId, offering.subjectId)) continue;
-      const assessment = getAssessment(data, studentId, activity.id, offering.id);
-      if (!assessment) continue;
       for (const evidence of activity.evidences) {
-        const level = assessment.levels[evidence.id];
+        const score = getEvidenceScore(data, activity, studentId, offering.id, evidence.id);
         const contribution = Number(evidence.contributions[competencyId] || 0);
-        if (contribution > 0 && Number.isInteger(level) && level > 0) {
-          weightedScore += SCORE_BY_LEVEL[level] * contribution;
+        if (contribution > 0 && score !== null) {
+          weightedScore += score * contribution;
           totalWeight += contribution;
         }
       }
@@ -105,15 +144,13 @@ export function getActivityGrade(data, studentId, activity, subjectId = null, of
     ? getRelevantOfferings(data, activity.id, studentId, subjectId).filter(offer => offer.id === offeringId)
     : getRelevantOfferings(data, activity.id, studentId, subjectId);
   if (offerings.length !== 1) return null;
-  const assessment = getAssessment(data, studentId, activity.id, offerings[0].id);
-  if (!assessment) return null;
   let weightedScore = 0;
   let totalWeight = 0;
   for (const evidence of activity.evidences) {
-    const level = assessment.levels[evidence.id];
+    const score = getEvidenceScore(data, activity, studentId, offerings[0].id, evidence.id);
     const weight = getEvidenceActivityWeight(evidence);
-    if (Number.isInteger(level) && level > 0) {
-      weightedScore += SCORE_BY_LEVEL[level] * weight;
+    if (score !== null) {
+      weightedScore += score * weight;
       totalWeight += weight;
     }
   }
@@ -127,15 +164,13 @@ export function getActivityCompetencyGrade(data, studentId, activity, competency
     ? getRelevantOfferings(data, activity.id, studentId, subjectId).filter(offer => offer.id === offeringId)
     : getRelevantOfferings(data, activity.id, studentId, subjectId);
   if (offerings.length !== 1) return null;
-  const assessment = getAssessment(data, studentId, activity.id, offerings[0].id);
-  if (!assessment) return null;
   let weightedScore = 0;
   let totalWeight = 0;
   for (const evidence of activity.evidences) {
-    const level = assessment.levels[evidence.id];
+    const score = getEvidenceScore(data, activity, studentId, offerings[0].id, evidence.id);
     const contribution = Number(evidence.contributions[competencyId] || 0);
-    if (contribution > 0 && Number.isInteger(level) && level > 0) {
-      weightedScore += SCORE_BY_LEVEL[level] * contribution;
+    if (contribution > 0 && score !== null) {
+      weightedScore += score * contribution;
       totalWeight += contribution;
     }
   }

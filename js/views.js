@@ -1,12 +1,14 @@
 import { data, state } from "./state.js";
+import { EDUCATIONAL_LEVELS } from "./education.js";
+import { isBankCompetency, withoutUnmodifiedBank } from "./competency-bank.js";
 import {
   DAILY_FOLLOWUP_CRITERIA, getActivityOffers,
-  getLevelOffers, getOfferingStudents, getSequenceActivities, getStudentEnrollment
+  getCurrentAcademicYear, getLevelOffers, getOfferingStudents, getSequenceActivities, getSequenceItems, isLectureItem, getStudentEnrollment
 } from "./data.js";
 import {
   SCORE_BY_LEVEL, LEVEL_LABELS,
   getAssessment as calculateAssessment, getCompetencyGrade as calculateCompetencyGrade,
-  getActivityGrade as calculateActivityGrade, getActivityCompetencyGrade as calculateActivityCompetencyGrade,
+  getActivityGrade as calculateActivityGrade, getEvidenceScore as calculateEvidenceScore, getActivityCompetencyGrade as calculateActivityCompetencyGrade,
   getLevelCompetencyGrade as calculateLevelCompetencyGrade,
   getActivityCompetencyContribution,
   getStudentActivityCount as calculateStudentActivityCount, getEvidenceActivityWeight,
@@ -73,15 +75,26 @@ function setView(view) {
   state.activityReportReturnView = null;
   state.selectedSubjectId = null;
   state.selectedLevelId = null;
+  state.selectedCompetencyId = null;
   state.selectedSequence = false;
   state.activityReturnToSequence = false;
   document.querySelectorAll(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.view === view));
-  const labels = { overview: "Resum", students: "Alumnes", groups: "Grups classe", subjects: "Assignatures", activities: "Activitats i proves", "daily-followup": "Seguiment diari", competencies: "Competències" };
+  const labels = { overview: "Resum", students: "Alumnes", groups: "Grups classe", subjects: "Assignatures", activities: "Activitats i proves", "daily-followup": "Seguiment diari", competencies: "Competències", "teacher-profile": "Perfil docent" };
   document.querySelector("#current-section").textContent = labels[view] || "Resum";
   render();
 }
 
+function updateSidebarProfile() {
+  const profile = data.teacherProfile;
+  const initials = profile.name.trim().split(/\s+/).slice(0, 2).map(name => name[0]).join("").toLocaleUpperCase("ca") || "D";
+  document.querySelector("#sidebar-profile-avatar").textContent = initials;
+  document.querySelector("#sidebar-profile-name").textContent = profile.name || "Perfil docent";
+  document.querySelector("#sidebar-profile-detail").textContent = profile.role || "Professional de l'educació";
+  document.querySelector("#teacher-profile-button").classList.toggle("active", state.currentView === "teacher-profile");
+}
+
 function render() {
+  updateSidebarProfile();
   if (state.currentView === "overview") renderOverview();
   if (state.currentView === "students") {
     if (!state.selectedStudentId) renderStudents();
@@ -99,6 +112,91 @@ function render() {
   if (state.currentView === "activity-report") renderActivityStudentReport();
   if (state.currentView === "daily-followup") renderDailyFollowup();
   if (state.currentView === "competencies") renderCompetencies();
+  if (state.currentView === "teacher-profile") renderTeacherProfile();
+}
+
+function renderTeacherProfile() {
+  const profile = data.teacherProfile;
+  const currentYear = getCurrentAcademicYear(data);
+  const offers = data.teachingOffers.filter(offer =>
+    offer.status === "active" && offer.academicYearId === data.currentAcademicYearId
+  );
+  const offerIds = new Set(offers.map(offer => offer.id));
+  const students = new Set(offers.flatMap(offer => getOfferingStudents(data, offer).map(student => student.id)));
+  const classGroupIds = new Set(offers.flatMap(offer => offer.classGroupIds));
+  const additionalGroupIds = new Set(offers.flatMap(offer => offer.additionalGroupIds));
+  const subjectIds = new Set(offers.map(offer => offer.subjectId));
+  const activityIds = new Set(offers.flatMap(offer => {
+    const level = data.subjects.find(subject => subject.id === offer.subjectId)
+      ?.levels.find(item => item.id === offer.levelId);
+    return level ? getSequenceActivities(level).map(item => item.activityId) : [];
+  }));
+  const activityAssessments = data.assessments.filter(assessment => {
+    if (!Object.values(assessment.levels).some(level => level > 0) || !activityIds.has(assessment.activityId)) return false;
+    if (assessment.offeringId) return offerIds.has(assessment.offeringId);
+    return getActivityOffers(data, assessment.activityId).some(offer =>
+      getOfferingStudents(data, offer).some(student => student.id === assessment.studentId)
+    );
+  });
+  const assessedEvidenceCount = activityAssessments.reduce((total, assessment) =>
+    total + Object.values(assessment.levels).filter(level => level > 0).length, 0
+  );
+  const dailyFollowups = data.dailyAssessments.filter(assessment =>
+    offers.some(offer => offer.subjectId === assessment.subjectId &&
+      getOfferingStudents(data, offer).some(student => student.id === assessment.studentId))
+  );
+
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, index) =>
+    new Date(now.getFullYear(), now.getMonth() - 5 + index, 1)
+  ).map(date => ({
+    key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`,
+    label: new Intl.DateTimeFormat("ca-ES", { month: "short" }).format(date)
+  }));
+  const monthlyActivity = new Map(months.map(month => [month.key, 0]));
+  const monthlyFollowups = new Map(months.map(month => [month.key, 0]));
+  data.activities.filter(activity => activityIds.has(activity.id)).forEach(activity => {
+    const month = activity.date?.slice(0, 7);
+    if (monthlyActivity.has(month)) monthlyActivity.set(month, monthlyActivity.get(month) + 1);
+  });
+  dailyFollowups.forEach(assessment => {
+    const month = assessment.date.slice(0, 7);
+    if (monthlyFollowups.has(month)) monthlyFollowups.set(month, monthlyFollowups.get(month) + 1);
+  });
+  const maxMonthlyCount = Math.max(1, ...monthlyActivity.values(), ...monthlyFollowups.values());
+  const chart = months.map(month => {
+    const activities = monthlyActivity.get(month.key);
+    const followups = monthlyFollowups.get(month.key);
+    return `<div class="teacher-chart-month" aria-label="${escapeHtml(month.label)}: ${activities} activitats, ${followups} seguiments">
+      <div class="teacher-chart-bars"><span class="teacher-chart-bar teacher-chart-activities" style="height:${Math.max(activities ? 6 : 0, activities / maxMonthlyCount * 100)}%" title="${activities} activitats"></span><span class="teacher-chart-bar teacher-chart-followups" style="height:${Math.max(followups ? 6 : 0, followups / maxMonthlyCount * 100)}%" title="${followups} seguiments"></span></div>
+      <span class="teacher-chart-label">${escapeHtml(month.label)}</span>
+    </div>`;
+  }).join("");
+  const initials = profile.name.trim().split(/\s+/).slice(0, 2).map(name => name[0]).join("").toLocaleUpperCase("ca") || "D";
+  const profileDetails = [
+    profile.role || "Professional de l'educació",
+    profile.institution
+  ].filter(Boolean);
+
+  content.innerHTML = `${pageHeading("ESPAI PERSONAL", "Perfil docent", "Consulta el teu perfil i l'activitat educativa del curs vigent.", `<button class="button button-primary" type="button" data-action="edit-teacher-profile">${icon("edit-pencil")} Edita el perfil</button>`)}
+    <section class="teacher-profile-card">
+      <span class="teacher-profile-avatar" aria-hidden="true">${escapeHtml(initials)}</span>
+      <div class="teacher-profile-copy"><p class="eyebrow">PERFIL PROFESSIONAL</p><h2>${escapeHtml(profile.name || "El teu perfil")}</h2><p>${profileDetails.map(escapeHtml).join(" · ") || "Afegeix les teves dades professionals per completar el perfil."}</p></div>
+      <span class="teacher-profile-year">${escapeHtml(currentYear?.name || "Sense curs vigent")}</span>
+    </section>
+    <div class="teacher-stat-grid">
+      <article class="teacher-stat-card"><span class="teacher-stat-icon">${icon("group")}</span><div><span>Alumnes atesos</span><strong>${students.size}</strong></div></article>
+      <article class="teacher-stat-card"><span class="teacher-stat-icon">${icon("home")}</span><div><span>Grups vinculats</span><strong>${classGroupIds.size + additionalGroupIds.size}</strong></div></article>
+      <article class="teacher-stat-card"><span class="teacher-stat-icon">${icon("book-stack")}</span><div><span>Assignatures</span><strong>${subjectIds.size}</strong></div></article>
+      <article class="teacher-stat-card"><span class="teacher-stat-icon">${icon("list-select")}</span><div><span>Activitats planificades</span><strong>${activityIds.size}</strong></div></article>
+      <article class="teacher-stat-card"><span class="teacher-stat-icon">${icon("stats-report")}</span><div><span>Evidències avaluades</span><strong>${assessedEvidenceCount}</strong></div></article>
+      <article class="teacher-stat-card"><span class="teacher-stat-icon">${icon("calendar")}</span><div><span>Seguiments diaris</span><strong>${dailyFollowups.length}</strong></div></article>
+    </div>
+    <section class="panel teacher-activity-panel">
+      <div class="panel-heading"><div><h2 class="section-title">Ritme d'activitat docent</h2><span class="section-caption">Activitats planificades i seguiments registrats, últims sis mesos</span></div></div>
+      <div class="teacher-chart-legend"><span><i class="teacher-chart-legend-dot teacher-chart-activities"></i>Activitats</span><span><i class="teacher-chart-legend-dot teacher-chart-followups"></i>Seguiments</span></div>
+      ${activityIds.size || dailyFollowups.length ? `<div class="teacher-activity-chart">${chart}</div>` : '<div class="teacher-chart-empty">Encara no hi ha activitat docent registrada aquest curs.</div>'}
+    </section>`;
 }
 
 function localDateValue() {
@@ -226,8 +324,70 @@ function pageHeading(eyebrow, title, subtitle, action = "") {
   return `<div class="page-heading"><div><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><p class="page-subtitle">${subtitle}</p></div>${action ? `<div class="heading-actions">${action}</div>` : ""}</div>`;
 }
 
+function getTeacherTasks() {
+  const today = localDateValue();
+  const activityTasks = [];
+  data.activities.filter(activity => !isNonAssessedActivity(activity)).forEach(activity => {
+    getActivityOffers(data, activity.id).forEach(offer => {
+      const pending = getOfferingStudents(data, offer).filter(student =>
+        isActivityIncludedInStudentGrades(data, student.id, activity.id) &&
+        !areAllActivityEvidencesAssessed(activity, calculateAssessment(data, student.id, activity.id, offer.id))
+      );
+      if (!pending.length) return;
+      const subject = data.subjects.find(item => item.id === offer.subjectId);
+      const level = subject?.levels.find(item => item.id === offer.levelId);
+      const groupNames = [
+        ...offer.classGroupIds.map(id => getClassGroup(id)?.name),
+        ...offer.additionalGroupIds.map(id => data.additionalGroups.find(group => group.id === id)?.name)
+      ].filter(Boolean).join(", ");
+      activityTasks.push({ activity, offer, subject, level, groupNames, count: pending.length });
+    });
+  });
+  activityTasks.sort((a, b) => (a.activity.date || "9999").localeCompare(b.activity.date || "9999"));
+  const dailyTasks = [];
+  const seen = new Set();
+  data.teachingOffers.filter(offer => offer.status === "active" && offer.academicYearId === data.currentAcademicYearId).forEach(offer => {
+    const subject = data.subjects.find(item => item.id === offer.subjectId);
+    if (!subject) return;
+    const offerStudents = getOfferingStudents(data, offer);
+    const targets = [
+      ...offer.classGroupIds.map(id => ({ classGroupId: id, additionalGroupId: "", name: getClassGroup(id)?.name })),
+      ...offer.additionalGroupIds.map(id => ({ classGroupId: "", additionalGroupId: id, name: data.additionalGroups.find(group => group.id === id)?.name }))
+    ];
+    targets.filter(target => target.name).forEach(target => {
+      const key = `${subject.id}|${target.classGroupId}|${target.additionalGroupId}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const students = offerStudents.filter(student => target.classGroupId
+        ? student.classGroupId === target.classGroupId
+        : student.additionalGroupIds.includes(target.additionalGroupId));
+      if (!students.length) return;
+      const hasEntry = data.dailyAssessments.some(item =>
+        item.subjectId === subject.id && item.date === today &&
+        Object.keys(item.levels).length > 0 && students.some(student => student.id === item.studentId)
+      );
+      if (!hasEntry) dailyTasks.push({ subject, ...target });
+    });
+  });
+  return { activityTasks, dailyTasks };
+}
+
+function teacherTasksMarkup() {
+  const { activityTasks, dailyTasks } = getTeacherTasks();
+  const total = activityTasks.length + dailyTasks.length;
+  const activityRows = activityTasks.map(({ activity, offer, subject, level, groupNames, count }) =>
+    `<button class="activity-row activity-row-button" type="button" data-open-activity="${escapeHtml(activity.id)}" data-subject-id="${escapeHtml(offer.subjectId)}" data-level-id="${escapeHtml(offer.levelId)}" data-offering-id="${escapeHtml(offer.id)}">${icon("clipboard-check", "activity-icon")}<div class="activity-info"><strong>Avalua «${escapeHtml(activity.title)}»</strong><span>${escapeHtml(subject?.name || "")}${level?.name ? ` · ${escapeHtml(level.name)}` : ""} · ${escapeHtml(groupNames)}${activity.date ? ` · ${formatDate(activity.date)}` : ""}</span></div><span class="badge">${count} ${count === 1 ? "alumne pendent" : "alumnes pendents"}</span></button>`
+  ).join("");
+  const dailyRows = dailyTasks.map(task =>
+    `<button class="activity-row activity-row-button" type="button" data-open-daily data-subject-id="${escapeHtml(task.subject.id)}" data-class-group-id="${escapeHtml(task.classGroupId)}" data-additional-group-id="${escapeHtml(task.additionalGroupId)}">${icon("calendar", "activity-icon")}<div class="activity-info"><strong>Afegeix el seguiment diari d'avui</strong><span>${escapeHtml(task.subject.name)} · ${escapeHtml(task.name)}</span></div><span class="badge">Suggeriment</span></button>`
+  ).join("");
+  return `<section class="panel teacher-tasks-panel">
+    <div class="panel-heading"><div><h2 class="section-title">Tasques pendents</h2><span class="section-caption">${total ? `${activityTasks.length} activitats per avaluar · ${dailyTasks.length} grups sense seguiment diari avui` : "No tens cap tasca pendent."}</span></div></div>
+    ${total ? `${activityRows}${dailyRows}` : '<div class="empty-state">Tot al dia: no hi ha activitats pendents d\'avaluar ni grups sense seguiment diari avui.</div>'}
+  </section>`;
+}
+
 function renderOverview() {
-  const recentActivities = [...data.activities].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 3);
   const competencyAverages = data.competencies.map(competency => {
     const grades = data.students.map(student => getCompetencyGrade(student.id, competency.id)).filter(grade => grade !== null);
     return { competency, average: grades.length ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length : null, count: grades.length };
@@ -248,10 +408,7 @@ function renderOverview() {
       <div class="metric-card"><div class="metric-top"><span>Evidències avaluades</span>${icon("stats-report", "metric-icon")}</div><div class="metric-value">${data.assessments.reduce((sum, assessment) => sum + Object.values(assessment.levels).filter(level => level > 0).length, 0)}</div></div>
     </div>
     <div class="dashboard-grid">
-      <section class="panel">
-        <div class="panel-heading"><div><h2 class="section-title">Activitat recent</h2><span class="section-caption">Les últimes evidències recollides</span></div><button class="text-button" data-navigate="activities">Veure-ho tot ${icon("arrow-right")}</button></div>
-        ${recentActivities.length ? recentActivities.map(activity => `<div class="activity-row">${icon(activity.type === "Prova" ? "clipboard-check" : "notes", "activity-icon")}<div class="activity-info"><strong>${escapeHtml(activity.title)}</strong><span>${escapeHtml(activity.type)} · ${formatDate(activity.date)} · ${isNonAssessedActivity(activity) ? "No avaluable" : `${activity.evidences.length} evidències`}</span></div><button class="text-button" data-open-activity="${activity.id}">${isNonAssessedActivity(activity) ? "Obrir" : "Avaluar"}</button></div>`).join("") : emptyState("Encara no hi ha activitats", "Crea una activitat per començar a recollir evidències.", "create-activity", "Crea una activitat")}
-      </section>
+      ${teacherTasksMarkup()}
       <section class="panel">
         <div class="panel-heading"><div><h2 class="section-title">Progrés competencial</h2><span class="section-caption">Mitjana de les evidències disponibles</span></div><button class="text-button" data-navigate="competencies">Veure-ho tot ${icon("arrow-right")}</button></div>
         ${competencyAverages.length ? competencyAverages.map(({ competency, average, count }) => `<div class="competency-row"><strong>${escapeHtml(competency.name)}</strong><div class="progress-track"><div class="progress-fill ${gradeColorClass(average)}" style="width:${gradeWidth(average)}%"></div></div><div class="progress-meta"><span>${count ? `${count} alumnes amb evidències` : "Sense evidències"}</span><span>${average === null ? "—" : gradeValue(average)}</span></div></div>`).join("") : emptyState("Sense competències", "Afegeix les competències que vols avaluar.", "create-competency", "Crea una competència")}
@@ -283,7 +440,7 @@ function renderStudents() {
       const grades = data.competencies.map(competency => getCompetencyGrade(student.id, competency.id)).filter(grade => grade !== null);
       const average = grades.length ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length : null;
       const evidenceCount = getStudentActivityCount(student.id);
-      return `<li class="student-list-item"><button class="student-list-open" type="button" data-open-student="${student.id}"><span class="student-list-identity"><strong>${escapeHtml(studentDisplayName(student))}</strong><span>${escapeHtml(getStudentGroupLabel(student))} · ${evidenceCount} ${evidenceCount === 1 ? "activitat" : "activitats"}</span></span><span class="student-list-grade"><span class="student-list-grade-label">Mitjana competencial</span>${gradeBadge(average)}</span></button><button class="text-button student-list-edit" type="button" data-edit-student="${student.id}">Edita alumne</button></li>`;
+      return `<li class="student-list-item"><button class="student-list-open" type="button" data-open-student="${student.id}"><span class="student-list-identity"><strong>${escapeHtml(studentDisplayName(student))}</strong><span>${escapeHtml(getStudentGroupLabel(student))} · ${evidenceCount} ${evidenceCount === 1 ? "activitat" : "activitats"}</span></span><span class="student-list-grade"><span class="student-list-grade-label">Mitjana competencial</span>${gradeBadge(average)}</span></button><button class="text-button student-list-edit" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button></li>`;
     }).join("")}</ul>` : emptyState(data.students.length ? "No hi ha coincidències" : "Encara no hi ha alumnes", data.students.length ? "Prova una altra cerca." : "Afegeix el teu primer alumne per començar.", "create-student", "Afegeix alumne")}`;
   document.querySelector("#class-group-filter")?.addEventListener("change", event => {
     state.selectedClassGroupId = event.target.value;
@@ -348,7 +505,7 @@ function renderStudentDetail() {
     </button>`;
   }).join("");
   content.innerHTML = `<button class="detail-back" type="button" data-back="students">${icon("arrow-left")} Torna als alumnes</button>
-    ${pageHeading("PERFIL D'ALUMNE", escapeHtml(studentDisplayName(student)), `${getStudentGroupLabel(student)} · Assignatures i nivells actuals`, `<button class="button" type="button" data-edit-student="${student.id}">Edita alumne</button>`)}
+    ${pageHeading("PERFIL D'ALUMNE", escapeHtml(studentDisplayName(student)), `${getStudentGroupLabel(student)} · Assignatures i nivells actuals`, `<button class="button" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button>`)}
     <section class="panel"><div class="panel-heading"><div><h2 class="section-title">Assignatures que cursa</h2><span class="section-caption">Obre un nivell per consultar el report de l'assignatura, les competències i les activitats.</span></div><span class="badge">${subjectLevels.length} ${subjectLevels.length === 1 ? "nivell" : "nivells"}</span></div>
       ${levelCards ? `<div class="student-subject-list">${levelCards}</div>` : emptyState("Cap nivell assignat", "Aquest alumne encara no té cap assignatura vinculada al seu grup classe.")}</section>`;
 }
@@ -404,7 +561,7 @@ function renderStudentSubjectReport() {
     `<div class="student-subject-competency"><div><strong>${escapeHtml(competency.name)}</strong><span>${grade === null ? "Sense evidències avaluades" : "Progrés competencial"}</span></div>${gradeBadge(grade)}</div>`
   ).join("");
   content.innerHTML = `<button class="detail-back" type="button" data-back="student-subject">${icon("arrow-left")} Torna a les assignatures de ${escapeHtml(studentDisplayName(student))}</button>
-    ${pageHeading("REPORT D'ASSIGNATURA", escapeHtml(subject.name), `${escapeHtml(level.name || "Sense nivell")} · ${escapeHtml(getStudentGroupLabel(student))}`, `<button class="button" type="button" data-edit-student="${escapeHtml(student.id)}">Edita alumne</button>`)}
+    ${pageHeading("REPORT D'ASSIGNATURA", escapeHtml(subject.name), `${escapeHtml(level.name || "Sense nivell")} · ${escapeHtml(getStudentGroupLabel(student))}`, `<button class="button" type="button" data-edit-student="${escapeHtml(student.id)}">${icon("edit-pencil")} Edita alumne</button>`)}
     <div class="student-subject-summary">
       <section class="student-subject-summary-main"><span class="eyebrow">MITJANA DE L'ASSIGNATURA</span>${exempt ? '<span class="badge exemption-badge">Exempt/a de l’assignatura</span>' : gradeBadge(average)}<p>${exempt ? "L'exempció és activa; les qualificacions registrades es conserven, però no compten en els càlculs." : `${availableGrades.length} de ${competencies.length} competències amb evidències avaluades.`}</p></section>
       <div class="student-subject-summary-metric"><span>Activitats</span><strong>${sequenceActivities.length}</strong></div>
@@ -500,7 +657,7 @@ function buildActivityDistributionChart(grades, average, standardDeviation) {
     return `<line class="activity-distribution-tick" x1="${x}" y1="${baseline}" x2="${x}" y2="${baseline + 4}"></line><text class="activity-distribution-axis-label" x="${x}" y="${baseline + 17}" text-anchor="middle">${grade}</text>`;
   }).join("");
   if (!grades.length) {
-    return `<div class="activity-distribution-chart-wrap"><svg class="activity-distribution-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="Encara no hi ha notes d’activitat per representar">
+    return `<div class="activity-distribution-chart-wrap"><svg class="activity-distribution-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Encara no hi ha notes d’activitat per representar">
       <line class="activity-distribution-axis" x1="${left}" y1="${baseline}" x2="${right}" y2="${baseline}"></line>${ticks}
       <text class="activity-distribution-empty-label" x="${width / 2}" y="80" text-anchor="middle">Encara no hi ha notes d’activitat per representar</text>
     </svg></div>
@@ -543,7 +700,7 @@ function buildActivityDistributionChart(grades, average, standardDeviation) {
     return `<circle class="activity-distribution-student ${gradeColorClass(grade)}" cx="${x.toFixed(1)}" cy="${y}" r="3.1"><title>${escapeHtml(studentDisplayName(student))}: ${formatGradeWithCode(grade)}</title></circle>`;
   }).join("");
   return `<div class="activity-distribution-chart-wrap">
-    <svg class="activity-distribution-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-labelledby="activity-distribution-title activity-distribution-description">
+    <svg class="activity-distribution-chart" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="activity-distribution-title activity-distribution-description">
       <title id="activity-distribution-title">Distribució de notes de l’activitat</title>
       <desc id="activity-distribution-description">${grades.length} alumnes avaluats. Les barres mostren la distribució real, la línia mostra una campana de Gauss ajustada a la mitjana i la desviació estàndard, i cada punt representa un alumne.</desc>
       ${bars}<path class="activity-distribution-gaussian" d="${curve}"></path>
@@ -553,6 +710,54 @@ function buildActivityDistributionChart(grades, average, standardDeviation) {
   </div>
   <div class="activity-distribution-legend"><span><i class="activity-legend-bar"></i> Distribució real</span><span><i class="activity-legend-line"></i> Campana de Gauss de referència</span><span><i class="activity-legend-dot"></i> Cada punt és un alumne</span></div>
   <p class="activity-distribution-note">La campana és una referència estadística calculada amb les notes actuals; no és una nota esperada ni un llindar d’avaluació. Passa el cursor per un punt per veure l’alumne i la seva nota.</p>`;
+}
+
+function getActivityGroupOf(activity, studentId) {
+  if (!activity.isGroup) return null;
+  return (activity.groups || []).find(group => group.studentIds.includes(studentId)) || null;
+}
+
+function getActivityGroupsMarkup(activity, students, selectedOffering) {
+  if (!activity.isGroup || !selectedOffering || !students.length) return "";
+  const studentIds = new Set(students.map(student => student.id));
+  const groups = (activity.groups || []).filter(group => !group.studentIds.length || group.studentIds.some(id => studentIds.has(id)));
+  const groupMode = activity.groupGrading === "group";
+  const ungrouped = students.filter(student => !getActivityGroupOf(activity, student.id)).length;
+  const rows = groups.map(group => {
+    const members = students.filter(student => group.studentIds.includes(student.id));
+    const derived = !groupMode ? "" : members.length
+      ? `${activity.evidences.map(evidence => `<td>${gradeBadge(calculateEvidenceScore(data, activity, members[0].id, selectedOffering.id, evidence.id))}</td>`).join("")}<td>${gradeBadge(calculateActivityGrade(data, members[0].id, activity, selectedOffering.subjectId, selectedOffering.id))}</td>`
+      : `<td colspan="${activity.evidences.length + 1}"></td>`;
+    return `<tr data-activity-group-row="${escapeHtml(group.id)}"><td><strong>${escapeHtml(group.name)}</strong><br><span class="section-caption">${members.map(student => escapeHtml(studentDisplayName(student))).join(", ") || "Sense membres"}</span></td>${derived}<td class="activity-group-actions"><button class="text-button" type="button" data-edit-activity-group="${escapeHtml(group.id)}">${icon("edit-pencil")} Edita</button><button class="text-button danger-text" type="button" data-delete-activity-group="${escapeHtml(group.id)}">${icon("trash")} Elimina</button></td></tr>`;
+  }).join("");
+  const caption = groupMode
+    ? "Qualificació en grup: tots els membres reben la mitjana de les avaluacions individuals dels components de l'agrupament. Les avaluacions individuals no es modifiquen."
+    : "Qualificació individual: cada alumne rep la nota de la seva pròpia avaluació.";
+  return `<section class="panel activity-groups-panel" data-activity-groups><div class="panel-heading"><div><h2 class="section-title">Agrupaments de l'activitat</h2><span class="section-caption">${caption}${ungrouped && groups.length ? ` ${ungrouped} ${ungrouped === 1 ? "alumne" : "alumnes"} sense agrupament${groupMode ? " (es qualifiquen individualment)" : ""}.` : ""}</span></div>
+    <div class="grading-mode-row"><span class="section-caption" id="grading-mode-label">Determina el tipus de qualificació</span>
+    <div class="grading-mode-toggle" role="group" aria-labelledby="grading-mode-label">
+      <button type="button" class="${groupMode ? "" : "active"}" aria-pressed="${!groupMode}" data-set-grading-mode="individual">${icon("user")} Individual</button>
+      <button type="button" class="${groupMode ? "active" : ""}" aria-pressed="${groupMode}" data-set-grading-mode="group">${icon("group")} En grup</button>
+    </div></div></div>
+    ${!groups.length ? '<div class="empty-state">Encara no hi ha agrupaments. Crea\'n per qualificar equips.<div style="margin-top:10px"><button class="button" type="button" data-create-activity-group>${icon("plus")} Crea agrupament</button></div></div>'
+      : `<div class="table-wrap"><table class="assessment-table activity-group-table"><thead><tr><th>Agrupament</th>${groupMode ? `${activity.evidences.map(evidence => `<th>${escapeHtml(evidence.name)}</th>`).join("")}<th>Nota</th>` : ""}<th class="activity-group-actions"><button class="button" type="button" data-create-activity-group>${icon("plus")} Crea agrupament</button></th></tr></thead><tbody>${rows}</tbody></table></div>`}
+  </section>`;
+}
+
+// Actualitza en lloc el quadre d'agrupaments i, en mode grupal, les notes dels companys de l'agrupament.
+function refreshActivityGroups(studentId = null) {
+  const activity = data.activities.find(item => item.id === state.selectedActivityId);
+  const offering = data.teachingOffers.find(item => item.id === state.selectedOfferingId);
+  if (!activity?.isGroup || !offering) return;
+  const students = getOfferingStudents(data, offering);
+  const panel = content.querySelector("[data-activity-groups]");
+  if (panel) panel.outerHTML = getActivityGroupsMarkup(activity, students, offering);
+  const group = studentId ? getActivityGroupOf(activity, studentId) : null;
+  if (group && activity.groupGrading === "group") {
+    for (const memberId of group.studentIds.filter(id => id !== studentId && students.some(student => student.id === id))) {
+      updateActivityAssessmentRow(memberId, calculateActivityGrade(data, memberId, activity, offering.subjectId, offering.id));
+    }
+  }
 }
 
 function renderActivityDetail() {
@@ -589,7 +794,7 @@ function renderActivityDetail() {
     ));
     const didNotPass = fullyAssessed && activityGrade !== null && activityGrade < 5;
     const exemptionLabel = subjectExempt ? "Exempt/a de l'assignatura" : "Exempt/a de l'activitat";
-    return `<tr data-assessment-row="${escapeHtml(student.id)}" data-student-surname="${escapeHtml(`${student.lastName} ${student.firstName}`.trim())}" data-student-name="${escapeHtml(studentDisplayName(student))}" data-student-group="${escapeHtml(getStudentGroupLabel(student))}" data-class-group="${escapeHtml(student.classGroupId)}" data-grade-value="${activityGrade ?? ""}" data-assessed="${fullyAssessed ? "true" : "false"}" data-exempt="${exempt ? "true" : "false"}" class="${didNotPass ? "assessment-row-warning" : ""}"><td><div class="assessment-student-name"><button class="student-activity-report-link" type="button" data-open-student-activity-report="${escapeHtml(student.id)}"><strong>${escapeHtml(studentDisplayName(student))}</strong></button><span class="assessment-warning" data-warning-for="${escapeHtml(student.id)}" role="img" aria-label="No assoleix l'activitat" title="No assoleix l'activitat" ${didNotPass ? "" : "hidden"}>${icon("warning-triangle")}</span></div><span class="assessment-student-group">${escapeHtml(getStudentGroupLabel(student))}</span></td><td class="activity-grade-cell" data-grade-for="${escapeHtml(student.id)}"><span class="activity-grade-report-result">${exempt ? `<span class="badge exemption-badge">${exemptionLabel}</span>` : gradeBadge(activityGrade)}</span></td><td class="activity-exemption-cell"><label class="exemption-control"><input type="checkbox" data-activity-exemption="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" aria-label="Exempció d'activitat per a ${escapeHtml(studentDisplayName(student))}" ${activityExempt ? "checked" : ""}></label></td>${selectors}</tr>`;
+    return `<tr data-assessment-row="${escapeHtml(student.id)}" data-student-surname="${escapeHtml(`${student.lastName} ${student.firstName}`.trim())}" data-student-name="${escapeHtml(studentDisplayName(student))}" data-student-group="${escapeHtml(getStudentGroupLabel(student))}" data-activity-group="${escapeHtml(getActivityGroupOf(activity, student.id)?.name || "")}" data-class-group="${escapeHtml(student.classGroupId)}" data-grade-value="${activityGrade ?? ""}" data-assessed="${fullyAssessed ? "true" : "false"}" data-exempt="${exempt ? "true" : "false"}" class="${didNotPass ? "assessment-row-warning" : ""}"><td><div class="assessment-student-name"><button class="student-activity-report-link" type="button" data-open-student-activity-report="${escapeHtml(student.id)}"><strong>${escapeHtml(studentDisplayName(student))}</strong></button><span class="assessment-warning" data-warning-for="${escapeHtml(student.id)}" role="img" aria-label="No assoleix l'activitat" title="No assoleix l'activitat" ${didNotPass ? "" : "hidden"}>${icon("warning-triangle")}</span></div><span class="assessment-student-group">${escapeHtml(getStudentGroupLabel(student))}${getActivityGroupOf(activity, student.id) ? ` · ${escapeHtml(getActivityGroupOf(activity, student.id).name)}` : ""}</span></td><td class="activity-grade-cell" data-grade-for="${escapeHtml(student.id)}"><span class="activity-grade-report-result">${exempt ? `<span class="badge exemption-badge">${exemptionLabel}</span>` : gradeBadge(activityGrade)}</span></td><td class="activity-exemption-cell"><label class="exemption-control"><input type="checkbox" data-activity-exemption="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" aria-label="Exempció d'activitat per a ${escapeHtml(studentDisplayName(student))}" ${activityExempt ? "checked" : ""}></label></td>${selectors}</tr>`;
   }).join("");
   const rubricRows = activity.evidences.map(evidence => {
     const contributions = Object.entries(evidence.contributions).map(([competencyId, weight]) => {
@@ -621,7 +826,7 @@ function renderActivityDetail() {
       ? '<div class="empty-state">Tria una oferta docent vigent per carregar-ne l’alumnat i les qualificacions.</div>'
       : "";
   const detailBack = `<button class="detail-back" type="button" data-back="activities">${icon("arrow-left")} ${state.activityReturnToSequence ? "Torna a la seqüència" : "Torna a les activitats"}</button>`;
-  const detailHeading = pageHeading(escapeHtml(activity.type.toUpperCase()), escapeHtml(activity.title), `${formatDate(activity.date)} · ${selectedLevel ? `${escapeHtml(selectedLevel.name)} · ` : ""}Banc d'activitats i avaluació per oferta docent.`, `<button class="button" type="button" data-edit-activity="${activity.id}">Edita activitat i rúbrica</button>`);
+  const detailHeading = pageHeading(escapeHtml(activity.type.toUpperCase()), escapeHtml(activity.title), `${formatDate(activity.date)} · ${selectedLevel ? `${escapeHtml(selectedLevel.name)} · ` : ""}Banc d'activitats i avaluació per oferta docent.`, `<button class="button" type="button" data-edit-activity="${activity.id}">${icon("edit-pencil")} Edita activitat i rúbrica</button>`);
   if (isNonAssessedActivity(activity)) {
     content.innerHTML = `${detailBack}${detailHeading}<div class="empty-state"><strong>Activitat no avaluable</strong>Aquesta activitat no té evidències, de manera que no genera qualificacions i no compta en les mitjanes de l'alumnat. Afegeix evidències a la rúbrica si vols avaluar-la.</div>`;
     return;
@@ -635,6 +840,7 @@ function renderActivityDetail() {
       ${evidenceWeightWarning}
       ${activity.evidences.length ? `<div class="table-wrap"><table class="assessment-table rubric-table"><thead><tr><th>Evidència</th><th>Competències i pesos</th><th>Progrés d'avaluació</th><th>Nota mitjana</th></tr></thead><tbody>${rubricRows}</tbody></table></div>` : '<div class="empty-state">Aquesta activitat encara no té evidències.</div>'}
     </section>
+    ${getActivityGroupsMarkup(activity, students, selectedOffering)}
     <section class="panel assessment-panel"><div class="panel-heading"><div><h2 class="section-title">Avaluació de l'alumnat</h2><span class="section-caption">Selecciona el nivell assolit per cada alumne i evidència. Les notes es calculen automàticament.</span></div></div>
       ${students.length ? `<div class="activity-assessment-sticky-tools"><div class="activity-assessment-controls">
         <input class="search-input" type="search" data-assessment-search placeholder="Cerca alumne o grup…" aria-label="Cerca alumne o grup">
@@ -646,10 +852,19 @@ function renderActivityDetail() {
             <option value="all">Tots els estats</option><option value="assessed">Avaluats</option><option value="pending">Pendents d'avaluar</option><option value="passed">Aprovats</option><option value="not-passed">No assolits</option><option value="exempt">Exempts</option>
         </select>
         <select class="search-input group-filter" data-assessment-sort aria-label="Ordena alumnat">
-          <option value="name-asc">Nom A–Z</option><option value="name-desc">Nom Z–A</option><option value="surname-asc">Cognom A–Z</option><option value="surname-desc">Cognom Z–A</option><option value="group-asc">Grup</option><option value="grade-desc">Nota més alta</option><option value="grade-asc">Nota més baixa</option>
+          <option value="name-asc">Nom A–Z</option><option value="name-desc">Nom Z–A</option><option value="surname-asc">Cognom A–Z</option><option value="surname-desc">Cognom Z–A</option><option value="group-asc">Grup</option>${activity.isGroup ? '<option value="activity-group-asc">Agrupament de l\'activitat</option>' : ""}<option value="grade-desc">Nota més alta</option><option value="grade-asc">Nota més baixa</option>
         </select>
         <span class="activity-assessment-count" data-assessment-count aria-live="polite"></span>
-        <button class="button activity-export-reports" type="button" data-export-activity-reports>Exporta informes PDF</button>
+        <details class="activity-export-menu">
+          <summary class="button">Exporta ${icon("nav-arrow-down")}</summary>
+          <div class="activity-export-options" role="group" aria-label="Opcions d'exportació">
+            <strong>Avaluació de l'alumnat</strong>
+            <button type="button" data-export-activity-table="csv">${icon("download")} CSV</button>
+            <button type="button" data-export-activity-table="tsv">${icon("download")} TSV</button>
+            <button type="button" data-export-activity-reports>${icon("download")} Informes PDF</button>
+            ${activity.isGroup ? `<strong>Agrupaments</strong><button type="button" data-export-activity-groups="csv">${icon("download")} CSV</button><button type="button" data-export-activity-groups="tsv">${icon("download")} TSV</button><button type="button" data-export-activity-group-reports>${icon("download")} Informes PDF</button>` : ""}
+          </div>
+        </details>
       </div>
       <div class="activity-scroll-proxy" data-activity-scroll-proxy role="region" aria-label="Desplaçament horitzontal de la taula d'avaluació" tabindex="0"><div class="activity-scroll-spacer"></div></div></div>` : ""}
       ${students.length ? `<div class="table-wrap"><table class="assessment-table activity-assessment-table"><thead><tr><th>Alumne</th><th class="activity-grade-cell">Nota d'activitat</th><th class="activity-exemption-cell" aria-label="Exempció de l'activitat" title="Exempció de l'activitat">Ex.</th>${activity.evidences.map(evidence => `<th>${escapeHtml(evidence.name)}<br><span style="font-weight:400">${getEvidenceActivityWeight(evidence)}% de la nota</span></th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("Sense alumnat a avaluar", selectedOffering ? "No hi ha cap alumne matriculat als grups d'aquesta oferta docent." : "Tria una oferta vigent o assigna l'activitat a la seqüència d'un nivell amb oferta docent vigent.")}
@@ -674,7 +889,7 @@ function renderActivityStudentReport() {
   const returnLabel = state.activityReportReturnView === "students" ? "Torna al perfil de l'alumne" : "Torna a l'avaluació";
   content.innerHTML = `<button class="detail-back" type="button" data-back="activity-report">${icon("arrow-left")} ${returnLabel}</button>
     <section class="panel activity-report-view">
-      <div class="activity-report-view-toolbar"><span>Informe d'activitat</span><button class="button button-primary" type="button" data-export-student-report="${escapeHtml(student.id)}">Exporta PDF</button></div>
+      <div class="activity-report-view-toolbar"><span>Informe d'activitat</span><button class="button button-primary" type="button" data-export-student-report="${escapeHtml(student.id)}">${icon("download")} Exporta PDF</button></div>
       ${report}
     </section>`;
 }
@@ -720,6 +935,11 @@ function applyActivityAssessmentControls() {
       if (gradeA === null || gradeB === null) return gradeA === gradeB ? 0 : gradeA === null ? 1 : -1;
       return sort === "grade-asc" ? gradeA - gradeB : gradeB - gradeA;
     }
+    if (sort === "activity-group-asc") {
+      if (!a.dataset.activityGroup !== !b.dataset.activityGroup) return a.dataset.activityGroup ? -1 : 1;
+      return a.dataset.activityGroup.localeCompare(b.dataset.activityGroup, "ca") ||
+        a.dataset.studentName.localeCompare(b.dataset.studentName, "ca");
+    }
     if (sort === "group-asc") {
       return a.dataset.studentGroup.localeCompare(b.dataset.studentGroup, "ca") ||
         a.dataset.studentName.localeCompare(b.dataset.studentName, "ca");
@@ -752,7 +972,7 @@ function applyActivityAssessmentControls() {
       (status === "passed" && row.dataset.assessed === "true" && grade !== null && grade >= 5) ||
       (status === "not-passed" && row.dataset.assessed === "true" && grade !== null && grade < 5);
     const matchesGroup = !groupFilter.value || row.dataset.classGroup === groupFilter.value;
-    const matchesQuery = normalizeSearchText(`${row.dataset.studentName} ${row.dataset.studentGroup}`).includes(query);
+    const matchesQuery = normalizeSearchText(`${row.dataset.studentName} ${row.dataset.studentGroup} ${row.dataset.activityGroup}`).includes(query);
     row.hidden = !(matchesStatus && matchesGroup && matchesQuery);
     if (!row.hidden) visibleCount++;
   });
@@ -825,15 +1045,108 @@ function updateActivityAssessmentRow(studentId, activityGrade) {
   applyActivityAssessmentControls();
 }
 
+function normalizeSearch(text) {
+  return String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function competencySearchText(competency) {
+  return normalizeSearch([
+    competency.name, competency.description, ...competency.educationalLevels, ...competency.subjects,
+    ...competency.learningOutcomes.flatMap(outcome => [outcome.name, outcome.description, ...outcome.criteria.map(criterion => criterion.text)])
+  ].join(" "));
+}
+
+function competencyCards() {
+  const terms = normalizeSearch(state.competencyQuery).split(/\s+/).filter(Boolean);
+  const filtered = data.competencies.filter(competency => {
+    const text = competencySearchText(competency);
+    const matchesSource = !state.competencySource || (state.competencySource === "bank") === isBankCompetency(competency.id);
+    const matchesLevel = !state.competencyLevel || competency.educationalLevels.includes(state.competencyLevel);
+    const matchesSubject = !state.competencySubject || competency.subjects.includes(state.competencySubject);
+    return matchesSource && matchesLevel && matchesSubject && terms.every(term => text.includes(term));
+  });
+  if (!filtered.length) return `<div class="empty-state"><strong>No hi ha coincidències</strong>Prova una altra cerca o crea una competència pròpia.</div>`;
+  return `<div class="card-grid">${filtered.map(competency => {
+    const evidenceCount = data.activities.flatMap(activity => activity.evidences.filter(evidence => Number(evidence.contributions[competency.id]) > 0)).length;
+    const grades = data.students.map(student => getCompetencyGrade(student.id, competency.id)).filter(grade => grade !== null);
+    const average = grades.length ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length : null;
+    const outcomeCount = competency.learningOutcomes.length;
+    const criteriaCount = competency.learningOutcomes.reduce((sum, outcome) => sum + outcome.criteria.length, 0);
+    return `<article class="record-card"><div class="record-card-top"><h3>${escapeHtml(competency.name)}</h3><span class="badge">${isBankCompetency(competency.id) ? "Banc" : "Pròpia"}</span></div><p>${escapeHtml(competency.description || "Sense descripció")}</p><div class="tag-list">${[...competency.educationalLevels, ...competency.subjects].map(tag => `<span class="badge">${escapeHtml(tag)}</span>`).join("")}</div><p class="section-caption">${outcomeCount} ${outcomeCount === 1 ? "resultat d'aprenentatge" : "resultats d'aprenentatge"} · ${criteriaCount} ${criteriaCount === 1 ? "criteri" : "criteris"} · ${evidenceCount} ${evidenceCount === 1 ? "evidència" : "evidències"}</p><div class="progress-track" style="margin-top:14px"><div class="progress-fill ${gradeColorClass(average)}" style="width:${gradeWidth(average)}%"></div></div><div class="record-footer"><span>Mitjana del grup</span>${gradeBadge(average)}</div><button class="text-button" type="button" data-edit-competency="${escapeHtml(competency.id)}">Obre la competència ${icon("arrow-right")}</button></article>`;
+  }).join("")}</div>`;
+}
+
 function renderCompetencies() {
-  const action = `<button class="button button-primary" type="button" data-action="create-competency">${icon("plus")} Crea competència</button>`;
-  content.innerHTML = `${pageHeading("OBJECTIUS D'APRENENTATGE", "Competències", "Defineix què vols que l'alumnat sigui capaç de fer i relaciona-hi les evidències.", action)}
-    ${data.competencies.length ? `<div class="card-grid">${data.competencies.map(competency => {
-      const evidenceCount = data.activities.flatMap(activity => activity.evidences.filter(evidence => Number(evidence.contributions[competency.id]) > 0)).length;
-      const grades = data.students.map(student => getCompetencyGrade(student.id, competency.id)).filter(grade => grade !== null);
-      const average = grades.length ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length : null;
-      return `<article class="record-card"><div class="record-card-top"><h3>${escapeHtml(competency.name)}</h3><span class="badge">${evidenceCount} ${evidenceCount === 1 ? "evidència" : "evidències"}</span></div><p>${escapeHtml(competency.description || "Sense descripció")}</p><div class="progress-track" style="margin-top:14px"><div class="progress-fill ${gradeColorClass(average)}" style="width:${gradeWidth(average)}%"></div></div><div class="record-footer"><span>Mitjana del grup</span>${gradeBadge(average)}</div><button class="text-button" type="button" data-edit-competency="${competency.id}">Edita competència ${icon("arrow-right")}</button></article>`;
-    }).join("")}</div>` : emptyState("Encara no hi ha competències", "Crea les competències que vols treballar i avaluar.", "create-competency", "Crea una competència")}`;
+  if (state.selectedCompetencyId) {
+    renderCompetencyDetail();
+    return;
+  }
+  const subjects = [...new Set(data.competencies.flatMap(competency => competency.subjects))].sort((a, b) => a.localeCompare(b, "ca"));
+  const levelFilter = `<select class="search-input group-filter" id="competency-level" aria-label="Filtra per nivell educatiu"><option value="">Tots els nivells</option>${EDUCATIONAL_LEVELS.flatMap(stage => stage.levels).map(level => `<option value="${escapeHtml(level)}" ${state.competencyLevel === level ? "selected" : ""}>${escapeHtml(level)}</option>`).join("")}</select>`;
+  const subjectFilter = `<select class="search-input group-filter" id="competency-subject" aria-label="Filtra per matèria"><option value="">Totes les matèries</option>${subjects.map(subject => `<option value="${escapeHtml(subject)}" ${state.competencySubject === subject ? "selected" : ""}>${escapeHtml(subject)}</option>`).join("")}</select>`;
+  const action = `${levelFilter}${subjectFilter}<select class="search-input group-filter" id="competency-source" aria-label="Filtra per origen"><option value="">Totes</option><option value="bank" ${state.competencySource === "bank" ? "selected" : ""}>Banc de competències</option><option value="custom" ${state.competencySource === "custom" ? "selected" : ""}>Pròpies</option></select><input class="search-input" id="competency-search" type="search" placeholder="Cerca competències, resultats o criteris…" value="${escapeHtml(state.competencyQuery)}" aria-label="Cerca competències"><button class="button button-primary" type="button" data-action="create-competency">${icon("plus")} Crea competència</button>`;
+  content.innerHTML = `${pageHeading("OBJECTIUS D'APRENENTATGE", "Competències", "Cerca al banc de competències compartit o crea’n de pròpies, amb els seus resultats d'aprenentatge i criteris d'avaluació.", action)}<div id="competency-results">${competencyCards()}</div>`;
+  for (const [id, key] of [["#competency-source", "competencySource"], ["#competency-level", "competencyLevel"], ["#competency-subject", "competencySubject"]]) {
+    document.querySelector(id).addEventListener("change", event => {
+      state[key] = event.target.value;
+      document.querySelector("#competency-results").innerHTML = competencyCards();
+    });
+  }
+  document.querySelector("#competency-search").addEventListener("input", event => {
+    state.competencyQuery = event.target.value;
+    document.querySelector("#competency-results").innerHTML = competencyCards();
+  });
+}
+
+function competencyCriterionMarkup(criterion) {
+  return `<div class="criterion-row" data-criterion-id="${escapeHtml(criterion.id)}"><input name="criterionText" maxlength="400" required aria-label="Criteri d'avaluació" placeholder="Criteri d'avaluació" value="${escapeHtml(criterion.text)}"><button class="text-button" type="button" data-remove-criterion aria-label="Elimina el criteri">${icon("trash")}</button></div>`;
+}
+
+function competencyOutcomeMarkup(outcome) {
+  return `<section class="panel outcome-item" data-outcome-id="${escapeHtml(outcome.id)}">
+    <div class="field"><label>Resultat d'aprenentatge</label><input name="outcomeName" maxlength="200" required placeholder="Nom del resultat d'aprenentatge" value="${escapeHtml(outcome.name)}"></div>
+    <div class="field"><label>Descripció</label><textarea name="outcomeDescription" maxlength="600">${escapeHtml(outcome.description)}</textarea></div>
+    <div class="field"><label>Criteris d'avaluació</label><div class="criteria-list">${outcome.criteria.map(competencyCriterionMarkup).join("")}</div></div>
+    <div class="outcome-actions"><button class="button" type="button" data-add-criterion>${icon("plus")} Afegeix criteri</button><button class="text-button" type="button" data-remove-outcome>${icon("trash")} Elimina el resultat</button></div>
+  </section>`;
+}
+
+function knownCompetencySubjects() {
+  return [...new Set(data.competencies.flatMap(competency => competency.subjects))].sort((a, b) => a.localeCompare(b, "ca"));
+}
+
+function competencyTagChip(name, value) {
+  return `<span class="badge tag-chip"><input type="hidden" name="${name}" value="${escapeHtml(value)}">${escapeHtml(value)}<button class="tag-remove" type="button" data-remove-tag aria-label="Elimina ${escapeHtml(value)}">${icon("xmark")} ×</button></span>`;
+}
+
+function competencyTagEditor(name, label, selected, options, placeholder, allowNew = false) {
+  const available = options.filter(option => !selected.includes(option));
+  return `<div class="field tag-editor" data-tag-name="${name}"><label>${label}</label>
+    <div class="level-selection-add"><select data-tag-select aria-label="${label}"><option value="">${placeholder}</option>${available.map(option => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join("")}</select>${allowNew ? '<input data-tag-new maxlength="80" placeholder="o escriu-ne una de nova" aria-label="Nova matèria">' : ""}<button class="button" type="button" data-add-tag>${icon("plus")} Afegeix</button></div>
+    <div class="tag-list">${selected.map(value => competencyTagChip(name, value)).join("")}</div></div>`;
+}
+
+function renderCompetencyDetail() {
+  const competency = data.competencies.find(item => item.id === state.selectedCompetencyId);
+  if (!competency) {
+    state.selectedCompetencyId = null;
+    renderCompetencies();
+    return;
+  }
+  const bank = isBankCompetency(competency.id);
+  const modified = bank && JSON.stringify(withoutUnmodifiedBank({ competencies: [competency] }).competencies).length > 2;
+  content.innerHTML = `<button class="detail-back" type="button" data-back="competencies">${icon("arrow-left")} Torna a les competències</button>
+    ${pageHeading(bank ? "BANC DE COMPETÈNCIES" : "COMPETÈNCIA PRÒPIA", escapeHtml(competency.name), bank ? (modified ? "Aquesta competència del banc té canvis propis." : "Competència del banc compartit. Si l'edites, els canvis només s'apliquen a les teves dades.") : "Edita’n tota la informació.")}
+    <form id="competency-form" data-competency-id="${escapeHtml(competency.id)}">
+      <div class="field"><label for="competency-detail-name">Nom de la competència</label><input id="competency-detail-name" name="name" required maxlength="140" value="${escapeHtml(competency.name)}"></div>
+      <div class="field"><label for="competency-detail-description">Descripció</label><textarea id="competency-detail-description" name="description" maxlength="500">${escapeHtml(competency.description)}</textarea></div>
+      ${competencyTagEditor("educationalLevel", "Nivells educatius", competency.educationalLevels, EDUCATIONAL_LEVELS.flatMap(stage => stage.levels), "Afegeix un nivell…")}
+      ${competencyTagEditor("subject", "Matèries", competency.subjects, knownCompetencySubjects(), "Afegeix una matèria…", true)}
+      <h2 class="section-title">Resultats d'aprenentatge</h2>
+      <div id="competency-outcomes">${competency.learningOutcomes.map(competencyOutcomeMarkup).join("")}</div>
+      <div class="outcome-actions"><button class="button" type="button" data-add-outcome>${icon("plus")} Afegeix resultat d'aprenentatge</button></div>
+      <div class="outcome-actions"><button class="button button-primary" type="submit">${icon("check")} Desa els canvis</button>${modified ? `<button class="button" type="button" data-restore-competency>${icon("undo")} Restaura el valor del banc</button>` : ""}</div>
+    </form>`;
 }
 
 function renderClassGroups() {
@@ -852,7 +1165,7 @@ function renderClassGroups() {
           ).length;
           return `<div class="subgroup-row"><span>${escapeHtml(subgroup.name)}</span><span class="section-caption">${count} ${count === 1 ? "alumne" : "alumnes"}</span></div>`;
         }).join("")}</div>` : '<p class="section-caption">Sense desdoblaments. Afegeix-ne si la classe es divideix en subgrups.</p>'}
-        <div class="record-actions"><button class="text-button" type="button" data-filter-class-group="${escapeHtml(classGroup.id)}">Veure alumnes ${icon("arrow-right")}</button><button class="text-button" type="button" data-edit-class-group="${escapeHtml(classGroup.id)}">Edita grup</button><button class="text-button danger-text" type="button" data-delete-class-group="${escapeHtml(classGroup.id)}">Elimina</button></div></article>`;
+        <div class="record-actions"><button class="text-button" type="button" data-filter-class-group="${escapeHtml(classGroup.id)}">Veure alumnes ${icon("arrow-right")}</button><button class="text-button" type="button" data-edit-class-group="${escapeHtml(classGroup.id)}">${icon("edit-pencil")} Edita grup</button><button class="text-button danger-text" type="button" data-delete-class-group="${escapeHtml(classGroup.id)}">${icon("trash")} Elimina</button></div></article>`;
     }).join("")}</div>` : emptyState("Encara no hi ha grups classe", "Crea un grup classe per organitzar-hi l'alumnat i els desdoblaments.", "create-class-group", "Crea grup classe")}
     <div class="page-heading supplementary-groups-heading"><div><p class="eyebrow">OPTATIVES, SIEI I ALTRES</p><h2>Grups addicionals</h2><p class="page-subtitle">Un alumne pot formar part de diversos grups addicionals, independentment del seu grup classe.</p></div><div class="heading-actions"><button class="button button-primary" type="button" data-action="create-additional-group">${icon("plus")} Crea grup addicional</button></div></div>
     ${data.additionalGroups.length ? `<div class="card-grid">${data.additionalGroups.map(group => {
@@ -860,7 +1173,7 @@ function renderClassGroups() {
         getStudentEnrollment(student, data.currentAcademicYearId)?.additionalGroupIds.includes(group.id)
       );
       return `<article class="record-card"><div class="record-card-top"><div><h3>${escapeHtml(group.name)}</h3><p>${students.length} ${students.length === 1 ? "alumne" : "alumnes"}</p></div></div>
-        <div class="record-actions"><button class="text-button" type="button" data-filter-additional-group="${escapeHtml(group.id)}">Veure alumnes ${icon("arrow-right")}</button><button class="text-button" type="button" data-edit-additional-group="${escapeHtml(group.id)}">Edita grup</button><button class="text-button danger-text" type="button" data-delete-additional-group="${escapeHtml(group.id)}">Elimina</button></div></article>`;
+        <div class="record-actions"><button class="text-button" type="button" data-filter-additional-group="${escapeHtml(group.id)}">Veure alumnes ${icon("arrow-right")}</button><button class="text-button" type="button" data-edit-additional-group="${escapeHtml(group.id)}">${icon("edit-pencil")} Edita grup</button><button class="text-button danger-text" type="button" data-delete-additional-group="${escapeHtml(group.id)}">${icon("trash")} Elimina</button></div></article>`;
     }).join("")}</div>` : `<div class="empty-state">Encara no hi ha grups addicionals. Crea'n per organitzar les optatives, el SIEI o altres necessitats.</div>`}`;
 }
 
@@ -870,7 +1183,7 @@ function renderSubjects() {
     ${data.subjects.length ? `<div class="card-grid">${data.subjects.map(subject => {
       return `<article class="record-card subject-record-card" data-open-subject="${escapeHtml(subject.id)}" tabindex="0" role="link" aria-label="Obre l'assignatura ${escapeHtml(subject.name)}"><div class="record-card-top"><div><h3>${escapeHtml(subject.name)}</h3><p>${escapeHtml(subject.description || "Sense descripció")}</p></div><span class="badge">${subject.levels.length} ${subject.levels.length === 1 ? "nivell" : "nivells"}</span></div>
         <div class="record-footer"><span>${subject.levels.map(level => escapeHtml(level.name || "Sense nivell")).join(", ") || "Sense nivells definits"}</span></div>
-        <div class="record-actions"><span class="text-button subject-open-label">Obre assignatura ${icon("arrow-right")}</span><button class="text-button" type="button" data-edit-subject="${escapeHtml(subject.id)}">Edita assignatura</button></div></article>`;
+        <div class="record-actions"><span class="text-button subject-open-label">Obre assignatura ${icon("arrow-right")}</span><button class="text-button" type="button" data-edit-subject="${escapeHtml(subject.id)}">${icon("edit-pencil")} Edita assignatura</button></div></article>`;
     }).join("")}</div>` : emptyState("Encara no hi ha assignatures", "Crea una assignatura, assigna-hi grups classe i defineix-ne la seqüència d'activitats.", "create-subject", "Crea assignatura")}`;
 }
 
@@ -892,16 +1205,16 @@ function renderSubjectDetail() {
     const eligibleStudents = students.filter(student => !isStudentExemptFromSubject(data, student.id, subject.id));
     const competencies = data.competencies.filter(competency => level.competencyIds.includes(competency.id));
     const sequenceActivities = getSequenceActivities(level);
-    const hours = sequenceActivities.reduce((total, item) => total + Number(item.hours), 0);
+    const hours = getSequenceItems(level).reduce((total, item) => total + Number(item.hours), 0);
     const grades = eligibleStudents.flatMap(student => competencies.map(competency => getLevelCompetencyGrade(level, student.id, competency.id, subject.id)).filter(grade => grade !== null));
     const average = grades.length ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length : null;
     const situations = level.situations.length;
     return `<article class="record-card level-record-card" data-open-level="${escapeHtml(level.id)}" tabindex="0" role="link" aria-label="Obre el seguiment de ${escapeHtml(level.name || "el nivell")} de ${escapeHtml(subject.name)}"><div class="record-card-top"><div><h3>${escapeHtml(level.name || "Sense nivell")}</h3><p>${groups.length ? escapeHtml(groups.map(group => `${group.name} (${group.type})`).join(", ")) : "Sense grups assignats"}</p></div><span class="badge">${groups.length} ${groups.length === 1 ? "grup" : "grups"}</span></div>
       <div class="level-card-metrics"><span>${students.length} ${students.length === 1 ? "alumne" : "alumnes"}</span><span>${sequenceActivities.length} ${sequenceActivities.length === 1 ? "activitat" : "activitats"}</span><span>${situations} ${situations === 1 ? "situació" : "situacions"}</span><span>${hours.toLocaleString("ca-ES")} h</span></div>
-      <div class="record-footer"><span>Progrés competencial</span>${gradeBadge(average)}</div><div class="record-actions"><span class="text-button subject-open-label">Obre seguiment ${icon("arrow-right")}</span><button class="text-button" type="button" data-open-level-sequence="${escapeHtml(level.id)}">Obre seqüència</button><button class="text-button" type="button" data-edit-level="${escapeHtml(level.id)}">Edita nivell</button></div></article>`;
+      <div class="record-footer"><span>Progrés competencial</span>${gradeBadge(average)}</div><div class="record-actions"><span class="text-button subject-open-label">Obre seguiment ${icon("arrow-right")}</span><button class="text-button" type="button" data-open-level-sequence="${escapeHtml(level.id)}">Obre seqüència</button><button class="text-button" type="button" data-edit-level="${escapeHtml(level.id)}">${icon("edit-pencil")} Edita nivell</button></div></article>`;
   }).join("");
   content.innerHTML = `<button class="detail-back" type="button" data-back="subjects">${icon("arrow-left")} Torna a les assignatures</button>
-    ${pageHeading("ASSIGNATURA", escapeHtml(subject.name), escapeHtml(subject.description || "Nivells, grups, seqüències i seguiment competencial."), `<button class="button" type="button" data-edit-subject="${escapeHtml(subject.id)}">Edita assignatura</button>${action}`)}
+    ${pageHeading("ASSIGNATURA", escapeHtml(subject.name), escapeHtml(subject.description || "Nivells, grups, seqüències i seguiment competencial."), `<button class="button" type="button" data-edit-subject="${escapeHtml(subject.id)}">${icon("edit-pencil")} Edita assignatura</button>${action}`)}
     ${subject.levels.length ? `<div class="card-grid">${levelCards}</div>` : emptyState("Encara no hi ha nivells", "Afegeix un nivell per assignar-hi els grups classe o addicionals, la seqüència i el progrés competencial.", "create-level", "Afegeix nivell")}`;
 }
 
@@ -928,6 +1241,9 @@ function renderLevelDetail() {
   );
   const totalHours = sequenceActivities.reduce((total, item) => total + Number(item.hours), 0);
   const sequenceRows = sequenceActivities.map((item, index) => {
+    if (isLectureItem(item)) {
+      return `<tr><td>${index + 1}</td><td>${escapeHtml(item.situationName)}</td><td><strong>${escapeHtml(item.title)}</strong><br><span class="section-caption">Classe · seguiment diari</span></td><td>${Number(item.hours).toLocaleString("ca-ES")} h</td><td><span class="grade-empty">No s'avalua amb rúbrica</span></td><td></td></tr>`;
+    }
     const activity = data.activities.find(record => record.id === item.activityId);
     if (!activity) return "";
     const contributions = competencies
@@ -956,7 +1272,7 @@ function renderLevelDetail() {
     const rosterCount = getOfferingStudents(data, offer).length;
     const isCurrent = offer.academicYearId === data.currentAcademicYearId;
     const statusLabel = offer.status === "archived" ? "Arxivada" : isCurrent ? "Vigent" : "Curs anterior";
-    return `<article class="teaching-offer-card"><div><strong>${escapeHtml(year?.name || "Curs desconegut")}</strong><span>${escapeHtml(offerGroups.join(", "))} · ${rosterCount} alumnes</span></div><span class="badge ${isCurrent && offer.status === "active" ? "grade-achieved" : ""}">${statusLabel}</span><div class="record-actions"><button class="text-button" type="button" data-edit-teaching-offer="${escapeHtml(offer.id)}">Edita oferta</button>${offer.status === "active" ? `<button class="text-button danger-text" type="button" data-archive-teaching-offer="${escapeHtml(offer.id)}">Arxiva</button>` : ""}</div></article>`;
+    return `<article class="teaching-offer-card"><div><strong>${escapeHtml(year?.name || "Curs desconegut")}</strong><span>${escapeHtml(offerGroups.join(", "))} · ${rosterCount} alumnes</span></div><span class="badge ${isCurrent && offer.status === "active" ? "grade-achieved" : ""}">${statusLabel}</span><div class="record-actions"><button class="text-button" type="button" data-edit-teaching-offer="${escapeHtml(offer.id)}">${icon("edit-pencil")} Edita oferta</button>${offer.status === "active" ? `<button class="text-button danger-text" type="button" data-archive-teaching-offer="${escapeHtml(offer.id)}">${icon("archive")} Arxiva</button>` : ""}</div></article>`;
   }).join("");
   const groupChips = groups.map(group => {
     const groupStudents = [...new Map(offerings.flatMap(offer => getOfferingStudents(data, offer).filter(student =>
@@ -967,18 +1283,18 @@ function renderLevelDetail() {
     return `<span class="badge">${escapeHtml(group.name)} · ${group.type} · ${groupStudents.length} alumnes</span>`;
   }).join("");
   content.innerHTML = `<button class="detail-back" type="button" data-back="level">${icon("arrow-left")} Torna als nivells de ${escapeHtml(subject.name)}</button>
-    ${pageHeading(escapeHtml(level.name.toUpperCase()), escapeHtml(subject.name), "Planificació programativa i ofertes docents separades per curs i grup.", `<button class="button" type="button" data-open-level-sequence>Obre seqüència ${icon("arrow-right")}</button><button class="button" type="button" data-action="create-teaching-offer">${icon("plus")} Afegeix oferta</button><button class="button" type="button" data-edit-level="${escapeHtml(level.id)}">Edita nivell</button>`)}
+    ${pageHeading(escapeHtml(level.name.toUpperCase()), escapeHtml(subject.name), "Planificació programativa i ofertes docents separades per curs i grup.", `<button class="button" type="button" data-open-level-sequence>Obre seqüència ${icon("arrow-right")}</button><button class="button" type="button" data-action="create-teaching-offer">${icon("plus")} Afegeix oferta</button><button class="button" type="button" data-edit-level="${escapeHtml(level.id)}">${icon("edit-pencil")} Edita nivell</button>`)}
     <div class="metric-grid">
       <div class="metric-card"><div class="metric-top"><span>Grups assignats</span>${icon("view-grid", "metric-icon")}</div><div class="metric-value">${groups.length}</div></div>
       <div class="metric-card"><div class="metric-top"><span>Alumnes</span>${icon("group", "metric-icon")}</div><div class="metric-value">${students.length}</div></div>
-      <div class="metric-card"><div class="metric-top"><span>Activitats i proves</span>${icon("list-select", "metric-icon")}</div><div class="metric-value">${sequenceActivities.length}</div></div>
+      <div class="metric-card"><div class="metric-top"><span>Activitats i proves</span>${icon("list-select", "metric-icon")}</div><div class="metric-value">${sequenceActivities.filter(item => !isLectureItem(item)).length}</div></div>
       <div class="metric-card"><div class="metric-top"><span>Hores planificades</span>${icon("clock", "metric-icon")}</div><div class="metric-value">${totalHours.toLocaleString("ca-ES")}</div></div>
     </div>
     <section class="panel"><div class="panel-heading"><div><h2 class="section-title">Ofertes docents</h2><span class="section-caption">L'enllaç entre aquesta planificació i les matrícules dels grups classe o addicionals.</span></div><button class="text-button" type="button" data-action="create-teaching-offer">${icon("plus")} Afegeix oferta</button></div>
       ${offeringRows ? `<div class="teaching-offer-list">${offeringRows}</div>` : "<div class=\"empty-state\">Aquest nivell encara no s'ha ofert a cap grup. La seqüència continua al banc de planificació, sense alumnat a avaluar.</div>"}</section>
     <section class="panel" style="margin-top:14px"><div class="panel-heading"><div><h2 class="section-title">Grups del curs vigent</h2><span class="section-caption">${escapeHtml(level.name)} · Matrícules incloses en l'avaluació</span></div></div>
       ${groups.length ? `<div class="group-chip-list">${groupChips}</div>` : '<div class="empty-state">Encara no hi ha grups al curs vigent.</div>'}</section>
-    <section class="panel" style="margin-top:14px"><div class="panel-heading"><div><h2 class="section-title">Seqüència d'aprenentatge</h2><span class="section-caption">Les hores són la dedicació prevista. La contribució pesa l'evidència de l'activitat en la nota de cada competència.</span></div><button class="text-button" type="button" data-edit-level="${escapeHtml(level.id)}">Edita seqüència ${icon("arrow-right")}</button></div>
+    <section class="panel" style="margin-top:14px"><div class="panel-heading"><div><h2 class="section-title">Seqüència d'aprenentatge</h2><span class="section-caption">Les hores són la dedicació prevista. La contribució pesa l'evidència de l'activitat en la nota de cada competència.</span></div><button class="text-button" type="button" data-edit-level="${escapeHtml(level.id)}">${icon("edit-pencil")} Edita seqüència ${icon("arrow-right")}</button></div>
       ${sequenceActivities.length ? `<div class="table-wrap"><table class="assessment-table subject-sequence-table"><thead><tr><th>#</th><th>Situació d'aprenentatge</th><th>Activitat o examen</th><th>Hores</th><th>Contribució a les competències</th><th></th></tr></thead><tbody>${sequenceRows}</tbody><tfoot><tr><th colspan="3">Total d'hores</th><th>${totalHours.toLocaleString("ca-ES")} h</th><th colspan="2"></th></tr></tfoot></table></div>` : emptyState("Seqüència buida", "Edita aquest nivell per afegir activitats i exàmens.", "edit-level", "Edita nivell")}</section>
     <section class="panel" style="margin-top:14px"><div class="panel-heading"><div><h2 class="section-title">Progrés competencial</h2><span class="section-caption">Mitjana del grup ponderada per la contribució de cada activitat i les hores de dedicació</span></div></div>
       ${competencyRows || '<div class="empty-state">Aquest nivell encara no té competències assignades. Edita’l per seleccionar-ne.</div>'}</section>
@@ -997,14 +1313,22 @@ function renderLevelSequence() {
   }
   const competencies = data.competencies.filter(competency => level.competencyIds.includes(competency.id));
   const situations = level.situations;
+  const sequenceItems = getSequenceItems(level);
   const sequenceActivities = getSequenceActivities(level);
-  const totalHours = sequenceActivities.reduce((total, item) => total + Number(item.hours), 0);
+  const totalHours = sequenceItems.reduce((total, item) => total + Number(item.hours), 0);
   const situationCards = situations.map((situation, situationIndex) => {
     const items = situation.activities;
     const activityCards = items.map(item => {
+      const sequenceNumber = sequenceItems.indexOf(item) + 1;
+      if (isLectureItem(item)) {
+        return `<article class="sequence-activity sequence-lecture">
+        <div class="sequence-activity-number">${String(sequenceNumber).padStart(2, "0")}</div>
+        <div class="sequence-activity-copy"><h3>${escapeHtml(item.title)}</h3><p>Classe · s'avalua amb el seguiment diari</p></div>
+        <div class="sequence-activity-meta"><span>${Number(item.hours).toLocaleString("ca-ES")} h</span></div>
+      </article>`;
+      }
       const activity = data.activities.find(record => record.id === item.activityId);
       if (!activity) return "";
-      const sequenceNumber = sequenceActivities.indexOf(item) + 1;
       const contributions = competencies
         .map(competency => ({ competency, contribution: getActivityCompetencyContribution(activity, competency.id) }))
         .filter(({ contribution }) => contribution > 0)
@@ -1017,14 +1341,15 @@ function renderLevelSequence() {
       </article>`;
     }).join("");
     const hours = items.reduce((total, item) => total + Number(item.hours), 0);
+    const lectureCount = items.filter(isLectureItem).length;
     return `<section class="sequence-situation">
-      <div class="sequence-situation-heading"><div><span class="section-caption">SITUACIÓ D'APRENENTATGE ${situationIndex + 1}</span><h2>${escapeHtml(situation.name)}</h2></div><span class="badge">${items.length} ${items.length === 1 ? "activitat" : "activitats"} · ${hours.toLocaleString("ca-ES")} h</span></div>
+      <div class="sequence-situation-heading"><div><span class="section-caption">SITUACIÓ D'APRENENTATGE ${situationIndex + 1}</span><h2>${escapeHtml(situation.name)}</h2></div><span class="badge">${items.length - lectureCount} ${items.length - lectureCount === 1 ? "activitat" : "activitats"}${lectureCount ? ` · ${lectureCount} ${lectureCount === 1 ? "classe" : "classes"}` : ""} · ${hours.toLocaleString("ca-ES")} h</span></div>
       <div class="sequence-activity-list">${activityCards || '<p class="sequence-empty">Encara no hi ha activitats en aquesta situació.</p>'}</div>
-      <button class="button sequence-add-activity" type="button" data-add-situation-activity="${escapeHtml(situation.id)}">${icon("plus")} Afegeix activitat a aquesta situació</button>
+      <button class="button sequence-add-activity" type="button" data-add-situation-activity="${escapeHtml(situation.id)}">${icon("plus")} Afegeix activitat a aquesta situació</button> <button class="button sequence-add-activity" type="button" data-add-situation-lecture="${escapeHtml(situation.id)}">${icon("plus")} Afegeix classe</button>
     </section>`;
   }).join("");
   content.innerHTML = `<button class="detail-back" type="button" data-back="levels">${icon("arrow-left")} Torna als nivells de ${escapeHtml(subject.name)}</button>
-    ${pageHeading("SEQÜÈNCIA D'APRENENTATGE", escapeHtml(level.name || "Sense nivell"), escapeHtml(subject.name), `<button class="button" type="button" data-open-level-progress>Seguiment del nivell</button><button class="button" type="button" data-add-learning-situation>${icon("plus")} Afegeix situació</button><button class="button button-primary" type="button" data-edit-level="${escapeHtml(level.id)}">${icon("edit-pencil")} Edita seqüència</button>`)}
+    ${pageHeading("SEQÜÈNCIA D'APRENENTATGE", escapeHtml(level.name || "Sense nivell"), escapeHtml(subject.name), `<button class="button" type="button" data-open-level-progress>${icon("graph-up")} Seguiment del nivell</button><button class="button" type="button" data-add-learning-situation>${icon("plus")} Afegeix situació</button><button class="button button-primary" type="button" data-edit-level="${escapeHtml(level.id)}">${icon("edit-pencil")} Edita seqüència</button>`)}
     <div class="metric-grid sequence-metrics">
       <div class="metric-card"><div class="metric-top"><span>Situacions d'aprenentatge</span>${icon("book-stack", "metric-icon")}</div><div class="metric-value">${situations.length}</div></div>
       <div class="metric-card"><div class="metric-top"><span>Activitats i proves</span>${icon("list-select", "metric-icon")}</div><div class="metric-value">${sequenceActivities.length}</div></div>
@@ -1039,5 +1364,5 @@ function renderLevelSequence() {
 export {
   setView, render, getClassGroup, getStudentGroupLabel, classGroupOptions, subgroupOptions,
   renderClassGroups, renderSubjectDetail, renderLevelDetail, renderLevelSequence, renderActivityDetail, renderActivityStudentReport, renderStudentDetail, renderStudentSubjectReport, studentDisplayName,
-  updateActivityAssessmentRow
+  updateActivityAssessmentRow, refreshActivityGroups, competencyOutcomeMarkup, competencyCriterionMarkup, competencyTagChip
 };

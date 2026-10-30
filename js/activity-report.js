@@ -2,6 +2,7 @@ import { getActivityOffers, getOfferingStudents } from "./data.js";
 import { data, state } from "./state.js";
 import {
   SCORE_BY_LEVEL, LEVEL_LABELS, getActivityGrade, getAssessment,
+  getActivityGroupEvidenceScore, getActivityGroupGrade,
   getEvidenceActivityWeight, isStudentExemptFromActivity,
   isStudentExemptFromSubjectForActivity
 } from "./grades.js";
@@ -25,7 +26,7 @@ function evidenceContributionLabel(evidence) {
   return contributions.length ? contributions.join(" · ") : "Sense competències vinculades";
 }
 
-function studentReport(activity, student, subjectId, offeringId = null) {
+function studentReport(activity, student, subjectId, offeringId = null, editableFeedback = false) {
   const assessment = getAssessment(data, student.id, activity.id, offeringId);
   const activityExempt = isStudentExemptFromActivity(data, student.id, activity.id);
   const subjectExempt = isStudentExemptFromSubjectForActivity(data, student.id, activity.id, subjectId);
@@ -39,6 +40,7 @@ function studentReport(activity, student, subjectId, offeringId = null) {
     ? subjectExempt ? "Exempt/a de l’assignatura" : "Exempt/a de l’activitat"
     : grade === null ? "Pendent d’avaluar" : formatGradeWithCode(grade);
   const gradeClass = grade === null ? "" : gradeColorClass(grade);
+  const feedback = String(assessment?.feedback || "");
   const evidenceRows = activity.evidences.map(evidence => {
     const level = assessment?.levels[evidence.id];
     const hasGrade = Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
@@ -73,15 +75,18 @@ function studentReport(activity, student, subjectId, offeringId = null) {
       <p>La nota de cada evidència es mostra sobre 10 amb la seva qualificació textual.</p>
       <table><thead><tr><th>Evidència i competències</th><th>Pes</th><th>Resultat</th></tr></thead><tbody>${evidenceRows || '<tr><td colspan="3">Aquesta activitat encara no té evidències.</td></tr>'}</tbody></table>
     </section>
+    ${editableFeedback
+      ? `<section class="report-feedback"><label for="activity-student-feedback">Retroacció per a ${escapeHtml(studentName(student))}</label><p>Es desa amb l'avaluació d'aquest alumne per a l'activitat.</p><textarea id="activity-student-feedback" data-activity-feedback data-activity-id="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" data-offering-id="${escapeHtml(offeringId || "")}" maxlength="2000" rows="5" placeholder="Escriu una retroacció específica per a aquest alumne…">${escapeHtml(feedback)}</textarea><small>Fins a 2.000 caràcters</small></section>`
+      : feedback.trim() ? `<section class="report-feedback"><h2>Retroacció</h2><p>${escapeHtml(feedback).replaceAll("\\n", "<br>")}</p></section>` : ""}
     <footer class="report-footer"><span>Avaluatró · Informe generat el ${new Intl.DateTimeFormat("ca-ES", { dateStyle: "long" }).format(new Date())}</span><span>NA: No assolit · AS: Assoliment satisfactori · AN: Assoliment notable · AE: Assoliment excel·lent</span></footer>
   </article>`;
 }
 
-function reportDocument(activity, students, subjectId, offeringId) {
-  const title = students.length === 1
+function reportDocument(activity, students, subjectId, offeringId, reportMarkup = null, titleOverride = null) {
+  const title = titleOverride || (students.length === 1
     ? `Informe ${studentName(students[0])} - ${activity.title}`
-    : `Informes de l’activitat - ${activity.title}`;
-  const reports = students.map(student => studentReport(activity, student, subjectId, offeringId)).join("");
+    : `Informes de l’activitat - ${activity.title}`);
+  const reports = reportMarkup ?? students.map(student => studentReport(activity, student, subjectId, offeringId)).join("");
   return `<!doctype html>
 <html lang="ca">
 <head>
@@ -114,6 +119,9 @@ function reportDocument(activity, students, subjectId, offeringId) {
     .report-final-grade > strong.grade-advanced { background: #edf4fb; color: #315f8d; }
     .report-evidence h2 { margin: 0 0 5px; font-size: 15px; }
     .report-evidence > p { margin: 0 0 12px; color: #758078; font-size: 10px; line-height: 1.5; }
+    .report-feedback { margin-top: 24px; padding: 14px; border: 1px solid #e6ebe6; border-radius: 8px; background: #fbfcfb; }
+    .report-feedback h2 { margin: 0 0 7px; font-size: 14px; }
+    .report-feedback p { margin: 0; color: #49534b; font-size: 11px; line-height: 1.6; white-space: pre-wrap; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 10px 9px; border-bottom: 1px solid #e9ede9; text-align: left; vertical-align: top; }
     th { background: #f6f8f6; color: #667269; font-size: 9px; text-transform: uppercase; }
@@ -145,9 +153,14 @@ function reportDocument(activity, students, subjectId, offeringId) {
 export function getActivityStudentReportMarkup(activityId, studentId, subjectId = null) {
   const activity = data.activities.find(item => item.id === activityId);
   const student = data.students.find(item => item.id === studentId);
-  const offeringId = state.selectedOfferingId || getActivityOffers(data, activityId)
-    .find(offer => offer.subjectId === subjectId && getOfferingStudents(data, offer).some(item => item.id === studentId))?.id || null;
-  return activity && student ? studentReport(activity, student, subjectId, offeringId) : "";
+  const offerings = getActivityOffers(data, activityId).filter(offer =>
+    (!subjectId || offer.subjectId === subjectId) &&
+    getOfferingStudents(data, offer).some(item => item.id === studentId)
+  );
+  const offeringId = offerings.some(offer => offer.id === state.selectedOfferingId)
+    ? state.selectedOfferingId
+    : offerings.length === 1 ? offerings[0].id : null;
+  return activity && student ? studentReport(activity, student, subjectId, offeringId, true) : "";
 }
 
 export function openActivityReport(studentId = null) {
@@ -172,6 +185,54 @@ export function openActivityReport(studentId = null) {
   if (!reportWindow) return false;
   reportWindow.document.open();
   reportWindow.document.write(reportDocument(activity, students, state.selectedSubjectId, selectedOfferingId));
+  reportWindow.document.close();
+  return true;
+}
+
+function activityGroupReport(activity, group, students, offeringId) {
+  const grade = getActivityGroupGrade(data, activity, group, offeringId);
+  const evidenceRows = activity.evidences.map(evidence => {
+    const score = getActivityGroupEvidenceScore(data, activity, group, offeringId, evidence.id);
+    return `<tr><td><strong>${escapeHtml(evidence.name)}</strong><small>${escapeHtml(evidenceContributionLabel(evidence))}</small></td>
+      <td>${getEvidenceActivityWeight(evidence)}%</td><td>${score === null ? "Pendent d'avaluar" : formatGradeWithCode(score)}</td></tr>`;
+  }).join("");
+  const membersMarkup = students.map(student => escapeHtml(studentName(student))).join(", ");
+  const gradeLabel = grade === null ? "Pendent d’avaluar" : formatGradeWithCode(grade);
+  const gradeClass = grade === null ? "" : gradeColorClass(grade);
+  return `<article class="report-page">
+    <header class="report-header"><div><p class="report-eyebrow">Informe d’avaluació de l’agrupament</p><h1>${escapeHtml(activity.title)}</h1></div><span class="report-type">${escapeHtml(activity.type)}</span></header>
+    <div class="report-student"><div><span>Agrupament</span><strong>${escapeHtml(group.name)}</strong></div><div><span>Membres</span><strong>${membersMarkup || "Sense membres"}</strong></div><div><span>Data de l’activitat</span><strong>${escapeHtml(formatDate(activity.date))}</strong></div></div>
+    <section class="report-final-grade"><div><span>Nota mitjana de l'agrupament</span><small>Mitjana de les avaluacions individuals dels components, ponderada per evidència</small></div><strong class="${gradeClass}">${escapeHtml(gradeLabel)}</strong></section>
+    <section class="report-evidence"><h2>Progrés mitjà per evidència</h2><p>Mitjana de les avaluacions individuals dels membres que tenen nota per a cada evidència.</p>
+      <table><thead><tr><th>Evidència i competències</th><th>Pes</th><th>Mitjana</th></tr></thead><tbody>${evidenceRows || '<tr><td colspan="3">Aquesta activitat encara no té evidències.</td></tr>'}</tbody></table>
+    </section>
+    <footer class="report-footer"><span>Avaluatró · Informe generat el ${new Intl.DateTimeFormat("ca-ES", { dateStyle: "long" }).format(new Date())}</span><span>NA: No assolit · AS: Assoliment satisfactori · AN: Assoliment notable · AE: Assoliment excel·lent</span></footer>
+  </article>`;
+}
+
+export function openActivityGroupReports() {
+  const activity = data.activities.find(item => item.id === state.selectedActivityId);
+  if (!activity?.isGroup) return false;
+  const offerings = getActivityOffers(data, activity.id).filter(offer =>
+    (!state.selectedSubjectId || offer.subjectId === state.selectedSubjectId) &&
+    (!state.selectedLevelId || offer.levelId === state.selectedLevelId)
+  );
+  const offering = offerings.find(item => item.id === state.selectedOfferingId) ||
+    (offerings.length === 1 ? offerings[0] : null);
+  if (!offering) return false;
+  const students = getOfferingStudents(data, offering);
+  const reports = activity.groups.map(group => {
+    const members = students.filter(student => group.studentIds.includes(student.id));
+    return members.length ? activityGroupReport(activity, group, members, offering.id) : "";
+  }).filter(Boolean).join("");
+  if (!reports) return false;
+
+  const reportWindow = window.open("", "_blank");
+  if (!reportWindow) return false;
+  reportWindow.document.open();
+  reportWindow.document.write(reportDocument(
+    activity, [], offering.subjectId, offering.id, reports, `Informes dels agrupaments - ${activity.title}`
+  ));
   reportWindow.document.close();
   return true;
 }

@@ -1,4 +1,5 @@
 import { EDUCATIONAL_LEVEL_NAMES } from "./education.js";
+import { mergeCompetencyBank } from "./competency-bank.js";
 
 export const DAILY_FOLLOWUP_CRITERIA = [
   { id: "participation", name: "Participació" },
@@ -11,8 +12,17 @@ export function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-export function getSequenceActivities(level) {
+export function getSequenceItems(level) {
   return level.situations.flatMap(situation => situation.activities);
+}
+
+export function isLectureItem(item) {
+  return item.kind === "lecture";
+}
+
+// Només els elements de seqüència que apunten a una activitat avaluable.
+export function getSequenceActivities(level) {
+  return getSequenceItems(level).filter(item => !isLectureItem(item));
 }
 
 export function getCurrentAcademicYear(data) {
@@ -153,12 +163,19 @@ export function validateData(value, makeId) {
   value.dailyAssessments ??= [];
   value.subjectExemptions ??= [];
   value.activityExemptions ??= [];
+  value.teacherProfile ??= { name: "", role: "", institution: "" };
   if (!Array.isArray(value.classGroups)) throw new Error("la llista de grups classe no és vàlida.");
   if (!Array.isArray(value.additionalGroups)) throw new Error("la llista de grups addicionals no és vàlida.");
   if (!Array.isArray(value.subjects)) throw new Error("la llista d'assignatures no és vàlida.");
   if (!Array.isArray(value.dailyAssessments)) throw new Error("la llista de seguiments diaris no és vàlida.");
   if (!Array.isArray(value.subjectExemptions)) throw new Error("la llista d'exempcions d'assignatura no és vàlida.");
   if (!Array.isArray(value.activityExemptions)) throw new Error("la llista d'exempcions d'activitat no és vàlida.");
+  if (!value.teacherProfile || typeof value.teacherProfile !== "object" || Array.isArray(value.teacherProfile) ||
+    ["name", "role", "institution"].some(key =>
+      typeof value.teacherProfile[key] !== "string" || value.teacherProfile[key].length > 120
+    )) {
+    throw new Error("el perfil docent no és vàlid.");
+  }
   for (const subject of value.subjects) {
     const hasLegacyLevelData = subject && typeof subject === "object" &&
       ["level", "classGroupIds", "sequence"].some(key => Object.hasOwn(subject, key));
@@ -204,6 +221,24 @@ export function validateData(value, makeId) {
   }
   for (const classGroup of value.classGroups) classGroup.subgroups ||= [];
   if (value.schemaVersion === 1) migrateVersionOne(value, makeId);
+  mergeCompetencyBank(value.competencies);
+  for (const competency of value.competencies) {
+    if (!competency || typeof competency !== "object") continue;
+    competency.description ??= "";
+    competency.learningOutcomes ??= [];
+    for (const tagList of ["educationalLevels", "subjects"]) {
+      competency[tagList] ??= [];
+      if (!Array.isArray(competency[tagList]) || competency[tagList].some(tag => typeof tag !== "string")) throw new Error("hi ha una competència amb etiquetes invàlides.");
+    }
+    if (!Array.isArray(competency.learningOutcomes)) throw new Error("hi ha una competència amb resultats d'aprenentatge invàlids.");
+    for (const outcome of competency.learningOutcomes) {
+      outcome.description ??= "";
+      outcome.criteria ??= [];
+      if (typeof outcome.id !== "string" || typeof outcome.name !== "string" || !Array.isArray(outcome.criteria) || outcome.criteria.some(criterion => typeof criterion?.id !== "string" || typeof criterion.text !== "string")) {
+        throw new Error("hi ha un resultat d'aprenentatge invàlid.");
+      }
+    }
+  }
   const ids = new Set();
   for (const listName of ["students", "competencies", "activities", "classGroups", "additionalGroups", "academicYears", "teachingOffers"]) {
     for (const record of value[listName]) {
@@ -293,6 +328,11 @@ export function validateData(value, makeId) {
     }
   }
   const competencyIds = new Set(value.competencies.map(competency => competency.id));
+  const legacyLectures = new Map(value.activities.filter(activity => activity?.type === "Magistral").map(activity => [activity.id, activity]));
+  const convertedLectureIds = new Set();
+  for (const activity of value.activities) {
+    if (activity && typeof activity === "object" && activity.type !== "Prova") activity.type = "Activitat";
+  }
   const activityIds = new Set(value.activities.map(activity => activity.id));
   for (const activity of value.activities) {
     if (Array.isArray(activity.criteria) && !Array.isArray(activity.evidences)) {
@@ -314,6 +354,21 @@ export function validateData(value, makeId) {
       }
       delete evidence.weight;
       ids.add(evidence.id);
+    }
+    activity.groups ??= [];
+    activity.isGroup = activity.isGroup === true || (activity.isGroup === undefined && activity.groups.length > 0);
+    activity.groupGrading = activity.groupGrading === "group" ? "group" : "individual";
+    if (!Array.isArray(activity.groups)) throw new Error("els agrupaments d'una activitat no són vàlids.");
+    const groupedStudentIds = new Set();
+    for (const group of activity.groups) {
+      if (!group || typeof group.id !== "string" || !group.id || ids.has(group.id) ||
+        typeof group.name !== "string" || !group.name.trim() || group.name.trim().length > 60 ||
+        !Array.isArray(group.studentIds) || new Set(group.studentIds).size !== group.studentIds.length || group.studentIds.some(id => !studentIds.has(id) || groupedStudentIds.has(id))) {
+        throw new Error("hi ha un agrupament d'activitat invàlid o amb alumnes repetits.");
+      }
+      group.name = group.name.trim();
+      group.studentIds.forEach(id => groupedStudentIds.add(id));
+      ids.add(group.id);
     }
   }
   for (const subject of value.subjects) {
@@ -384,11 +439,28 @@ export function validateData(value, makeId) {
       delete level.sequence;
       const sequenceActivityIds = new Set();
       for (const situation of situationRecords) {
+        if (Array.isArray(situation.activities)) {
+          situation.activities = situation.activities.map(item => {
+            const legacy = item && legacyLectures.get(item.activityId);
+            if (!legacy) return item;
+            convertedLectureIds.add(legacy.id);
+            return { id: item.id, kind: "lecture", title: legacy.title, hours: item.hours };
+          });
+        }
         if (typeof situation.id !== "string" || !situation.id || ids.has(situation.id) || !Array.isArray(situation.activities)) {
           throw new Error("hi ha una situació d'aprenentatge invàlida o amb un identificador duplicat.");
         }
         ids.add(situation.id);
         for (const item of situation.activities) {
+          if (item?.kind === "lecture") {
+            if (typeof item.id !== "string" || !item.id || ids.has(item.id) || typeof item.title !== "string" || !item.title.trim() ||
+              !Number.isFinite(Number(item.hours)) || Number(item.hours) <= 0) {
+              throw new Error("hi ha una classe de la seqüència invàlida.");
+            }
+            ids.add(item.id);
+            item.title = item.title.trim();
+            continue;
+          }
           if (!item || typeof item.id !== "string" || !item.id || !activityIds.has(item.activityId) || !Number.isFinite(Number(item.hours)) || Number(item.hours) <= 0) {
             throw new Error("hi ha un element de seqüència d'assignatura invàlid.");
           }
@@ -403,6 +475,12 @@ export function validateData(value, makeId) {
       }
       level.situations = situationRecords;
     }
+  }
+  if (convertedLectureIds.size) {
+    value.activities = value.activities.filter(activity => !convertedLectureIds.has(activity.id));
+    value.assessments = (value.assessments || []).filter(item => !convertedLectureIds.has(item.activityId));
+    value.activityExemptions = (value.activityExemptions || []).filter(item => !convertedLectureIds.has(item.activityId));
+    for (const id of convertedLectureIds) activityIds.delete(id);
   }
   const offerKeys = new Set();
   for (const offer of value.teachingOffers) {
@@ -431,7 +509,8 @@ export function validateData(value, makeId) {
   for (const assessment of value.assessments) {
     if (!assessment || !studentIds.has(assessment.studentId) || !activityIds.has(assessment.activityId) ||
       assessment.offeringId && !value.teachingOffers.some(offer => offer.id === assessment.offeringId) ||
-      !assessment.levels || typeof assessment.levels !== "object") {
+      !assessment.levels || typeof assessment.levels !== "object" ||
+      assessment.feedback !== undefined && (typeof assessment.feedback !== "string" || assessment.feedback.length > 2000)) {
       throw new Error("hi ha una avaluació sense alumne o activitat vàlids.");
     }
     if (assessment.offeringId) {

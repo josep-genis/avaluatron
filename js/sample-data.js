@@ -27,7 +27,7 @@ export const sampleData = {
     {
       id: "ac-2",
       title: "Projecte: tecnologia i sostenibilitat",
-      type: "Projecte en grup",
+      type: "Activitat",
       date: "2026-10-16",
       evidences: [
         { id: "cr-3", name: "Proposta de millora ecològica", contributions: { "co-1": 70 } },
