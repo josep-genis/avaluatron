@@ -1,3 +1,4 @@
+import { DEFAULT_APPEARANCE, isValidAppearance } from "./themes.js";
 import { EDUCATIONAL_LEVEL_NAMES } from "./education.js";
 import { mergeCompetencyBank } from "./competency-bank.js";
 
@@ -132,9 +133,11 @@ function migrateVersionOne(value, makeId) {
   value.assessments = assessments.flatMap(assessment => {
     const matchingOffers = value.teachingOffers.filter(offer => {
       const level = value.subjects.find(subject => subject.id === offer.subjectId)?.levels.find(item => item.id === offer.levelId);
-      return level?.situations?.some(situation =>
-        situation.activities.some(item => item.activityId === assessment.activityId)
-      ) && getOfferingStudents(value, offer).some(student => student.id === assessment.studentId);
+      const legacyItems = Array.isArray(level?.sequence) ? level.sequence : [];
+      const nestedItems = (Array.isArray(level?.situations) ? level.situations : [])
+        .flatMap(situation => Array.isArray(situation?.activities) ? situation.activities : []);
+      return [...legacyItems, ...nestedItems].some(item => item?.activityId === assessment.activityId)
+        && getOfferingStudents(value, offer).some(student => student.id === assessment.studentId);
     });
     return matchingOffers.length
       ? matchingOffers.map(offer => ({ ...assessment, levels: { ...assessment.levels }, offeringId: offer.id }))
@@ -164,6 +167,7 @@ export function validateData(value, makeId) {
   value.subjectExemptions ??= [];
   value.activityExemptions ??= [];
   value.teacherProfile ??= { name: "", role: "", institution: "" };
+  if (value.teacherProfile && typeof value.teacherProfile === "object") value.teacherProfile.appearance ??= { ...DEFAULT_APPEARANCE };
   if (!Array.isArray(value.classGroups)) throw new Error("la llista de grups classe no és vàlida.");
   if (!Array.isArray(value.additionalGroups)) throw new Error("la llista de grups addicionals no és vàlida.");
   if (!Array.isArray(value.subjects)) throw new Error("la llista d'assignatures no és vàlida.");
@@ -175,6 +179,9 @@ export function validateData(value, makeId) {
       typeof value.teacherProfile[key] !== "string" || value.teacherProfile[key].length > 120
     )) {
     throw new Error("el perfil docent no és vàlid.");
+  }
+  if (!isValidAppearance(value.teacherProfile.appearance)) {
+    throw new Error("l'aparença del perfil docent no és vàlida.");
   }
   for (const subject of value.subjects) {
     const hasLegacyLevelData = subject && typeof subject === "object" &&

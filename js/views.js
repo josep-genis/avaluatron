@@ -1,3 +1,4 @@
+import { applyAppearance, PALETTES, MODES } from "./themes.js";
 import { data, state } from "./state.js";
 import { EDUCATIONAL_LEVELS } from "./education.js";
 import { isBankCompetency, withoutUnmodifiedBank } from "./competency-bank.js";
@@ -86,6 +87,7 @@ function setView(view) {
 
 function updateSidebarProfile() {
   const profile = data.teacherProfile;
+  applyAppearance(profile.appearance);
   const initials = profile.name.trim().split(/\s+/).slice(0, 2).map(name => name[0]).join("").toLocaleUpperCase("ca") || "D";
   document.querySelector("#sidebar-profile-avatar").textContent = initials;
   document.querySelector("#sidebar-profile-name").textContent = profile.name || "Perfil docent";
@@ -175,7 +177,8 @@ function renderTeacherProfile() {
   const initials = profile.name.trim().split(/\s+/).slice(0, 2).map(name => name[0]).join("").toLocaleUpperCase("ca") || "D";
   const profileDetails = [
     profile.role || "Professional de l'educació",
-    profile.institution
+    profile.institution,
+    `Tema ${MODES.find(item => item.id === profile.appearance.mode)?.name.toLowerCase()} · ${PALETTES.find(item => item.id === profile.appearance.palette)?.name}`
   ].filter(Boolean);
 
   content.innerHTML = `${pageHeading("ESPAI PERSONAL", "Perfil docent", "Consulta el teu perfil i l'activitat educativa del curs vigent.", `<button class="button button-primary" type="button" data-action="edit-teacher-profile">${icon("edit-pencil")} Edita el perfil</button>`)}

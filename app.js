@@ -12,6 +12,7 @@ import {
 import {
   SCORE_BY_LEVEL, getAssessment as calculateAssessment, getActivityGrade as calculateActivityGrade
 } from "./js/grades.js";
+import { appearanceFieldsMarkup, normalizeAppearance } from "./js/themes.js";
 import { sampleData } from "./js/sample-data.js";
 import { startIconDecorator } from "./js/decorate-icons.js";
 import { escapeHtml, icon, formatDate, gradeColorClass } from "./js/formatting.js";
@@ -125,6 +126,7 @@ function openTeacherProfileDialog() {
     <div class="field full"><label for="teacher-profile-name">Nom i cognoms</label><input id="teacher-profile-name" name="name" type="text" maxlength="120" autocomplete="name" value="${escapeHtml(profile.name)}"></div>
     <div class="field full"><label for="teacher-profile-role">Funció professional</label><input id="teacher-profile-role" name="role" type="text" maxlength="120" placeholder="Ex.: Professor/a de tecnologia" value="${escapeHtml(profile.role)}"></div>
     <div class="field full"><label for="teacher-profile-institution">Centre educatiu</label><input id="teacher-profile-institution" name="institution" type="text" maxlength="120" autocomplete="organization" value="${escapeHtml(profile.institution)}"></div>
+    ${appearanceFieldsMarkup(profile.appearance, escapeHtml)}
   </div>`, "Desa el perfil");
   dialogForm.dataset.formType = "teacher-profile";
   dialogForm.dataset.recordId = "";
@@ -1137,7 +1139,8 @@ dialogForm.addEventListener("submit", event => {
     data.teacherProfile = {
       name: String(formData.get("name") || "").trim(),
       role: String(formData.get("role") || "").trim(),
-      institution: String(formData.get("institution") || "").trim()
+      institution: String(formData.get("institution") || "").trim(),
+      appearance: normalizeAppearance({ palette: formData.get("palette"), mode: formData.get("mode") })
     };
     state.currentView = "teacher-profile";
   }
