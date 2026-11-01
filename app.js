@@ -13,15 +13,25 @@ import {
   SCORE_BY_LEVEL, getAssessment as calculateAssessment, getActivityGrade as calculateActivityGrade
 } from "./js/grades.js";
 import { appearanceFieldsMarkup, normalizeAppearance } from "./js/themes.js";
-import { sampleData } from "./js/sample-data.js";
 import { startIconDecorator } from "./js/decorate-icons.js";
 import { escapeHtml, icon, formatDate, gradeColorClass } from "./js/formatting.js";
 import { EDUCATIONAL_LEVELS } from "./js/education.js";
-import { withoutUnmodifiedBank, getBankCompetency } from "./js/competency-bank.js";
+import { openSwipeDeck } from "./js/swipe-followup.js";
+import { withoutUnmodifiedBank, getBankCompetency, isBankCompetency } from "./js/competency-bank.js";
 import { openActivityReport, openActivityGroupReports } from "./js/activity-report.js";
 import { exportActivityTable, exportActivityGroupsTable } from "./js/activity-export.js";
 
 const STORAGE_KEY = "avaluatro.data.v1";
+const EMPTY_DATA = {
+  schemaVersion: 1,
+  students: [],
+  classGroups: [],
+  competencies: [],
+  activities: [],
+  subjects: [],
+  dailyAssessments: [],
+  assessments: []
+};
 const content = document.querySelector("#app-content");
 const dialog = document.querySelector("#app-dialog");
 const dialogForm = document.querySelector("#dialog-form");
@@ -32,7 +42,7 @@ let toastTimer;
 function loadData() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (!saved) {
-    const initialData = validateData(clone(sampleData));
+    const initialData = validateData(clone(EMPTY_DATA));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(withoutUnmodifiedBank(initialData)));
     return initialData;
   }
@@ -48,7 +58,7 @@ function loadData() {
 try {
   setData(loadData());
 } catch (error) {
-  setData(clone(sampleData));
+  setData(validateData(clone(EMPTY_DATA)));
   setSaveStatus("No s'han pogut carregar les dades");
   showToast(`Error en carregar les dades locals: ${error.message}`, true);
 }
@@ -200,6 +210,30 @@ function openAcademicYearDialog() {
   </div>`, "Crea curs");
   dialogForm.dataset.formType = "academic-year";
   dialogForm.dataset.recordId = "";
+}
+
+function deleteCompetency(competencyId) {
+  const competency = data.competencies.find(item => item.id === competencyId);
+  if (!competency || isBankCompetency(competencyId)) {
+    showToast("Només es poden eliminar les competències pròpies.", true);
+    return;
+  }
+  const usedByLevel = data.subjects.some(subject => subject.levels.some(level => level.competencyIds.includes(competencyId)));
+  const usedByEvidence = data.activities.some(activity => activity.evidences.some(evidence => Object.hasOwn(evidence.contributions || {}, competencyId)));
+  if (usedByLevel || usedByEvidence) {
+    showToast("No pots eliminar una competència utilitzada en nivells o evidències d'activitats. Treu-la'n primer.", true);
+    return;
+  }
+  if (!globalThis.confirm(`Vols eliminar la competència «${competency.name}»?`)) return;
+  const previousData = clone(data);
+  data.competencies = data.competencies.filter(item => item.id !== competencyId);
+  if (!saveData()) {
+    setData(previousData);
+    return;
+  }
+  state.selectedCompetencyId = null;
+  render();
+  showToast("Competència eliminada.");
 }
 
 function deleteClassGroup(classGroupId) {
@@ -799,6 +833,38 @@ document.addEventListener("click", event => {
     document.querySelector("#current-section").textContent = "Activitats i proves";
     renderActivityDetail();
   }
+  if (event.target.closest("[data-open-swipe-daily]")) {
+    const cards = [...content.querySelectorAll(".daily-followup-table tbody tr")].flatMap(row => {
+      const name = row.querySelector(".daily-student strong")?.textContent || "";
+      const group = row.querySelector(".daily-student small")?.textContent || "";
+      const initials = row.querySelector(".daily-student-avatar")?.textContent || "";
+      return [...row.querySelectorAll("[data-daily-assessment]")].filter(select => !select.value).map(select => ({
+        studentId: select.dataset.studentId,
+        criterionId: select.dataset.criterionId,
+        title: name,
+        subtitle: group,
+        initials,
+        criterion: DAILY_FOLLOWUP_CRITERIA.find(item => item.id === select.dataset.criterionId)?.name || ""
+      }));
+    });
+    if (!cards.length) {
+      showToast("Tots els indicadors d'aquesta sessió ja tenen valoració.");
+      return;
+    }
+    openSwipeDeck({
+      cards,
+      heading: `${formatDate(state.dailySelectedDate)} · Seguiment diari`,
+      onRate: (card, level) => {
+        const select = [...content.querySelectorAll("[data-daily-assessment]")].find(item =>
+          item.dataset.studentId === card.studentId && item.dataset.criterionId === card.criterionId);
+        if (!select) return false;
+        select.value = level ? String(level) : "";
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        return select.value === (level ? String(level) : "");
+      }
+    });
+    return;
+  }
   const dailyTaskButton = event.target.closest("[data-open-daily]");
   if (dailyTaskButton) {
     state.dailySelectedSubjectId = dailyTaskButton.dataset.subjectId;
@@ -854,6 +920,8 @@ document.addEventListener("click", event => {
   }
   const editActivityButton = event.target.closest("[data-edit-activity]");
   if (editActivityButton) openActivityDialog(editActivityButton.dataset.editActivity);
+  const deleteCompetencyButton = event.target.closest("[data-delete-competency]");
+  if (deleteCompetencyButton) deleteCompetency(deleteCompetencyButton.dataset.deleteCompetency);
   const editCompetencyButton = event.target.closest("[data-edit-competency]");
   if (editCompetencyButton) {
     state.selectedCompetencyId = editCompetencyButton.dataset.editCompetency;

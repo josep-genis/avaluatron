@@ -295,7 +295,7 @@ function renderDailyFollowup() {
       <article class="daily-followup-stat"><span class="daily-followup-stat-icon daily-average-icon">${icon("stats-report")}</span><div><span class="daily-followup-stat-label">Mitjana dels indicadors</span><strong id="daily-average">${average === null ? "—" : `${average.toLocaleString("ca-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`}<small>${average === null ? "" : " / 4"}</small></strong></div></article>
     </div>
     <section class="panel daily-followup-panel">
-      <div class="daily-followup-panel-heading"><div><p class="eyebrow">${escapeHtml(formatDate(state.dailySelectedDate))}</p><h2>${escapeHtml(subject.name)}</h2><span class="section-caption">${escapeHtml(selectedGroupLabel)} · ${students.length} ${students.length === 1 ? "alumne" : "alumnes"}</span></div><span class="daily-followup-save-hint"><span class="daily-followup-save-dot"></span> Es desa automàticament</span></div>
+      <div class="daily-followup-panel-heading"><div><p class="eyebrow">${escapeHtml(formatDate(state.dailySelectedDate))}</p><h2>${escapeHtml(subject.name)}</h2><span class="section-caption">${escapeHtml(selectedGroupLabel)} · ${students.length} ${students.length === 1 ? "alumne" : "alumnes"}</span></div>${students.length ? `<button type="button" class="button button-primary" data-open-swipe-daily>Mode targetes</button>` : ""}<span class="daily-followup-save-hint"><span class="daily-followup-save-dot"></span> Es desa automàticament</span></div>
       ${students.length ? `<div class="table-wrap daily-followup-table-wrap"><table class="assessment-table daily-followup-table"><thead><tr><th>Alumne</th>${DAILY_FOLLOWUP_CRITERIA.map(criterion => `<th>${criterion.name}<small class="daily-followup-scale">1–4 · nivell</small></th>`).join("")}<th>Observació</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty-state"><strong>${eligibleStudents.length ? "No hi ha alumnes en aquesta selecció" : "L'assignatura no té grups assignats"}</strong>${eligibleStudents.length ? "Tria un altre grup classe o addicional per veure els alumnes." : "Edita l'assignatura i assigna-hi un grup classe o addicional."}</div>`}
     </section>`;
 }
@@ -1148,7 +1148,7 @@ function renderCompetencyDetail() {
       <h2 class="section-title">Resultats d'aprenentatge</h2>
       <div id="competency-outcomes">${competency.learningOutcomes.map(competencyOutcomeMarkup).join("")}</div>
       <div class="outcome-actions"><button class="button" type="button" data-add-outcome>${icon("plus")} Afegeix resultat d'aprenentatge</button></div>
-      <div class="outcome-actions"><button class="button button-primary" type="submit">${icon("check")} Desa els canvis</button>${modified ? `<button class="button" type="button" data-restore-competency>${icon("undo")} Restaura el valor del banc</button>` : ""}</div>
+      <div class="outcome-actions"><button class="button button-primary" type="submit">${icon("check")} Desa els canvis</button>${bank ? "" : `<button class="button danger-text" type="button" data-delete-competency="${escapeHtml(competency.id)}">${icon("trash")} Elimina la competència</button>`}${modified ? `<button class="button" type="button" data-restore-competency>${icon("undo")} Restaura el valor del banc</button>` : ""}</div>
     </form>`;
 }
 
