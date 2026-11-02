@@ -18,7 +18,7 @@ import { escapeHtml, icon, formatDate, gradeColorClass } from "./js/formatting.j
 import { EDUCATIONAL_LEVELS } from "./js/education.js";
 import { openSwipeDeck } from "./js/swipe-followup.js";
 import { withoutUnmodifiedBank, getBankCompetency, isBankCompetency } from "./js/competency-bank.js";
-import { openActivityReport, openActivityGroupReports } from "./js/activity-report.js";
+import { openActivityReport, openActivityGroupReports, openGroupAssessmentForms } from "./js/activity-report.js";
 import {
   exportActivityTable, exportActivityGroupsTable, exportActivityRubricTable,
   openActivityRubricReport
@@ -545,6 +545,28 @@ function openActivityGroupDialog(groupId = null) {
   setupActivityGroupMemberPicker(students, new Set(group?.studentIds || []));
 }
 
+function openActivityGroupAssessmentDocumentDialog() {
+  const activity = data.activities.find(item => item.id === state.selectedActivityId);
+  if (!activity?.isGroup) {
+    showToast("Aquesta activitat no està configurada com a activitat en grup.", true);
+    return;
+  }
+  openDialog(
+    "Genera fitxes d'avaluació",
+    "Es crearà una fitxa imprimible per alumne de l'oferta seleccionada. Les valoracions seguiran l'escala de la rúbrica.",
+    `<div class="form-grid">
+      <div class="field full"><span class="section-caption">Tria els apartats que vols incloure:</span></div>
+      <div class="field full"><label class="checkbox-option"><input type="checkbox" name="includeSelfAssessment" checked> Autoavaluació de les evidències</label></div>
+      <div class="field full"><label class="checkbox-option"><input type="checkbox" name="includePeerAssessment" checked> Coavaluació de cada company o companya del seu agrupament</label></div>
+      <div class="field full"><label class="checkbox-option"><input type="checkbox" name="includeTeacherAssessment" checked> Avaluació de l'actuació docent</label></div>
+      <p class="section-caption full">Cada valoració inclou els nivells de la rúbrica i espai per a comentaris.</p>
+    </div>`,
+    "Genera PDF"
+  );
+  dialogForm.dataset.formType = "activity-group-assessment-document";
+  dialogForm.dataset.recordId = activity.id;
+}
+
 function setupActivityGroupMemberPicker(students, selected) {
   const search = dialogForm.querySelector("#activity-group-search");
   const options = dialogForm.querySelector("#activity-group-options");
@@ -733,6 +755,12 @@ document.querySelector("#import-file").addEventListener("change", event => {
 });
 
 document.addEventListener("click", event => {
+  const groupAssessmentFormsButton = event.target.closest("[data-export-group-assessment-forms]");
+  if (groupAssessmentFormsButton) {
+    groupAssessmentFormsButton.closest("details")?.removeAttribute("open");
+    openActivityGroupAssessmentDocumentDialog();
+    return;
+  }
   const rubricTableExportButton = event.target.closest("[data-export-activity-rubric]");
   if (rubricTableExportButton) {
     const result = exportActivityRubricTable(rubricTableExportButton.dataset.exportActivityRubric);
@@ -1231,6 +1259,24 @@ dialogForm.addEventListener("submit", event => {
   const formType = dialogForm.dataset.formType;
   const recordId = dialogForm.dataset.recordId;
   const formData = new FormData(dialogForm);
+  if (formType === "activity-group-assessment-document") {
+    const components = {
+      self: formData.get("includeSelfAssessment") === "on",
+      peers: formData.get("includePeerAssessment") === "on",
+      teacher: formData.get("includeTeacherAssessment") === "on"
+    };
+    if (!Object.values(components).some(Boolean)) {
+      showToast("Selecciona almenys un apartat per generar les fitxes.", true);
+      return;
+    }
+    if (!openGroupAssessmentForms(components)) {
+      showToast("No s'han pogut generar les fitxes. Comprova l'oferta docent i permet les finestres emergents.", true);
+      return;
+    }
+    dialog.close();
+    showToast("Fitxes d'avaluació generades. Pots imprimir-les o desar-les com a PDF.");
+    return;
+  }
   const previousData = clone(data);
   if (formType === "teacher-profile") {
     data.teacherProfile = {

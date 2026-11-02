@@ -737,11 +737,21 @@ function getActivityGroupsMarkup(activity, students, selectedOffering) {
     ? "Qualificació en grup: tots els membres reben la mitjana de les avaluacions individuals dels components de l'agrupament. Les avaluacions individuals no es modifiquen."
     : "Qualificació individual: cada alumne rep la nota de la seva pròpia avaluació.";
   return `<section class="panel activity-groups-panel" data-activity-groups><div class="panel-heading"><div><h2 class="section-title">Agrupaments de l'activitat</h2><span class="section-caption">${caption}${ungrouped && groups.length ? ` ${ungrouped} ${ungrouped === 1 ? "alumne" : "alumnes"} sense agrupament${groupMode ? " (es qualifiquen individualment)" : ""}.` : ""}</span></div>
+    <details class="activity-export-menu">
+      <summary class="button">${icon("download")} Exporta ${icon("nav-arrow-down")}</summary>
+      <div class="activity-export-options" role="group" aria-label="Exporta agrupaments">
+        <button type="button" data-export-activity-group-reports>${icon("download")} Informe PDF per grup</button>
+        <button type="button" data-export-activity-groups="csv">${icon("download")} Agrupaments CSV</button>
+        <button type="button" data-export-activity-groups="tsv">${icon("download")} Agrupaments TSV</button>
+        <button type="button" data-export-group-assessment-forms>${icon("edit-pencil")} Fitxes d'avaluació de l'alumnat (PDF)</button>
+      </div>
+    </details>
+  </div>
     <div class="grading-mode-row"><span class="section-caption" id="grading-mode-label">Determina el tipus de qualificació</span>
     <div class="grading-mode-toggle" role="group" aria-labelledby="grading-mode-label">
       <button type="button" class="${groupMode ? "" : "active"}" aria-pressed="${!groupMode}" data-set-grading-mode="individual">${icon("user")} Individual</button>
       <button type="button" class="${groupMode ? "active" : ""}" aria-pressed="${groupMode}" data-set-grading-mode="group">${icon("group")} En grup</button>
-    </div></div></div>
+    </div></div>
     ${!groups.length ? '<div class="empty-state">Encara no hi ha agrupaments. Crea\'n per qualificar equips.<div style="margin-top:10px"><button class="button" type="button" data-create-activity-group>${icon("plus")} Crea agrupament</button></div></div>'
       : `<div class="table-wrap"><table class="assessment-table activity-group-table"><thead><tr><th>Agrupament</th>${groupMode ? `${activity.evidences.map(evidence => `<th>${escapeHtml(evidence.name)}</th>`).join("")}<th>Nota</th>` : ""}<th class="activity-group-actions"><button class="button" type="button" data-create-activity-group>${icon("plus")} Crea agrupament</button></th></tr></thead><tbody>${rows}</tbody></table></div>`}
   </section>`;
@@ -829,21 +839,7 @@ function renderActivityDetail() {
       ? '<div class="empty-state">Tria una oferta docent vigent per carregar-ne l’alumnat i les qualificacions.</div>'
       : "";
   const detailBack = `<button class="detail-back" type="button" data-back="activities">${icon("arrow-left")} ${state.activityReturnToSequence ? "Torna a la seqüència" : "Torna a les activitats"}</button>`;
-  const activityExportMenu = `<details class="activity-export-menu">
-    <summary class="button">Exporta ${icon("nav-arrow-down")}</summary>
-    <div class="activity-export-options" role="group" aria-label="Opcions d'exportació">
-      <strong>Avaluació de l'alumnat</strong>
-      <button type="button" data-export-activity-table="csv">${icon("download")} CSV</button>
-      <button type="button" data-export-activity-table="tsv">${icon("download")} TSV</button>
-      <button type="button" data-export-activity-reports>${icon("download")} Informes PDF</button>
-      ${activity.isGroup ? `<strong>Agrupaments</strong><button type="button" data-export-activity-groups="csv">${icon("download")} CSV</button><button type="button" data-export-activity-groups="tsv">${icon("download")} TSV</button><button type="button" data-export-activity-group-reports>${icon("download")} Informes PDF</button>` : ""}
-      <strong>Rúbrica</strong>
-      <button type="button" data-export-activity-rubric="csv">${icon("download")} CSV</button>
-      <button type="button" data-export-activity-rubric="tsv">${icon("download")} TSV</button>
-      <button type="button" data-export-activity-rubric-pdf>${icon("download")} PDF</button>
-    </div>
-  </details>`;
-  const detailHeading = pageHeading(escapeHtml(activity.type.toUpperCase()), escapeHtml(activity.title), `${formatDate(activity.date)} · ${selectedLevel ? `${escapeHtml(selectedLevel.name)} · ` : ""}Banc d'activitats i avaluació per oferta docent.`, `${activityExportMenu}<button class="button" type="button" data-edit-activity="${activity.id}">${icon("edit-pencil")} Edita activitat i rúbrica</button>`);
+  const detailHeading = pageHeading(escapeHtml(activity.type.toUpperCase()), escapeHtml(activity.title), `${formatDate(activity.date)} · ${selectedLevel ? `${escapeHtml(selectedLevel.name)} · ` : ""}Banc d'activitats i avaluació per oferta docent.`, `<button class="button" type="button" data-edit-activity="${activity.id}">${icon("edit-pencil")} Edita activitat i rúbrica</button>`);
   if (isNonAssessedActivity(activity)) {
     content.innerHTML = `${detailBack}${detailHeading}<div class="empty-state"><strong>Activitat no avaluable</strong>Aquesta activitat no té evidències, de manera que no genera qualificacions i no compta en les mitjanes de l'alumnat. Afegeix evidències a la rúbrica si vols avaluar-la.</div>`;
     return;
@@ -853,12 +849,12 @@ function renderActivityDetail() {
     ${offeringSelector}
     ${assignmentNotice}
     <section class="panel activity-insights-panel" data-activity-dashboard><div class="panel-heading"><div><h2 class="section-title">Resum de l’activitat</h2><span class="section-caption">Indicadors i distribució de les notes de l’alumnat</span></div></div><div data-activity-insight-content>${getActivityDashboardMarkup(activity, students)}</div></section>
-    <section class="panel"><div class="panel-heading"><div><h2 class="section-title">Rúbrica de l'activitat</h2><span class="section-caption">Evidències observables, competències i nivells d'assoliment</span></div></div>
+    <section class="panel"><div class="panel-heading"><div><h2 class="section-title">Rúbrica de l'activitat</h2><span class="section-caption">Evidències observables, competències i nivells d'assoliment</span></div><details class="activity-export-menu"><summary class="button">${icon("download")} Exporta ${icon("nav-arrow-down")}</summary><div class="activity-export-options" role="group" aria-label="Exporta la rúbrica"><button type="button" data-export-activity-rubric="csv">${icon("download")} CSV</button><button type="button" data-export-activity-rubric="tsv">${icon("download")} TSV</button><button type="button" data-export-activity-rubric-pdf>${icon("download")} PDF</button></div></details></div>
       ${evidenceWeightWarning}
       ${activity.evidences.length ? `<div class="table-wrap"><table class="assessment-table rubric-table"><thead><tr><th>Evidència</th><th>Competències i pesos</th><th>Progrés d'avaluació</th><th>Nota mitjana</th></tr></thead><tbody>${rubricRows}</tbody></table></div>` : '<div class="empty-state">Aquesta activitat encara no té evidències.</div>'}
     </section>
     ${getActivityGroupsMarkup(activity, students, selectedOffering)}
-    <section class="panel assessment-panel"><div class="panel-heading"><div><h2 class="section-title">Avaluació de l'alumnat</h2><span class="section-caption">Selecciona el nivell assolit per cada alumne i evidència. Les notes es calculen automàticament.</span></div></div>
+    <section class="panel assessment-panel"><div class="panel-heading"><div><h2 class="section-title">Avaluació de l'alumnat</h2><span class="section-caption">Selecciona el nivell assolit per cada alumne i evidència. Les notes es calculen automàticament.</span></div><details class="activity-export-menu"><summary class="button">${icon("download")} Exporta ${icon("nav-arrow-down")}</summary><div class="activity-export-options" role="group" aria-label="Exporta l'avaluació de l'alumnat"><button type="button" data-export-activity-table="csv">${icon("download")} CSV</button><button type="button" data-export-activity-table="tsv">${icon("download")} TSV</button><button type="button" data-export-activity-reports>${icon("download")} Informes PDF</button></div></details></div>
       ${students.length ? `<div class="activity-assessment-sticky-tools"><div class="activity-assessment-controls">
         <input class="search-input" type="search" data-assessment-search placeholder="Cerca alumne o grup…" aria-label="Cerca alumne o grup">
         <select class="search-input group-filter" data-assessment-group aria-label="Filtra per grup"><option value="">Tots els grups</option>${[...new Set(students.map(student => student.classGroupId))].map(groupId => {

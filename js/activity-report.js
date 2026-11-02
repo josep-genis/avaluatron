@@ -236,3 +236,95 @@ export function openActivityGroupReports() {
   reportWindow.document.close();
   return true;
 }
+
+export function openGroupAssessmentForms(components) {
+  const activity = data.activities.find(item => item.id === state.selectedActivityId);
+  if (!activity?.isGroup) return false;
+  const offerings = getActivityOffers(data, activity.id).filter(offer =>
+    (!state.selectedSubjectId || offer.subjectId === state.selectedSubjectId) &&
+    (!state.selectedLevelId || offer.levelId === state.selectedLevelId)
+  );
+  const offering = offerings.find(item => item.id === state.selectedOfferingId) ||
+    (offerings.length === 1 ? offerings[0] : null);
+  if (!offering) return false;
+  const students = getOfferingStudents(data, offering).sort((a, b) => studentName(a).localeCompare(studentName(b), "ca"));
+  if (!students.length) return false;
+
+  const scaleHeaders = LEVEL_LABELS.slice(1).map((label, index) =>
+    `<th>${escapeHtml(label)}<small>${formatGradeWithCode(SCORE_BY_LEVEL[index + 1])}</small></th>`
+  ).join("");
+  const ratingRows = `<table class="worksheet-rating"><thead><tr><th>Evidència</th>${scaleHeaders}</tr></thead><tbody>${activity.evidences.map(evidence =>
+    `<tr><th>${escapeHtml(evidence.name)}<small>${getEvidenceActivityWeight(evidence)}% de l'activitat</small></th>${LEVEL_LABELS.slice(1).map((_, index) => `<td><span class="worksheet-radio"></span></td>`).join("")}</tr>`
+  ).join("")}</tbody></table>`;
+  const overallRating = `<table class="worksheet-rating worksheet-overall"><thead><tr><th>Valoració global</th>${scaleHeaders}</tr></thead><tbody><tr><th>Com valores l'acompanyament del docent en aquesta activitat?</th>${LEVEL_LABELS.slice(1).map(() => `<td><span class="worksheet-radio"></span></td>`).join("")}</tr></tbody></table>`;
+  const commentSpace = `<div class="worksheet-comment"><strong>Comentari</strong><div></div><div></div></div>`;
+  const worksheetSection = (title, description, body) => `<section class="worksheet-section"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p>${body}</section>`;
+  const pages = students.map(student => {
+    const group = activity.groups.find(item => item.studentIds.includes(student.id));
+    const peers = group
+      ? students.filter(peer => peer.id !== student.id && group.studentIds.includes(peer.id))
+      : [];
+    const parts = [];
+    if (components.self) {
+      parts.push(worksheetSection("Autoavaluació", "Valora el teu treball per a cada evidència de la rúbrica.", ratingRows + commentSpace));
+    }
+    if (components.peers) {
+      const peerForms = peers.length
+        ? peers.map(peer => `<div class="worksheet-peer"><h3>${escapeHtml(studentName(peer))}</h3>${ratingRows}${commentSpace}</div>`).join("")
+        : '<p class="worksheet-no-peers">No tens companys assignats a un agrupament d’aquesta activitat.</p>';
+      parts.push(worksheetSection("Coavaluació", "Valora per separat l’aportació de cada company o companya del teu agrupament.", peerForms));
+    }
+    if (components.teacher) {
+      parts.push(worksheetSection("Avaluació de l’actuació docent", "Valora globalment l’acompanyament del docent durant aquesta activitat.", overallRating + commentSpace));
+    }
+    return `<article class="worksheet-page">
+      <header class="worksheet-header"><p>FITXA D'AVALUACIÓ</p><h1>${escapeHtml(activity.title)}</h1></header>
+      <div class="worksheet-student"><span>Alumne/a</span><strong>${escapeHtml(studentName(student))}</strong><span>Agrupament</span><strong>${escapeHtml(group?.name || "Sense agrupament")}</strong></div>
+      ${parts.join("")}
+      <footer>Escala de la rúbrica: ${LEVEL_LABELS.slice(1).map((label, index) => `${escapeHtml(label)} (${formatGradeWithCode(SCORE_BY_LEVEL[index + 1])})`).join(" · ")}</footer>
+    </article>`;
+  }).join("");
+
+  const reportWindow = window.open("", "_blank");
+  if (!reportWindow) return false;
+  const title = `Fitxes d'avaluació - ${activity.title}`;
+  reportWindow.document.open();
+  reportWindow.document.write(`<!doctype html><html lang="ca"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title>
+  <style>
+    :root { color-scheme: light; font-family: Arial, sans-serif; color: #303832; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f2f5f2; font-size: 12px; }
+    .worksheet-toolbar { position: sticky; top: 0; z-index: 1; display: flex; justify-content: center; gap: 12px; padding: 14px; border-bottom: 1px solid #dfe5df; background: #fff; }
+    .worksheet-toolbar button { padding: 10px 16px; border: 0; border-radius: 6px; background: #2c604b; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+    .worksheet-toolbar span { align-self: center; color: #68736b; font-size: 11px; }
+    .worksheet-page { display: flex; min-height: 273mm; flex-direction: column; width: min(210mm, calc(100% - 32px)); margin: 20px auto; padding: 13mm 14mm 11mm; background: #fff; box-shadow: 0 3px 20px #24372d18; page-break-after: always; break-after: page; }
+    .worksheet-page:last-child { page-break-after: auto; break-after: auto; }
+    .worksheet-header { padding-bottom: 10px; border-bottom: 2px solid #2c604b; }
+    .worksheet-header p { margin: 0 0 5px; color: #708177; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
+    h1 { margin: 0; font-size: 20px; }
+    .worksheet-student { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 7px 10px; align-items: baseline; margin: 12px 0 14px; }
+    .worksheet-student span { color: #758078; font-size: 10px; }
+    .worksheet-section { margin: 0 0 14px; }
+    .worksheet-section h2 { margin: 0 0 3px; font-size: 14px; }
+    .worksheet-section > p { margin: 0 0 7px; color: #68736b; font-size: 10px; }
+    .worksheet-rating { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .worksheet-rating th, .worksheet-rating td { padding: 5px 6px; border: 1px solid #dfe5df; text-align: center; vertical-align: middle; }
+    .worksheet-rating th:first-child { width: 34%; text-align: left; }
+    .worksheet-rating thead th { background: #f3f6f3; font-size: 9px; }
+    .worksheet-rating tbody th { font-size: 9px; font-weight: 600; }
+    .worksheet-rating small { display: block; margin-top: 2px; color: #78827a; font-size: 8px; font-weight: 400; }
+    .worksheet-radio { display: inline-block; width: 12px; height: 12px; border: 1px solid #79867c; border-radius: 50%; }
+    .worksheet-comment { margin-top: 7px; }
+    .worksheet-comment strong { font-size: 9px; }
+    .worksheet-comment div { height: 17px; border-bottom: 1px solid #cfd7d0; }
+    .worksheet-peer { margin: 9px 0; break-inside: avoid; }
+    .worksheet-peer h3 { margin: 0 0 4px; font-size: 11px; }
+    .worksheet-no-peers { padding: 8px; border: 1px dashed #cfd7d0; color: #68736b; font-size: 10px; }
+    .worksheet-overall th:first-child { width: 34%; }
+    .worksheet-page footer { margin-top: auto; padding-top: 8px; border-top: 1px solid #e6ebe6; color: #78827a; font-size: 8px; }
+    @page { size: A4; margin: 9mm; }
+    @media print { body { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; } .worksheet-toolbar { display: none; } .worksheet-page { width: auto; min-height: 279mm; margin: 0; padding: 4mm 3mm; box-shadow: none; } }
+  </style></head><body><div class="worksheet-toolbar"><button type="button" onclick="window.print()">Imprimeix o desa com a PDF</button><span>Tria «Desa com a PDF» al diàleg d’impressió.</span></div>${pages}</body></html>`);
+  reportWindow.document.close();
+  return true;
+}
