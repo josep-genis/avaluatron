@@ -111,6 +111,7 @@ function render() {
     else renderSubjectDetail();
   }
   if (state.currentView === "activities") state.selectedActivityId ? renderActivityDetail() : renderActivities();
+  if (state.currentView === "activity-rubric") renderActivityRubric();
   if (state.currentView === "activity-report") renderActivityStudentReport();
   if (state.currentView === "daily-followup") renderDailyFollowup();
   if (state.currentView === "competencies") renderCompetencies();
@@ -796,7 +797,7 @@ function renderActivityDetail() {
     const selectors = activity.evidences.map(evidence => {
       const selectedLevel = assessment?.levels[evidence.id] ?? 0;
       return `<td><select class="grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}" aria-label="${escapeHtml(studentDisplayName(student))}: ${escapeHtml(evidence.name)}" data-assess-student="${escapeHtml(student.id)}" data-evidence="${escapeHtml(evidence.id)}" ${exempt ? "disabled" : ""}>
-        ${LEVEL_LABELS.map((label, index) => `<option class="${gradeColorClass(index ? SCORE_BY_LEVEL[index] : null)}" value="${index}" ${selectedLevel === index ? "selected" : ""}>${index === 0 ? label : `${index} · ${label} (${formatGradeWithCode(SCORE_BY_LEVEL[index])})`}</option>`).join("")}
+        ${LEVEL_LABELS.map((label, index) => `<option class="${gradeColorClass(index ? SCORE_BY_LEVEL[index] : null)}" title="${escapeHtml(evidence.descriptors?.[index] || "")}" value="${index}" ${selectedLevel === index ? "selected" : ""}>${index === 0 ? label : `${index} · ${label} (${formatGradeWithCode(SCORE_BY_LEVEL[index])})`}</option>`).join("")}
       </select></td>`;
     }).join("");
     const activityGrade = selectedOffering
@@ -814,8 +815,14 @@ function renderActivityDetail() {
       const competency = data.competencies.find(item => item.id === competencyId);
       return competency ? `<span class="badge">${escapeHtml(competency.name)} · ${Number(weight)}%</span>` : "";
     }).join(" ");
+    const levelCriteria = [["NA", "1"], ["AS", "2"], ["AN", "3"], ["AE", "4"]]
+      .filter(([, level]) => evidence.descriptors?.[level])
+      .map(([label, level]) => `<li><strong>${label}</strong> ${escapeHtml(evidence.descriptors[level])}</li>`).join("");
+    const criteriaDisclosure = levelCriteria
+      ? `<details class="evidence-rubric-descriptors"><summary>Criteris d'assoliment</summary><ul>${levelCriteria}</ul></details>`
+      : "";
     const summary = getEvidenceSummary(evidence, students, activity);
-    return `<tr><td><strong>${escapeHtml(evidence.name)}</strong><br><span class="section-caption">Pes derivat per a l'activitat: ${getEvidenceActivityWeight(evidence)}%</span></td><td>${contributions || '<span class="grade-empty">Sense competències vinculades</span>'}</td><td data-evidence-progress="${escapeHtml(evidence.id)}">${summary.progress}</td><td data-evidence-average="${escapeHtml(evidence.id)}">${gradeBadge(summary.average)}</td></tr>`;
+    return `<tr><td><strong>${escapeHtml(evidence.name)}</strong><br><span class="section-caption">Pes derivat per a l'activitat: ${getEvidenceActivityWeight(evidence)}%</span>${criteriaDisclosure}</td><td>${contributions || '<span class="grade-empty">Sense competències vinculades</span>'}</td><td data-evidence-progress="${escapeHtml(evidence.id)}">${summary.progress}</td><td data-evidence-average="${escapeHtml(evidence.id)}">${gradeBadge(summary.average)}</td></tr>`;
   }).join("");
   const totalEvidenceWeight = activity.evidences.reduce((total, evidence) => total + getEvidenceActivityWeight(evidence), 0);
   const evidenceWeightWarning = Math.abs(totalEvidenceWeight - 100) > 0.001
@@ -839,9 +846,9 @@ function renderActivityDetail() {
       ? '<div class="empty-state">Tria una oferta docent vigent per carregar-ne l’alumnat i les qualificacions.</div>'
       : "";
   const detailBack = `<button class="detail-back" type="button" data-back="activities">${icon("arrow-left")} ${state.activityReturnToSequence ? "Torna a la seqüència" : "Torna a les activitats"}</button>`;
-  const detailHeading = pageHeading(escapeHtml(activity.type.toUpperCase()), escapeHtml(activity.title), `${formatDate(activity.date)} · ${selectedLevel ? `${escapeHtml(selectedLevel.name)} · ` : ""}Banc d'activitats i avaluació per oferta docent.`, `<button class="button" type="button" data-edit-activity="${activity.id}">${icon("edit-pencil")} Edita activitat i rúbrica</button>`);
+  const detailHeading = pageHeading(escapeHtml(activity.type.toUpperCase()), escapeHtml(activity.title), `${formatDate(activity.date)} · ${selectedLevel ? `${escapeHtml(selectedLevel.name)} · ` : ""}Banc d'activitats i avaluació per oferta docent.`, `<button class="button" type="button" data-edit-activity="${activity.id}">${icon("edit-pencil")} Edita activitat</button>`);
   if (isNonAssessedActivity(activity)) {
-    content.innerHTML = `${detailBack}${detailHeading}<div class="empty-state"><strong>Activitat no avaluable</strong>Aquesta activitat no té evidències, de manera que no genera qualificacions i no compta en les mitjanes de l'alumnat. Afegeix evidències a la rúbrica si vols avaluar-la.</div>`;
+    content.innerHTML = `${detailBack}${detailHeading}<div class="empty-state"><strong>Activitat no avaluable</strong>Aquesta activitat no té evidències, de manera que no genera qualificacions i no compta en les mitjanes de l'alumnat. Afegeix evidències a la rúbrica si vols avaluar-la.<div style="margin-top:12px"><button class="button" type="button" data-edit-activity-rubric>${icon("edit-pencil")} Edita la rúbrica</button></div></div>`;
     return;
   }
   content.innerHTML = `${detailBack}
@@ -849,7 +856,7 @@ function renderActivityDetail() {
     ${offeringSelector}
     ${assignmentNotice}
     <section class="panel activity-insights-panel" data-activity-dashboard><div class="panel-heading"><div><h2 class="section-title">Resum de l’activitat</h2><span class="section-caption">Indicadors i distribució de les notes de l’alumnat</span></div></div><div data-activity-insight-content>${getActivityDashboardMarkup(activity, students)}</div></section>
-    <section class="panel"><div class="panel-heading"><div><h2 class="section-title">Rúbrica de l'activitat</h2><span class="section-caption">Evidències observables, competències i nivells d'assoliment</span></div><details class="activity-export-menu"><summary class="button">${icon("download")} Exporta ${icon("nav-arrow-down")}</summary><div class="activity-export-options" role="group" aria-label="Exporta la rúbrica"><button type="button" data-export-activity-rubric="csv">${icon("download")} CSV</button><button type="button" data-export-activity-rubric="tsv">${icon("download")} TSV</button><button type="button" data-export-activity-rubric-pdf>${icon("download")} PDF</button></div></details></div>
+    <section class="panel"><div class="panel-heading"><div><h2 class="section-title">Rúbrica de l'activitat</h2><span class="section-caption">Evidències observables, competències i nivells d'assoliment</span></div><div class="heading-actions"><button class="button" type="button" data-edit-activity-rubric>${icon("edit-pencil")} Edita la rúbrica</button><details class="activity-export-menu"><summary class="button">${icon("download")} Exporta ${icon("nav-arrow-down")}</summary><div class="activity-export-options" role="group" aria-label="Exporta la rúbrica"><button type="button" data-export-activity-rubric="csv">${icon("download")} CSV</button><button type="button" data-export-activity-rubric="tsv">${icon("download")} TSV</button><button type="button" data-export-activity-rubric-pdf>${icon("download")} PDF</button></div></details></div></div>
       ${evidenceWeightWarning}
       ${activity.evidences.length ? `<div class="table-wrap"><table class="assessment-table rubric-table"><thead><tr><th>Evidència</th><th>Competències i pesos</th><th>Progrés d'avaluació</th><th>Nota mitjana</th></tr></thead><tbody>${rubricRows}</tbody></table></div>` : '<div class="empty-state">Aquesta activitat encara no té evidències.</div>'}
     </section>
@@ -876,6 +883,59 @@ function renderActivityDetail() {
       <p class="table-note">El pes de cada evidència en l'activitat és la suma dels pesos de contribució a les competències que avalua. La nota de l'activitat pondera les evidències amb aquest pes; la nota de cada competència fa servir el pes específic assignat a aquella competència.</p>
     </section>`;
   setupActivityAssessmentTable();
+}
+
+export function activityRubricCompetencyMarkup(evidence, competency, weight) {
+  return `<div class="rubric-page-competency" data-rubric-competency-row>
+    <input type="hidden" name="rubricCompetencyId" value="${escapeHtml(competency.id)}">
+    <span>${escapeHtml(competency.name)}</span>
+    <label><span class="sr-only">Pes de ${escapeHtml(competency.name)}</span><input type="number" name="rubricCompetencyWeight" min="1" max="100" step="1" value="${Number(weight)}" required aria-label="Pes de ${escapeHtml(competency.name)} a l'evidència ${escapeHtml(evidence.name)}">%</label>
+    <button class="text-button danger-text" type="button" data-remove-rubric-competency aria-label="Treu ${escapeHtml(competency.name)}">${icon("xmark")}</button>
+  </div>`;
+}
+
+export function activityRubricEvidenceRowMarkup(index, evidence = null, rowKey = evidence?.id || `new-${index}`) {
+  const selectedIds = new Set(Object.keys(evidence?.contributions || {}));
+  const competencies = data.competencies.filter(competency => selectedIds.has(competency.id));
+  const availableCompetencies = data.competencies.filter(competency => !selectedIds.has(competency.id));
+  const descriptors = evidence?.descriptors || {};
+  const levelHeaders = [
+    ["1", "NA", "No assolit · 2,5/10"],
+    ["2", "AS", "Assoliment satisfactori · 5/10"],
+    ["3", "AN", "Assoliment notable · 7,5/10"],
+    ["4", "AE", "Assoliment excel·lent · 10/10"]
+  ];
+  return `<tr data-rubric-evidence-row>
+    <td class="rubric-evidence-name-cell"><input type="hidden" name="rubricEvidenceId" value="${escapeHtml(evidence?.id || "")}"><label class="sr-only" for="rubric-evidence-${escapeHtml(rowKey)}">Evidència ${index + 1}</label><input id="rubric-evidence-${escapeHtml(rowKey)}" name="rubricEvidenceName" required maxlength="100" value="${escapeHtml(evidence?.name || "")}" placeholder="Descriu l'evidència"><button class="text-button danger-text" type="button" data-remove-rubric-evidence>${icon("trash")} Elimina</button></td>
+    <td class="rubric-evidence-competencies"><div class="rubric-page-competency-list" data-rubric-competencies>${competencies.map(competency => activityRubricCompetencyMarkup(evidence, competency, evidence.contributions[competency.id])).join("")}</div><div class="evidence-competency-warning" role="status" ${competencies.length ? "hidden" : ""}>${icon("warning-triangle")} Afegeix almenys una competència.</div><div class="evidence-competency-add"><select data-rubric-competency-select aria-label="Afegeix una competència a l'evidència ${index + 1}" ${availableCompetencies.length ? "" : "disabled"}>${availableCompetencies.map(competency => `<option value="${escapeHtml(competency.id)}">${escapeHtml(competency.name)}</option>`).join("") || '<option value="">Totes les competències afegides</option>'}</select><button class="icon-button" type="button" data-add-rubric-competency aria-label="Afegeix competència" ${availableCompetencies.length ? "" : "disabled"}>${icon("plus")}</button></div></td>
+    ${levelHeaders.map(([level, abbreviation, label]) => `<td class="rubric-descriptor-cell"><label class="sr-only" for="rubric-${escapeHtml(rowKey)}-level-${level}">${abbreviation}: criteri per a ${evidence?.name || `l'evidència ${index + 1}`}</label><textarea id="rubric-${escapeHtml(rowKey)}-level-${level}" name="rubricDescriptor${level}" maxlength="500" required placeholder="${abbreviation}: criteri observable" title="${label}">${escapeHtml(descriptors[level] || "")}</textarea></td>`).join("")}
+  </tr>`;
+}
+
+export function renderActivityRubric() {
+  const activity = data.activities.find(item => item.id === state.selectedActivityId);
+  if (!activity) {
+    state.currentView = "activities";
+    state.selectedActivityId = null;
+    renderActivities();
+    return;
+  }
+  const evidenceRows = activity.evidences.map((evidence, index) => activityRubricEvidenceRowMarkup(index, evidence)).join("");
+  const levelHeaders = [
+    ["NA", "No assolit · 2,5/10"],
+    ["AS", "Assoliment satisfactori · 5/10"],
+    ["AN", "Assoliment notable · 7,5/10"],
+    ["AE", "Assoliment excel·lent · 10/10"]
+  ];
+  content.innerHTML = `<button class="detail-back" type="button" data-back="activity-detail">${icon("arrow-left")} Torna a ${escapeHtml(activity.title)}</button>
+    ${pageHeading("RÚBRICA", "Edita la rúbrica", `Defineix les evidències, les competències vinculades i el criteri observable per assolir cada nivell de ${escapeHtml(activity.title)}.`)}
+    <form id="activity-rubric-form" data-activity-id="${escapeHtml(activity.id)}">
+      <section class="panel activity-rubric-editor">
+        <div class="panel-heading"><div><h2 class="section-title">Evidències i criteris d'avaluació</h2><span class="section-caption">Escriu què ha de demostrar l'alumnat a cada nivell.</span></div><button class="button" type="button" data-add-rubric-evidence>${icon("plus")} Afegeix evidència</button></div>
+        <div class="table-wrap activity-rubric-table-wrap"><table class="assessment-table activity-rubric-table"><thead><tr><th>Evidències</th><th>Competències</th>${levelHeaders.map(([abbreviation, label]) => `<th title="${label}">${abbreviation}<small>${label}</small></th>`).join("")}</tr></thead><tbody>${evidenceRows || `<tr class="rubric-empty-row"><td colspan="6">Encara no hi ha evidències. Afegeix-ne una per començar la rúbrica.</td></tr>`}</tbody></table></div>
+      </section>
+      <div class="activity-rubric-actions"><button class="button" type="button" data-back="activity-detail">Cancel·la</button><button class="button button-primary" type="submit">${icon("check")} Desa la rúbrica</button></div>
+    </form>`;
 }
 
 function renderActivityStudentReport() {

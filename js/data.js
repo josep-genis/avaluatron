@@ -359,6 +359,13 @@ export function validateData(value, makeId) {
         Object.entries(evidence.contributions).some(([competencyId, weight]) => !competencyIds.has(competencyId) || !Number.isFinite(Number(weight)) || Number(weight) <= 0 || Number(weight) > 100)) {
         throw new Error("hi ha una evidència de rúbrica invàlida o sense competències associades.");
       }
+      evidence.descriptors ??= {};
+      if (!evidence.descriptors || typeof evidence.descriptors !== "object" || Array.isArray(evidence.descriptors) ||
+        Object.entries(evidence.descriptors).some(([level, descriptor]) =>
+          !["1", "2", "3", "4"].includes(level) || typeof descriptor !== "string" || descriptor.length > 500
+        )) {
+        throw new Error("hi ha criteris d'avaluació invàlids a la rúbrica.");
+      }
       delete evidence.weight;
       ids.add(evidence.id);
     }

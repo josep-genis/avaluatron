@@ -113,14 +113,14 @@ export function exportActivityRubricTable(format) {
   if (!activity.evidences.length) return { ok: false, message: "Aquesta activitat no té evidències per exportar." };
 
   const header = ["Evidència", "Pes en l'activitat (%)", "Competències i pesos",
-    ...LEVEL_LABELS.slice(1).map((label, index) => `${label} (${formatNumber(SCORE_BY_LEVEL[index + 1])}/10)`)];
+    ...LEVEL_LABELS.slice(1).map((_, index) => `${["NA", "AS", "AN", "AE"][index]} · ${formatNumber(SCORE_BY_LEVEL[index + 1])}/10`)];
   const rows = activity.evidences.map(evidence => {
     const contributions = Object.entries(evidence.contributions).map(([competencyId, weight]) => {
       const competency = data.competencies.find(item => item.id === competencyId);
       return competency ? `${competency.name} (${Number(weight)}%)` : "";
     }).filter(Boolean).join(" · ");
     return [evidence.name, getEvidenceActivityWeight(evidence), contributions,
-      ...LEVEL_LABELS.slice(1).map((label, index) => `${label} · ${formatNumber(SCORE_BY_LEVEL[index + 1])}/10`)];
+      ...["1", "2", "3", "4"].map(level => evidence.descriptors?.[level] || "")];
   });
   downloadTable(format, `rubrica-${slug(activity.title)}.${format}`, [header, ...rows]);
   return { ok: true, message: `Rúbrica exportada com a ${format.toUpperCase()}.` };
@@ -136,18 +136,17 @@ export function openActivityRubricReport() {
       const competency = data.competencies.find(item => item.id === competencyId);
       return competency ? `${escapeHtml(competency.name)} (${Number(weight)}%)` : "";
     }).filter(Boolean).join("<br>");
-    return `<tr><td><strong>${escapeHtml(evidence.name)}</strong></td><td>${getEvidenceActivityWeight(evidence)}%</td><td>${contributions || "Sense competències vinculades"}</td></tr>`;
+    const descriptors = ["1", "2", "3", "4"].map(level =>
+      `<td>${escapeHtml(evidence.descriptors?.[level] || "—").replaceAll("\n", "<br>")}</td>`
+    ).join("");
+    return `<tr><td><strong>${escapeHtml(evidence.name)}</strong></td><td>${getEvidenceActivityWeight(evidence)}%</td><td>${contributions || "Sense competències vinculades"}</td>${descriptors}</tr>`;
   }).join("");
-  const levels = LEVEL_LABELS.slice(1).map((label, index) =>
-    `<tr><td>${index + 1}</td><td>${escapeHtml(label)}</td><td>${formatNumber(SCORE_BY_LEVEL[index + 1])} / 10</td></tr>`
-  ).join("");
   const report = `<article class="report-page">
     <header class="report-header"><div><p class="report-eyebrow">Rúbrica de l’activitat</p><h1>${escapeHtml(activity.title)}</h1></div><span class="report-type">${escapeHtml(activity.type)}</span></header>
     <div class="report-student"><div><span>Data</span><strong>${escapeHtml(formatDate(activity.date))}</strong></div><div><span>Evidències</span><strong>${activity.evidences.length}</strong></div><div><span>Pes total</span><strong>${activity.evidences.reduce((total, evidence) => total + getEvidenceActivityWeight(evidence), 0)}%</strong></div></div>
-    <section class="report-evidence"><h2>Evidències i competències</h2><p>El pes de l'evidència en l'activitat és la suma dels pesos assignats a les competències.</p>
-      <table><thead><tr><th>Evidència</th><th>Pes en l'activitat</th><th>Competències i pesos</th></tr></thead><tbody>${evidenceRows}</tbody></table>
+    <section class="report-evidence"><h2>Evidències i criteris d'avaluació</h2><p>El pes de l'evidència en l'activitat és la suma dels pesos assignats a les competències.</p>
+      <table><thead><tr><th>Evidència</th><th>Pes</th><th>Competències</th><th>NA · ${formatNumber(SCORE_BY_LEVEL[1])}</th><th>AS · ${formatNumber(SCORE_BY_LEVEL[2])}</th><th>AN · ${formatNumber(SCORE_BY_LEVEL[3])}</th><th>AE · ${formatNumber(SCORE_BY_LEVEL[4])}</th></tr></thead><tbody>${evidenceRows}</tbody></table>
     </section>
-    <section class="report-evidence report-rubric-levels"><h2>Nivells d'assoliment</h2><table><thead><tr><th>Nivell</th><th>Descripció</th><th>Nota</th></tr></thead><tbody>${levels}</tbody></table></section>
     <footer class="report-footer"><span>Avaluatró · Rúbrica generada el ${new Intl.DateTimeFormat("ca-ES", { dateStyle: "long" }).format(new Date())}</span></footer>
   </article>`;
   const reportWindow = window.open("", "_blank");
@@ -178,7 +177,7 @@ export function openActivityRubricReport() {
     th { background: #f6f8f6; color: #667269; font-size: 9px; text-transform: uppercase; }
     td { font-size: 10px; line-height: 1.5; }
     .report-footer { display: flex; flex-direction: column; gap: 5px; margin-top: auto; padding-top: 18px; color: #89928b; font-size: 8px; }
-    @page { size: A4; margin: 12mm; }
+    @page { size: A4 landscape; margin: 10mm; }
     @media print { body { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; } .report-toolbar { display: none; } .report-page { width: auto; min-height: 273mm; margin: 0; padding: 5mm 4mm; box-shadow: none; } }
   </style></head><body><div class="report-toolbar"><button type="button" onclick="window.print()">Imprimeix o desa com a PDF</button><span>Tria «Desa com a PDF» al diàleg d’impressió.</span></div>${report}</body></html>`;
   reportWindow.document.open();

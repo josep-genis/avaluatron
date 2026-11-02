@@ -49,10 +49,11 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
       : hasGrade
         ? `${LEVEL_LABELS[level]} · ${formatGradeWithCode(SCORE_BY_LEVEL[level])}`
         : "Pendent d’avaluar";
+    const descriptor = hasGrade ? evidence.descriptors?.[level] : "";
     return `<tr>
       <td><strong>${escapeHtml(evidence.name)}</strong><small>${escapeHtml(evidenceContributionLabel(evidence))}</small></td>
       <td>${getEvidenceActivityWeight(evidence)}%</td>
-      <td>${result}</td>
+      <td>${result}${descriptor ? `<small>${escapeHtml(descriptor).replaceAll("\n", "<br>")}</small>` : ""}</td>
     </tr>`;
   }).join("");
 
@@ -254,7 +255,7 @@ export function openGroupAssessmentForms(components) {
     `<th>${escapeHtml(label)}<small>${formatGradeWithCode(SCORE_BY_LEVEL[index + 1])}</small></th>`
   ).join("");
   const ratingRows = `<table class="worksheet-rating"><thead><tr><th>Evidència</th>${scaleHeaders}</tr></thead><tbody>${activity.evidences.map(evidence =>
-    `<tr><th>${escapeHtml(evidence.name)}<small>${getEvidenceActivityWeight(evidence)}% de l'activitat</small></th>${LEVEL_LABELS.slice(1).map((_, index) => `<td><span class="worksheet-radio"></span></td>`).join("")}</tr>`
+    `<tr><th>${escapeHtml(evidence.name)}<small>${getEvidenceActivityWeight(evidence)}% de l'activitat</small></th>${LEVEL_LABELS.slice(1).map((_, index) => `<td><span class="worksheet-radio"></span>${evidence.descriptors?.[String(index + 1)] ? `<small class="worksheet-level-descriptor">${escapeHtml(evidence.descriptors[String(index + 1)])}</small>` : ""}</td>`).join("")}</tr>`
   ).join("")}</tbody></table>`;
   const overallRating = `<table class="worksheet-rating worksheet-overall"><thead><tr><th>Valoració global</th>${scaleHeaders}</tr></thead><tbody><tr><th>Com valores l'acompanyament del docent en aquesta activitat?</th>${LEVEL_LABELS.slice(1).map(() => `<td><span class="worksheet-radio"></span></td>`).join("")}</tr></tbody></table>`;
   const commentSpace = `<div class="worksheet-comment"><strong>Comentari</strong><div></div><div></div></div>`;
@@ -313,6 +314,7 @@ export function openGroupAssessmentForms(components) {
     .worksheet-rating thead th { background: #f3f6f3; font-size: 9px; }
     .worksheet-rating tbody th { font-size: 9px; font-weight: 600; }
     .worksheet-rating small { display: block; margin-top: 2px; color: #78827a; font-size: 8px; font-weight: 400; }
+    .worksheet-rating .worksheet-level-descriptor { font-size: 7px; line-height: 1.35; text-align: left; }
     .worksheet-radio { display: inline-block; width: 12px; height: 12px; border: 1px solid #79867c; border-radius: 50%; }
     .worksheet-comment { margin-top: 7px; }
     .worksheet-comment strong { font-size: 9px; }
