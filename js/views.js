@@ -829,7 +829,21 @@ function renderActivityDetail() {
       ? '<div class="empty-state">Tria una oferta docent vigent per carregar-ne l’alumnat i les qualificacions.</div>'
       : "";
   const detailBack = `<button class="detail-back" type="button" data-back="activities">${icon("arrow-left")} ${state.activityReturnToSequence ? "Torna a la seqüència" : "Torna a les activitats"}</button>`;
-  const detailHeading = pageHeading(escapeHtml(activity.type.toUpperCase()), escapeHtml(activity.title), `${formatDate(activity.date)} · ${selectedLevel ? `${escapeHtml(selectedLevel.name)} · ` : ""}Banc d'activitats i avaluació per oferta docent.`, `<button class="button" type="button" data-edit-activity="${activity.id}">${icon("edit-pencil")} Edita activitat i rúbrica</button>`);
+  const activityExportMenu = `<details class="activity-export-menu">
+    <summary class="button">Exporta ${icon("nav-arrow-down")}</summary>
+    <div class="activity-export-options" role="group" aria-label="Opcions d'exportació">
+      <strong>Avaluació de l'alumnat</strong>
+      <button type="button" data-export-activity-table="csv">${icon("download")} CSV</button>
+      <button type="button" data-export-activity-table="tsv">${icon("download")} TSV</button>
+      <button type="button" data-export-activity-reports>${icon("download")} Informes PDF</button>
+      ${activity.isGroup ? `<strong>Agrupaments</strong><button type="button" data-export-activity-groups="csv">${icon("download")} CSV</button><button type="button" data-export-activity-groups="tsv">${icon("download")} TSV</button><button type="button" data-export-activity-group-reports>${icon("download")} Informes PDF</button>` : ""}
+      <strong>Rúbrica</strong>
+      <button type="button" data-export-activity-rubric="csv">${icon("download")} CSV</button>
+      <button type="button" data-export-activity-rubric="tsv">${icon("download")} TSV</button>
+      <button type="button" data-export-activity-rubric-pdf>${icon("download")} PDF</button>
+    </div>
+  </details>`;
+  const detailHeading = pageHeading(escapeHtml(activity.type.toUpperCase()), escapeHtml(activity.title), `${formatDate(activity.date)} · ${selectedLevel ? `${escapeHtml(selectedLevel.name)} · ` : ""}Banc d'activitats i avaluació per oferta docent.`, `${activityExportMenu}<button class="button" type="button" data-edit-activity="${activity.id}">${icon("edit-pencil")} Edita activitat i rúbrica</button>`);
   if (isNonAssessedActivity(activity)) {
     content.innerHTML = `${detailBack}${detailHeading}<div class="empty-state"><strong>Activitat no avaluable</strong>Aquesta activitat no té evidències, de manera que no genera qualificacions i no compta en les mitjanes de l'alumnat. Afegeix evidències a la rúbrica si vols avaluar-la.</div>`;
     return;
@@ -858,16 +872,6 @@ function renderActivityDetail() {
           <option value="name-asc">Nom A–Z</option><option value="name-desc">Nom Z–A</option><option value="surname-asc">Cognom A–Z</option><option value="surname-desc">Cognom Z–A</option><option value="group-asc">Grup</option>${activity.isGroup ? '<option value="activity-group-asc">Agrupament de l\'activitat</option>' : ""}<option value="grade-desc">Nota més alta</option><option value="grade-asc">Nota més baixa</option>
         </select>
         <span class="activity-assessment-count" data-assessment-count aria-live="polite"></span>
-        <details class="activity-export-menu">
-          <summary class="button">Exporta ${icon("nav-arrow-down")}</summary>
-          <div class="activity-export-options" role="group" aria-label="Opcions d'exportació">
-            <strong>Avaluació de l'alumnat</strong>
-            <button type="button" data-export-activity-table="csv">${icon("download")} CSV</button>
-            <button type="button" data-export-activity-table="tsv">${icon("download")} TSV</button>
-            <button type="button" data-export-activity-reports>${icon("download")} Informes PDF</button>
-            ${activity.isGroup ? `<strong>Agrupaments</strong><button type="button" data-export-activity-groups="csv">${icon("download")} CSV</button><button type="button" data-export-activity-groups="tsv">${icon("download")} TSV</button><button type="button" data-export-activity-group-reports>${icon("download")} Informes PDF</button>` : ""}
-          </div>
-        </details>
       </div>
       <div class="activity-scroll-proxy" data-activity-scroll-proxy role="region" aria-label="Desplaçament horitzontal de la taula d'avaluació" tabindex="0"><div class="activity-scroll-spacer"></div></div></div>` : ""}
       ${students.length ? `<div class="table-wrap"><table class="assessment-table activity-assessment-table"><thead><tr><th>Alumne</th><th class="activity-grade-cell">Nota d'activitat</th><th class="activity-exemption-cell" aria-label="Exempció de l'activitat" title="Exempció de l'activitat">Ex.</th>${activity.evidences.map(evidence => `<th>${escapeHtml(evidence.name)}<br><span style="font-weight:400">${getEvidenceActivityWeight(evidence)}% de la nota</span></th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("Sense alumnat a avaluar", selectedOffering ? "No hi ha cap alumne matriculat als grups d'aquesta oferta docent." : "Tria una oferta vigent o assigna l'activitat a la seqüència d'un nivell amb oferta docent vigent.")}

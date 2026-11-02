@@ -19,7 +19,10 @@ import { EDUCATIONAL_LEVELS } from "./js/education.js";
 import { openSwipeDeck } from "./js/swipe-followup.js";
 import { withoutUnmodifiedBank, getBankCompetency, isBankCompetency } from "./js/competency-bank.js";
 import { openActivityReport, openActivityGroupReports } from "./js/activity-report.js";
-import { exportActivityTable, exportActivityGroupsTable } from "./js/activity-export.js";
+import {
+  exportActivityTable, exportActivityGroupsTable, exportActivityRubricTable,
+  openActivityRubricReport
+} from "./js/activity-export.js";
 
 const STORAGE_KEY = "avaluatro.data.v1";
 const EMPTY_DATA = {
@@ -69,6 +72,7 @@ function validateData(value) {
 
 function saveData() {
   try {
+    data.savedAt = new Date().toISOString();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(withoutUnmodifiedBank(data)));
     setSaveStatus("Desat al dispositiu");
     return true;
@@ -673,7 +677,8 @@ function openActivityDialog(activityId = null) {
 }
 
 function exportData() {
-  const blob = new Blob([`${JSON.stringify(withoutUnmodifiedBank(data), null, 2)}\n`], { type: "application/json" });
+  const exported = { ...withoutUnmodifiedBank(data), savedAt: data.savedAt || new Date().toISOString(), exportedAt: new Date().toISOString() };
+  const blob = new Blob([`${JSON.stringify(exported, null, 2)}\n`], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -689,7 +694,16 @@ function importData(file) {
   reader.onload = () => {
     try {
       const imported = validateData(JSON.parse(String(reader.result)));
-      if (!globalThis.confirm("La importació substituirà totes les dades actuals d'aquest dispositiu. Vols continuar?")) return;
+      const formatDate = value => new Date(value).toLocaleString("ca-ES");
+      const importedTime = Date.parse(imported.savedAt);
+      const currentTime = Date.parse(data.savedAt);
+      let warning = "";
+      if (Number.isNaN(importedTime)) {
+        warning = "Aquest fitxer no porta data de versió i no es pot saber si és més antic que les dades actuals.\n\n";
+      } else if (!Number.isNaN(currentTime) && importedTime < currentTime) {
+        warning = `⚠️ Estàs important una versió MÉS ANTIGA de les dades.\nFitxer: ${formatDate(importedTime)}\nDades actuals: ${formatDate(currentTime)}\nSe sobreescriuran els canvis posteriors.\n\n`;
+      }
+      if (!globalThis.confirm(`${warning}La importació substituirà totes les dades actuals d'aquest dispositiu. Vols continuar?`)) return;
       const previous = data;
       setData(imported);
       if (!saveData()) {
@@ -719,6 +733,21 @@ document.querySelector("#import-file").addEventListener("change", event => {
 });
 
 document.addEventListener("click", event => {
+  const rubricTableExportButton = event.target.closest("[data-export-activity-rubric]");
+  if (rubricTableExportButton) {
+    const result = exportActivityRubricTable(rubricTableExportButton.dataset.exportActivityRubric);
+    rubricTableExportButton.closest("details")?.removeAttribute("open");
+    showToast(result.message, !result.ok);
+    return;
+  }
+  const rubricPdfExportButton = event.target.closest("[data-export-activity-rubric-pdf]");
+  if (rubricPdfExportButton) {
+    rubricPdfExportButton.closest("details")?.removeAttribute("open");
+    if (!openActivityRubricReport()) {
+      showToast("No s'ha pogut obrir el PDF de la rúbrica. Permet les finestres emergents del navegador.", true);
+    }
+    return;
+  }
   const groupTableExportButton = event.target.closest("[data-export-activity-groups]");
   if (groupTableExportButton) {
     const result = exportActivityGroupsTable(groupTableExportButton.dataset.exportActivityGroups);
