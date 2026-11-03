@@ -159,7 +159,7 @@ export function openActivityRubricReport() {
     .report-toolbar { position: sticky; top: 0; z-index: 1; display: flex; justify-content: center; gap: 12px; padding: 14px; border-bottom: 1px solid #dfe5df; background: #fff; }
     .report-toolbar button { padding: 10px 16px; border: 0; border-radius: 6px; background: #2c604b; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
     .report-toolbar span { align-self: center; color: #68736b; font-size: 12px; }
-    .report-page { display: flex; min-height: 260mm; flex-direction: column; width: min(210mm, calc(100% - 32px)); margin: 20px auto; padding: 18mm 17mm 14mm; background: #fff; box-shadow: 0 3px 20px #24372d18; page-break-after: always; break-after: page; }
+    .report-page { display: flex; min-height: 190mm; flex-direction: column; width: min(297mm, calc(100% - 32px)); margin: 20px auto; padding: 18mm 17mm 14mm; background: #fff; box-shadow: 0 3px 20px #24372d18; page-break-after: always; break-after: page; }
     .report-page:last-child { page-break-after: auto; break-after: auto; }
     .report-header { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 2px solid #2c604b; }
     .report-eyebrow { margin: 0 0 7px; color: #708177; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
@@ -178,7 +178,7 @@ export function openActivityRubricReport() {
     td { font-size: 10px; line-height: 1.5; }
     .report-footer { display: flex; flex-direction: column; gap: 5px; margin-top: auto; padding-top: 18px; color: #89928b; font-size: 8px; }
     @page { size: A4 landscape; margin: 10mm; }
-    @media print { body { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; } .report-toolbar { display: none; } .report-page { width: auto; min-height: 273mm; margin: 0; padding: 5mm 4mm; box-shadow: none; } }
+    @media print { body { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; } .report-toolbar { display: none; } .report-page { width: auto; min-height: 190mm; margin: 0; padding: 5mm 4mm; box-shadow: none; } }
   </style></head><body><div class="report-toolbar"><button type="button" onclick="window.print()">Imprimeix o desa com a PDF</button><span>Tria «Desa com a PDF» al diàleg d’impressió.</span></div>${report}</body></html>`;
   reportWindow.document.open();
   reportWindow.document.write(documentMarkup);
