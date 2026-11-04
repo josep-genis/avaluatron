@@ -1,7 +1,7 @@
 // Banc de competències compartit per tots els usuaris. Es defineix a data/competency-bank.json,
 // que es pot editar a mà, i no es desa a les dades de l'usuari tret que l'usuari en modifiqui el contingut.
 // Els identificadors han de ser estables: les dades dels usuaris hi fan referència.
-const response = await fetch(new URL("../data/competency-bank.json", import.meta.url));
+const response = await fetch(new URL("../data/competency-bank.json", import.meta.url), { cache: "no-cache" });
 if (!response.ok) throw new Error("No s'ha pogut carregar data/competency-bank.json.");
 export const COMPETENCY_BANK = await response.json();
 
