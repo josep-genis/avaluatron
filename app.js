@@ -10,7 +10,7 @@ import {
   updateActivityAssessmentRow, refreshActivityGroups, competencyOutcomeMarkup, competencyCriterionMarkup, competencyTagChip
 } from "./js/views.js";
 import {
-  SCORE_BY_LEVEL, getAssessment as calculateAssessment, getActivityGrade as calculateActivityGrade
+  SCORE_BY_LEVEL, isStudentExemptFromSubject, getAssessment as calculateAssessment, getActivityGrade as calculateActivityGrade
 } from "./js/grades.js";
 import { appearanceFieldsMarkup, normalizeAppearance } from "./js/themes.js";
 import { startIconDecorator } from "./js/decorate-icons.js";
@@ -858,7 +858,7 @@ document.addEventListener("click", event => {
       const name = row.querySelector(".daily-student strong")?.textContent || "";
       const group = row.querySelector(".daily-student small")?.textContent || "";
       const initials = row.querySelector(".daily-student-avatar")?.textContent || "";
-      return [...row.querySelectorAll("[data-daily-assessment]")].filter(select => !select.value).map(select => ({
+      return [...row.querySelectorAll("[data-daily-assessment]")].filter(select => !select.value && !select.disabled).map(select => ({
         studentId: select.dataset.studentId,
         criterionId: select.dataset.criterionId,
         title: name,
@@ -874,6 +874,14 @@ document.addEventListener("click", event => {
     openSwipeDeck({
       cards,
       heading: `${formatDate(state.dailySelectedDate)} · Seguiment diari`,
+      onAbsent: (card, absent) => {
+        const toggle = [...content.querySelectorAll("[data-daily-absent]")].find(item => item.dataset.studentId === card.studentId);
+        if (!toggle) return false;
+        toggle.checked = absent;
+        toggle.dispatchEvent(new Event("change", { bubbles: true }));
+        return !!data.dailyAssessments.find(item => item.studentId === card.studentId &&
+          item.subjectId === state.dailySelectedSubjectId && item.date === state.dailySelectedDate)?.absent === absent;
+      },
       onRate: (card, level) => {
         const select = [...content.querySelectorAll("[data-daily-assessment]")].find(item =>
           item.dataset.studentId === card.studentId && item.dataset.criterionId === card.criterionId);
@@ -1919,8 +1927,14 @@ content.addEventListener("change", event => {
   }
   const dailySelect = event.target.closest("[data-daily-assessment]");
   const dailyNote = event.target.closest("[data-daily-note]");
-  if (dailySelect || dailyNote) {
-    const studentId = (dailySelect || dailyNote).dataset.studentId;
+  const dailyAbsent = event.target.closest("[data-daily-absent]");
+  if (dailySelect || dailyNote || dailyAbsent) {
+    const studentId = (dailySelect || dailyNote || dailyAbsent).dataset.studentId;
+    if (isStudentExemptFromSubject(data, studentId, state.dailySelectedSubjectId)) {
+      showToast("Aquest alumne està exempt de l'assignatura.", true);
+      render();
+      return;
+    }
     const previousDailyAssessments = clone(data.dailyAssessments);
     let assessment = data.dailyAssessments.find(item =>
       item.subjectId === state.dailySelectedSubjectId &&
@@ -1937,7 +1951,16 @@ content.addEventListener("change", event => {
       };
       data.dailyAssessments.push(assessment);
     }
-    if (dailySelect) {
+    if (dailyAbsent) {
+      assessment.absent = dailyAbsent.checked;
+      if (assessment.absent) assessment.levels = {};
+      else delete assessment.absent;
+    } else if (dailySelect) {
+      if (assessment.absent) {
+        data.dailyAssessments = previousDailyAssessments;
+        render();
+        return;
+      }
       const criterionId = dailySelect.dataset.criterionId;
       if (!DAILY_FOLLOWUP_CRITERIA.some(criterion => criterion.id === criterionId)) {
         showToast("No s'ha pogut desar un indicador de seguiment desconegut.", true);
@@ -1950,11 +1973,15 @@ content.addEventListener("change", event => {
     } else {
       assessment.note = dailyNote.value.trim();
     }
-    if (!Object.keys(assessment.levels).length && !assessment.note) {
+    if (!Object.keys(assessment.levels).length && !assessment.note && !assessment.absent) {
       data.dailyAssessments = data.dailyAssessments.filter(item => item !== assessment);
     }
     if (!saveData()) {
       data.dailyAssessments = previousDailyAssessments;
+      render();
+      return;
+    }
+    if (dailyAbsent) {
       render();
       return;
     }

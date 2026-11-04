@@ -568,6 +568,7 @@ export function validateData(value, makeId) {
     if (!assessment || !studentIds.has(assessment.studentId) || !subjectIds.has(assessment.subjectId) ||
       typeof assessment.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(assessment.date) ||
       !assessment.levels || typeof assessment.levels !== "object" || Array.isArray(assessment.levels) ||
+      assessment.absent !== undefined && typeof assessment.absent !== "boolean" ||
       assessment.note !== undefined && (typeof assessment.note !== "string" || assessment.note.length > 500)) {
       throw new Error("hi ha un seguiment diari sense dades vàlides.");
     }
@@ -581,7 +582,8 @@ export function validateData(value, makeId) {
     dailyAssessmentKeys.add(key);
     const levels = Object.entries(assessment.levels);
     if (levels.some(([criterionId, level]) => !dailyCriterionIds.has(criterionId) || !Number.isInteger(level) || level < 1 || level > 4) ||
-      !levels.length && !assessment.note?.trim()) {
+      assessment.absent && levels.length ||
+      !levels.length && !assessment.note?.trim() && !assessment.absent) {
       throw new Error("hi ha un nivell o una observació invàlids en un seguiment diari.");
     }
   }

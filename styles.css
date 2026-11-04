@@ -428,7 +428,10 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .daily-followup-panel-heading h2 { margin: 0 0 4px; font: 700 16px "Manrope", sans-serif; }
 .daily-followup-save-hint { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 9px; white-space: nowrap; }
 .daily-followup-save-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
-.daily-followup-table { min-width: 890px; }
+.daily-followup-table { min-width: 990px; }
+.daily-absent-toggle { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; }
+.daily-row-absent { background: var(--surface-soft); }
+.daily-row-absent .daily-student { opacity: .65; }
 .daily-followup-table thead th { background: var(--surface-soft); }
 .daily-followup-table th:first-child, .daily-followup-table td:first-child { width: 205px; min-width: 205px; }
 .daily-followup-table th:not(:first-child), .daily-followup-table td:not(:first-child) { min-width: 132px; }
@@ -787,6 +790,7 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .swipe-hint-down { bottom: 0; left: 50%; transform: translateX(-50%); }
 .swipe-hint-left { left: 0; top: 50%; transform: translateY(-50%); }
 .swipe-hint-right { right: 0; top: 50%; transform: translateY(-50%); }
+.swipe-close { min-width: 36px; padding-inline: 10px; font-size: 16px; line-height: 1; }
 .swipe-help { margin: 0; color: var(--text-2); font-size: 12px; text-align: center; }
 .swipe-done { display: grid; gap: 10px; text-align: center; }
 @media (max-width: 480px) { .swipe-hint small { display: none; } .swipe-card { width: 70%; } }

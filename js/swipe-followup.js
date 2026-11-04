@@ -12,7 +12,8 @@ const SWIPE_THRESHOLD = 90;
 
 // Obre un mazo de targetes. `cards` = [{ id, title, subtitle, initials, criterion }].
 // `onRate(card, level | null)` desa o desfà la valoració i retorna `false` si ha fallat.
-export function openSwipeDeck({ cards, heading, onRate }) {
+// Si hi ha `onAbsent(card, absent)`, es pot marcar l'alumne com a absent (i es treuen les seves altres targetes).
+export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
   const root = document.createElement("div");
   root.className = "swipe-overlay";
   root.setAttribute("role", "dialog");
@@ -38,9 +39,10 @@ export function openSwipeDeck({ cards, heading, onRate }) {
       <header class="swipe-header">
         <div><p class="eyebrow">${escapeHtml(heading)}</p><strong>${Math.min(index, cards.length)} / ${cards.length}</strong></div>
         <div class="swipe-header-actions">
+          ${onAbsent ? `<button type="button" class="button button-quiet" data-swipe-absent ${card ? "" : "disabled"}>Absent · A</button>` : ""}
           <button type="button" class="button button-quiet" data-swipe-skip ${card ? "" : "disabled"}>Salta</button>
           <button type="button" class="button button-quiet" data-swipe-undo ${history.length ? "" : "disabled"}>Desfés</button>
-          <button type="button" class="button button-quiet" data-swipe-close>Tanca</button>
+          <button type="button" class="button button-quiet swipe-close" data-swipe-close aria-label="Tanca" title="Tanca">✕</button>
         </div>
       </header>
       <div class="swipe-progress"><span style="width:${cards.length ? (index / cards.length) * 100 : 100}%"></span></div>
@@ -54,7 +56,7 @@ export function openSwipeDeck({ cards, heading, onRate }) {
           <span class="swipe-stamp" aria-hidden="true"></span>
         </article>` : `<div class="swipe-done"><h2>Fet!</h2><p>No queden targetes pendents.</p><button type="button" class="button button-primary" data-swipe-close>Acaba</button></div>`}
       </div>
-      <p class="swipe-help">Arrossega la targeta o usa les fletxes del teclat: ↑ AE · → AN · ↓ NA · ← AS</p>
+      <p class="swipe-help">Arrossega la targeta o usa les fletxes del teclat: ↑ AE · → AN · ↓ NA · ← AS${onAbsent ? " · A absent" : ""}</p>
     </div>`;
     root.querySelector(".swipe-card")?.focus({ preventScroll: true });
   }
@@ -69,6 +71,16 @@ export function openSwipeDeck({ cards, heading, onRate }) {
     render();
   }
 
+  function markAbsent() {
+    const card = cards[index];
+    if (!card || !onAbsent || onAbsent(card, true) === false) return;
+    const removed = cards.slice(index + 1).filter(item => item.studentId === card.studentId);
+    for (const item of removed) cards.splice(cards.indexOf(item), 1);
+    history.push({ card, index, absent: true, removed });
+    index += 1;
+    render();
+  }
+
   function skip() {
     if (!cards[index]) return;
     cards.push(cards.splice(index, 1)[0]);
@@ -79,10 +91,11 @@ export function openSwipeDeck({ cards, heading, onRate }) {
   function undo() {
     const last = history.pop();
     if (!last) return;
-    if (onRate(last.card, null) === false) {
+    if ((last.absent ? onAbsent(last.card, false) : onRate(last.card, null)) === false) {
       history.push(last);
       return;
     }
+    if (last.absent) cards.splice(last.index + 1, 0, ...last.removed);
     index = last.index;
     render();
   }
@@ -98,6 +111,9 @@ export function openSwipeDeck({ cards, heading, onRate }) {
     } else if (KEY_DIRECTIONS[event.key]) {
       event.preventDefault();
       commit(KEY_DIRECTIONS[event.key]);
+    } else if ((event.key === "a" || event.key === "A") && onAbsent && !event.metaKey && !event.ctrlKey) {
+      event.preventDefault();
+      markAbsent();
     } else if ((event.key === "z" || event.key === "Z") && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       undo();
@@ -107,6 +123,7 @@ export function openSwipeDeck({ cards, heading, onRate }) {
   root.addEventListener("click", event => {
     const dir = event.target.closest("[data-swipe-dir]");
     if (dir) commit(dir.dataset.swipeDir);
+    else if (event.target.closest("[data-swipe-absent]")) markAbsent();
     else if (event.target.closest("[data-swipe-skip]")) skip();
     else if (event.target.closest("[data-swipe-undo]")) undo();
     else if (event.target.closest("[data-swipe-close]")) close();

@@ -232,6 +232,7 @@ function renderDailyFollowup() {
   const subgroups = selectedGroup?.subgroups || [];
   const eligibleStudents = [...new Map(subjectOffers.flatMap(offer => getOfferingStudents(data, offer)).map(student => [student.id, student])).values()];
   const students = eligibleStudents.filter(student =>
+    !isStudentExemptFromSubject(data, student.id, subject.id) &&
     (!state.dailySelectedClassGroupId || student.classGroupId === state.dailySelectedClassGroupId) &&
     (!state.dailySelectedAdditionalGroupId || student.additionalGroupIds.includes(state.dailySelectedAdditionalGroupId)) &&
     (!state.dailySelectedSubgroupId || student.subgroupId === state.dailySelectedSubgroupId)
@@ -243,6 +244,7 @@ function renderDailyFollowup() {
   const recordedCount = students.filter(student =>
     assessments.some(item => item.studentId === student.id && Object.keys(item.levels).length > 0)
   ).length;
+  const absentCount = assessments.filter(item => item.absent).length;
   const observedLevels = assessments.flatMap(item => Object.values(item.levels));
   const average = observedLevels.length
     ? observedLevels.reduce((total, level) => total + level, 0) / observedLevels.length
@@ -269,7 +271,7 @@ function renderDailyFollowup() {
     const assessment = assessments.find(item => item.studentId === student.id);
     const selectors = DAILY_FOLLOWUP_CRITERIA.map(criterion => {
       const selectedLevel = assessment?.levels[criterion.id] || "";
-      return `<td data-label="${escapeHtml(criterion.name)}"><select class="grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}" aria-label="${escapeHtml(studentDisplayName(student))}: ${criterion.name}" data-daily-assessment data-student-id="${escapeHtml(student.id)}" data-criterion-id="${criterion.id}">
+      return `<td data-label="${escapeHtml(criterion.name)}"><select class="grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}" aria-label="${escapeHtml(studentDisplayName(student))}: ${criterion.name}" data-daily-assessment data-student-id="${escapeHtml(student.id)}" data-criterion-id="${criterion.id}" ${assessment?.absent ? "disabled" : ""}>
         <option value="">—</option>${LEVEL_LABELS.slice(1).map((label, index) => {
           const level = index + 1;
           return `<option class="${gradeColorClass(SCORE_BY_LEVEL[level])}" value="${level}" ${selectedLevel === level ? "selected" : ""}>${level} · ${label}</option>`;
@@ -277,7 +279,7 @@ function renderDailyFollowup() {
       </select></td>`;
     }).join("");
     const initials = `${student.firstName[0] || ""}${student.lastName[0] || ""}`.toLocaleUpperCase("ca");
-    return `<tr><td data-label="Alumne"><div class="daily-student"><span class="daily-student-avatar" aria-hidden="true">${escapeHtml(initials)}</span><span><strong>${escapeHtml(studentDisplayName(student))}</strong><small>${escapeHtml(getStudentGroupLabel(student))}</small></span></div></td>${selectors}<td data-label="Observació"><input class="daily-followup-note" type="text" maxlength="500" aria-label="Observació de ${escapeHtml(studentDisplayName(student))}" placeholder="Afegeix una observació…" value="${escapeHtml(assessment?.note || "")}" data-daily-note data-student-id="${escapeHtml(student.id)}"></td></tr>`;
+    return `<tr class="${assessment?.absent ? "daily-row-absent" : ""}"><td data-label="Alumne"><div class="daily-student"><span class="daily-student-avatar" aria-hidden="true">${escapeHtml(initials)}</span><span><strong>${escapeHtml(studentDisplayName(student))}</strong><small>${escapeHtml(getStudentGroupLabel(student))}</small></span></div></td><td data-label="Absent"><label class="daily-absent-toggle"><input type="checkbox" data-daily-absent data-student-id="${escapeHtml(student.id)}" aria-label="${escapeHtml(studentDisplayName(student))} ha estat absent" ${assessment?.absent ? "checked" : ""}> Absent</label></td>${selectors}<td data-label="Observació"><input class="daily-followup-note" type="text" maxlength="500" aria-label="Observació de ${escapeHtml(studentDisplayName(student))}" placeholder="Afegeix una observació…" value="${escapeHtml(assessment?.note || "")}" data-daily-note data-student-id="${escapeHtml(student.id)}"></td></tr>`;
   }).join("");
   content.innerHTML = `<header class="daily-followup-header"><span class="daily-followup-header-icon">${icon("calendar")}</span><div><p class="eyebrow">SEGUIMENT FORMATIU</p><h1>Seguiment diari</h1><p class="page-subtitle">Observa el progrés de cada alumne sessió a sessió. Les dades es desen automàticament al dispositiu.</p></div></header>
     <section class="panel daily-followup-toolbar">
@@ -294,10 +296,11 @@ function renderDailyFollowup() {
     <div class="daily-followup-stat-grid">
       <article class="daily-followup-stat"><span class="daily-followup-stat-icon">${icon("group")}</span><div><span class="daily-followup-stat-label">Alumnes amb seguiment</span><strong><span id="daily-observed-count">${recordedCount}</span><small> / ${students.length}</small></strong></div></article>
       <article class="daily-followup-stat"><span class="daily-followup-stat-icon daily-average-icon">${icon("stats-report")}</span><div><span class="daily-followup-stat-label">Mitjana dels indicadors</span><strong id="daily-average">${average === null ? "—" : `${average.toLocaleString("ca-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`}<small>${average === null ? "" : " / 4"}</small></strong></div></article>
+      <article class="daily-followup-stat"><span class="daily-followup-stat-icon">${icon("calendar")}</span><div><span class="daily-followup-stat-label">Absències</span><strong id="daily-absent-count">${absentCount}</strong></div></article>
     </div>
     <section class="panel daily-followup-panel">
       <div class="daily-followup-panel-heading"><div><p class="eyebrow">${escapeHtml(formatDate(state.dailySelectedDate))}</p><h2>${escapeHtml(subject.name)}</h2><span class="section-caption">${escapeHtml(selectedGroupLabel)} · ${students.length} ${students.length === 1 ? "alumne" : "alumnes"}</span></div>${students.length ? `<button type="button" class="button button-primary" data-open-swipe-daily>Mode targetes</button>` : ""}<span class="daily-followup-save-hint"><span class="daily-followup-save-dot"></span> Es desa automàticament</span></div>
-      ${students.length ? `<div class="table-wrap daily-followup-table-wrap"><table class="assessment-table daily-followup-table"><thead><tr><th>Alumne</th>${DAILY_FOLLOWUP_CRITERIA.map(criterion => `<th>${criterion.name}<small class="daily-followup-scale">1–4 · nivell</small></th>`).join("")}<th>Observació</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty-state"><strong>${eligibleStudents.length ? "No hi ha alumnes en aquesta selecció" : "L'assignatura no té grups assignats"}</strong>${eligibleStudents.length ? "Tria un altre grup classe o addicional per veure els alumnes." : "Edita l'assignatura i assigna-hi un grup classe o addicional."}</div>`}
+      ${students.length ? `<div class="table-wrap daily-followup-table-wrap"><table class="assessment-table daily-followup-table"><thead><tr><th>Alumne</th><th>Assistència</th>${DAILY_FOLLOWUP_CRITERIA.map(criterion => `<th>${criterion.name}<small class="daily-followup-scale">1–4 · nivell</small></th>`).join("")}<th>Observació</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty-state"><strong>${eligibleStudents.length ? "No hi ha alumnes en aquesta selecció" : "L'assignatura no té grups assignats"}</strong>${eligibleStudents.length ? "Tria un altre grup classe o addicional per veure els alumnes." : "Edita l'assignatura i assigna-hi un grup classe o addicional."}</div>`}
     </section>`;
 }
 
