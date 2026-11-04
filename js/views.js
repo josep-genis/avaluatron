@@ -511,10 +511,25 @@ function renderStudentDetail() {
       <span class="student-subject-card-grade"><span>Mitjana</span>${exempt ? '<span class="badge exemption-badge">Exempt/a</span>' : gradeBadge(average)}<span class="student-subject-card-link">Informe ${icon("arrow-right")}</span></span>
     </button>`;
   }).join("");
+  const dailyHistory = data.dailyAssessments
+    .filter(item => item.studentId === student.id && !isStudentExemptFromSubject(data, student.id, item.subjectId))
+    .sort((a, b) => b.date.localeCompare(a.date) ||
+      (data.subjects.find(x => x.id === a.subjectId)?.name || "").localeCompare(data.subjects.find(x => x.id === b.subjectId)?.name || "", "ca"));
+  const absences = dailyHistory.filter(item => item.absent).length;
+  const dailyRows = dailyHistory.map(item => {
+    const subjectName = data.subjects.find(x => x.id === item.subjectId)?.name || "";
+    const levels = DAILY_FOLLOWUP_CRITERIA.filter(criterion => item.levels[criterion.id]).map(criterion =>
+      `<span class="badge ${gradeColorClass(SCORE_BY_LEVEL[item.levels[criterion.id]])}" title="${escapeHtml(criterion.name)}">${escapeHtml(criterion.name)}: ${item.levels[criterion.id]}</span>`
+    ).join("");
+    return `<tr><td data-label="Data">${escapeHtml(formatDate(item.date))}</td><td data-label="Assignatura">${escapeHtml(subjectName)}</td><td data-label="Seguiment">${item.absent ? '<span class="badge">Absent</span>' : levels || "—"}</td><td data-label="Observació">${escapeHtml(item.note || "")}</td></tr>`;
+  }).join("");
+  const dailySection = `<section class="panel"><div class="panel-heading"><div><h2 class="section-title">Historial de seguiment diari</h2><span class="section-caption">Valoracions i absències registrades a classe, de més recent a més antiga.</span></div><span class="badge">${dailyHistory.length} ${dailyHistory.length === 1 ? "sessió" : "sessions"}${absences ? ` · ${absences} ${absences === 1 ? "absència" : "absències"}` : ""}</span></div>
+      ${dailyRows ? `<div class="table-wrap"><table class="assessment-table"><thead><tr><th>Data</th><th>Assignatura</th><th>Seguiment</th><th>Observació</th></tr></thead><tbody>${dailyRows}</tbody></table></div>` : emptyState("Cap seguiment diari", "Encara no hi ha cap sessió registrada per a aquest alumne.")}</section>`;
   content.innerHTML = `<button class="detail-back" type="button" data-back="students">${icon("arrow-left")} Torna als alumnes</button>
     ${pageHeading("PERFIL D'ALUMNE", escapeHtml(studentDisplayName(student)), `${getStudentGroupLabel(student)} · Assignatures i nivells actuals`, `<button class="button" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button>`)}
     <section class="panel"><div class="panel-heading"><div><h2 class="section-title">Assignatures que cursa</h2><span class="section-caption">Obre un nivell per consultar el report de l'assignatura, les competències i les activitats.</span></div><span class="badge">${subjectLevels.length} ${subjectLevels.length === 1 ? "nivell" : "nivells"}</span></div>
-      ${levelCards ? `<div class="student-subject-list">${levelCards}</div>` : emptyState("Cap nivell assignat", "Aquest alumne encara no té cap assignatura vinculada al seu grup classe.")}</section>`;
+      ${levelCards ? `<div class="student-subject-list">${levelCards}</div>` : emptyState("Cap nivell assignat", "Aquest alumne encara no té cap assignatura vinculada al seu grup classe.")}</section>
+    ${dailySection}`;
 }
 
 function renderStudentSubjectReport() {
