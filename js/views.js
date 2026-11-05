@@ -7,7 +7,7 @@ import {
   getCurrentAcademicYear, getLevelOffers, getOfferingStudents, getSequenceActivities, getSequenceItems, isLectureItem, getStudentEnrollment
 } from "./data.js";
 import {
-  SCORE_BY_LEVEL, LEVEL_LABELS,
+  SCORE_BY_LEVEL, LEVEL_LABELS, NOT_SUBMITTED_LEVEL, NOT_SUBMITTED_LABEL,
   getAssessment as calculateAssessment, getCompetencyGrade as calculateCompetencyGrade,
   getActivityGrade as calculateActivityGrade, getEvidenceScore as calculateEvidenceScore, getActivityCompetencyGrade as calculateActivityCompetencyGrade,
   getLevelCompetencyGrade as calculateLevelCompetencyGrade,
@@ -818,6 +818,7 @@ function renderActivityDetail() {
       const selectedLevel = assessment?.levels[evidence.id] ?? 0;
       return `<td><select class="grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}" aria-label="${escapeHtml(studentDisplayName(student))}: ${escapeHtml(evidence.name)}" data-assess-student="${escapeHtml(student.id)}" data-evidence="${escapeHtml(evidence.id)}" ${exempt ? "disabled" : ""}>
         ${LEVEL_LABELS.map((label, index) => `<option class="${gradeColorClass(index ? SCORE_BY_LEVEL[index] : null)}" title="${escapeHtml(evidence.descriptors?.[index] || "")}" value="${index}" ${selectedLevel === index ? "selected" : ""}>${index === 0 ? label : `${index} · ${label} (${formatGradeWithCode(SCORE_BY_LEVEL[index])})`}</option>`).join("")}
+        <option class="${gradeColorClass(0)}" value="${NOT_SUBMITTED_LEVEL}" ${selectedLevel === NOT_SUBMITTED_LEVEL ? "selected" : ""}>${NOT_SUBMITTED_LABEL} (${formatGradeWithCode(0)})</option>
       </select></td>`;
     }).join("");
     const activityGrade = selectedOffering

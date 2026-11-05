@@ -1,6 +1,8 @@
 import { getActivityOffers, getSequenceActivities, isStudentAssociatedWithOffering } from "./data.js";
 
-export const SCORE_BY_LEVEL = [null, 2.5, 5, 7.5, 10];
+export const SCORE_BY_LEVEL = [null, 2.5, 5, 7.5, 10, 0];
+export const NOT_SUBMITTED_LEVEL = 5;
+export const NOT_SUBMITTED_LABEL = "No presentat";
 export const LEVEL_LABELS = ["Sense evidència", "Inicial", "En procés", "Assolit", "Avançat"];
 
 export function getAssessment(data, studentId, activityId, offeringId = null) {

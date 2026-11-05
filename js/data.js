@@ -540,7 +540,7 @@ export function validateData(value, makeId) {
     if (assessmentKeys.has(key)) throw new Error("hi ha avaluacions duplicades per alumne, activitat i oferta docent.");
     assessmentKeys.add(key);
     for (const level of Object.values(assessment.levels)) {
-      if (!Number.isInteger(level) || level < 0 || level > 4) throw new Error("hi ha un nivell d'avaluació invàlid.");
+      if (!Number.isInteger(level) || level < 0 || level > 5) throw new Error("hi ha un nivell d'avaluació invàlid.");
     }
   }
   const subjectIds = new Set(value.subjects.map(subject => subject.id));

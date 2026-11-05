@@ -1,7 +1,7 @@
 import { getActivityOffers, getOfferingStudents } from "./data.js";
 import { data, state } from "./state.js";
 import {
-  SCORE_BY_LEVEL, LEVEL_LABELS, getActivityGrade, getAssessment, areAllActivityEvidencesAssessed,
+  SCORE_BY_LEVEL, LEVEL_LABELS, NOT_SUBMITTED_LEVEL, NOT_SUBMITTED_LABEL, getActivityGrade, getAssessment, areAllActivityEvidencesAssessed,
   getActivityGroupEvidenceScore, getActivityGroupGrade,
   getEvidenceActivityWeight, isStudentExemptFromActivity, isStudentExemptFromSubjectForActivity
 } from "./grades.js";
@@ -62,14 +62,14 @@ export function exportActivityTable(format) {
       isStudentExemptFromSubjectForActivity(data, student.id, activity.id, offering.subjectId);
     const levels = activity.evidences.map(evidence => {
       const level = assessment?.levels[evidence.id];
-      return Number.isInteger(level) && level > 0 ? level : null;
+      return Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length ? level : null;
     });
     const grade = exempt ? null : getActivityGrade(data, student.id, activity, offering.subjectId, offering.id);
     const status = exempt ? "Exempt/a" : areAllActivityEvidencesAssessed(activity, assessment)
       ? "Avaluat/ada" : levels.some(level => level !== null) ? "Parcial" : "Pendent";
     const group = data.classGroups.find(item => item.id === student.classGroupId)?.name || "";
     const activityGroup = !activity.isGroup ? "" : activity.groups.find(item => item.studentIds.includes(student.id))?.name || "";
-    return [student.lastName, student.firstName, group, ...(activity.isGroup ? [activityGroup] : []), ...levels.map(level => level ?? ""),
+    return [student.lastName, student.firstName, group, ...(activity.isGroup ? [activityGroup] : []), ...levels.map(level => level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : level ?? ""),
       ...levels.map(level => level === null ? "" : formatNumber(SCORE_BY_LEVEL[level])),
       formatNumber(grade), grade === null ? "" : gradeAbbreviation(grade), status];
   });

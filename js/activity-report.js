@@ -1,7 +1,7 @@
 import { getActivityOffers, getOfferingStudents } from "./data.js";
 import { data, state } from "./state.js";
 import {
-  SCORE_BY_LEVEL, LEVEL_LABELS, getActivityGrade, getAssessment,
+  SCORE_BY_LEVEL, LEVEL_LABELS, NOT_SUBMITTED_LEVEL, NOT_SUBMITTED_LABEL, getActivityGrade, getAssessment,
   getActivityGroupEvidenceScore, getActivityGroupGrade,
   getEvidenceActivityWeight, isStudentExemptFromActivity,
   isStudentExemptFromSubjectForActivity
@@ -47,7 +47,7 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
     const result = exempt
       ? "No avaluable (exempció)"
       : hasGrade
-        ? `${LEVEL_LABELS[level]} · ${formatGradeWithCode(SCORE_BY_LEVEL[level])}`
+        ? `${level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : LEVEL_LABELS[level]} · ${formatGradeWithCode(SCORE_BY_LEVEL[level])}`
         : "Pendent d’avaluar";
     const descriptor = hasGrade ? evidence.descriptors?.[level] : "";
     return `<tr>
