@@ -126,6 +126,7 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .section-caption { color: var(--muted); font-size: 10px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .heading-actions { display: flex; gap: 8px; }
+.student-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
 .current-year-control { display: grid; gap: 3px; color: var(--muted); font-size: 10px; font-weight: 700; }
 .current-year-control select { min-height: var(--control-h); padding: 5px 25px 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; }
 .activity-offering-selector { max-width: 650px; margin: -10px 0 18px; }

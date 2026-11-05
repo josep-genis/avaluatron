@@ -17,6 +17,7 @@ import { startIconDecorator } from "./js/decorate-icons.js";
 import { escapeHtml, icon, formatDate, gradeColorClass } from "./js/formatting.js";
 import { EDUCATIONAL_LEVELS } from "./js/education.js";
 import { openSwipeDeck } from "./js/swipe-followup.js";
+import { planStudentImport } from "./js/student-csv.js";
 import { withoutUnmodifiedBank, getBankCompetency, isBankCompetency } from "./js/competency-bank.js";
 import { openActivityReport, openActivityGroupReports, openGroupAssessmentForms } from "./js/activity-report.js";
 import {
@@ -707,6 +708,42 @@ function importData(file) {
   reader.readAsText(file);
 }
 
+function importStudentsCsv(file) {
+  const reader = new FileReader();
+  reader.onerror = () => showToast("No s'ha pogut llegir el fitxer seleccionat.", true);
+  reader.onload = () => {
+    const { students, errors, skipped } = planStudentImport(String(reader.result), data);
+    if (errors.length) {
+      const shown = errors.slice(0, 5).join(" ");
+      showToast(`No s'ha importat cap alumne. ${shown}${errors.length > 5 ? ` (+${errors.length - 5} errors més)` : ""}`, true);
+      return;
+    }
+    const previousData = clone(data);
+    for (const item of students) {
+      data.students.push({
+        id: makeId("al"),
+        ...item,
+        academicYearId: data.currentAcademicYearId,
+        additionalGroupIds: [],
+        enrollments: [{ academicYearId: data.currentAcademicYearId, classGroupId: item.classGroupId, subgroupId: item.subgroupId, additionalGroupIds: [] }]
+      });
+    }
+    if (!saveData()) {
+      setData(previousData);
+      return;
+    }
+    render();
+    showToast(`${students.length} alumnes importats${skipped ? `; ${skipped} duplicats omesos` : ""}.`);
+  };
+  reader.readAsText(file);
+}
+
+document.querySelector("#student-csv-file").addEventListener("change", event => {
+  const file = event.target.files?.[0];
+  if (file) importStudentsCsv(file);
+  event.target.value = "";
+});
+
 document.querySelectorAll(".nav-link").forEach(button => button.addEventListener("click", () => setView(button.dataset.view)));
 document.querySelector("#export-button").addEventListener("click", exportData);
 document.querySelector("#teacher-profile-button").addEventListener("click", () => setView("teacher-profile"));
@@ -769,6 +806,7 @@ document.addEventListener("click", event => {
   if (actionButton) {
     const action = actionButton.dataset.action;
     if (action === "create-student") openStudentDialog();
+    if (action === "import-students-csv") document.querySelector("#student-csv-file").click();
     if (action === "create-competency") openCompetencyDialog();
     if (action === "create-activity") openActivityDialog();
     if (action === "create-class-group") openClassGroupDialog();
