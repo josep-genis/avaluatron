@@ -1,7 +1,7 @@
 import { getActivityOffers, getOfferingStudents } from "./data.js";
 import { data, state } from "./state.js";
 import {
-  SCORE_BY_LEVEL, LEVEL_LABELS, NOT_SUBMITTED_LEVEL, NOT_SUBMITTED_LABEL, getActivityGrade, getAssessment,
+  SCORE_BY_LEVEL, LEVEL_LABELS, RECOVERED_MAX_SCORE, NOT_SUBMITTED_LEVEL, NOT_SUBMITTED_LABEL, getActivityGrade, getAssessment,
   getActivityGroupEvidenceScore, getActivityGroupGrade,
   getEvidenceActivityWeight, isStudentExemptFromActivity,
   isStudentExemptFromSubjectForActivity
@@ -40,6 +40,7 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
     ? subjectExempt ? "Exempt/a de l’assignatura" : "Exempt/a de l’activitat"
     : grade === null ? "Pendent d’avaluar" : formatGradeWithCode(grade);
   const gradeClass = grade === null ? "" : gradeColorClass(grade);
+  const recoveredNote = assessment?.recovered ? " (recuperada, màxim 5/AS)" : "";
   const feedback = String(assessment?.feedback || "");
   const evidenceRows = activity.evidences.map(evidence => {
     const level = assessment?.levels[evidence.id];
@@ -50,10 +51,12 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
         ? `${level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : LEVEL_LABELS[level]} · ${formatGradeWithCode(SCORE_BY_LEVEL[level])}`
         : "Pendent d’avaluar";
     const descriptor = hasGrade ? evidence.descriptors?.[level] : "";
+    const cappedNote = hasGrade && assessment?.recovered && SCORE_BY_LEVEL[level] > RECOVERED_MAX_SCORE
+      ? `<small>Nota limitada a ${formatGradeWithCode(RECOVERED_MAX_SCORE)} per recuperació.</small>` : "";
     return `<tr>
       <td><strong>${escapeHtml(evidence.name)}</strong><small>${escapeHtml(evidenceContributionLabel(evidence))}</small></td>
       <td>${getEvidenceActivityWeight(evidence)}%</td>
-      <td>${result}${descriptor ? `<small>${escapeHtml(descriptor).replaceAll("\n", "<br>")}</small>` : ""}</td>
+      <td>${result}${cappedNote}${descriptor ? `<small>${escapeHtml(descriptor).replaceAll("\n", "<br>")}</small>` : ""}</td>
     </tr>`;
   }).join("");
 
@@ -69,8 +72,9 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
     </div>
     <section class="report-final-grade">
       <div><span>Nota final de l’activitat</span><small>${exempt ? "Aquesta activitat no es compta en la qualificació de l’alumne/a." : `${evaluatedEvidenceCount} de ${activity.evidences.length} evidències avaluades`}</small></div>
-      <strong class="${gradeClass}">${escapeHtml(gradeLabel)}</strong>
+      <strong class="${gradeClass}">${escapeHtml(gradeLabel + (grade === null ? "" : recoveredNote))}</strong>
     </section>
+    ${assessment?.recovered && !exempt ? `<section class="report-recovery"><h2>Activitat recuperada</h2><p>Aquesta activitat s'ha qualificat com a recuperada. Per això la nota de cada evidència, i per tant la nota final de l'activitat, no pot superar ${formatGradeWithCode(RECOVERED_MAX_SCORE)}. Les evidències amb una nota inferior es mantenen sense canvis.</p></section>` : ""}
     <section class="report-evidence">
       <h2>Progrés per evidència</h2>
       <p>La nota de cada evidència es mostra sobre 10 amb la seva qualificació textual.</p>
@@ -121,6 +125,9 @@ function reportDocument(activity, students, subjectId, offeringId, reportMarkup 
     .report-evidence h2 { margin: 0 0 5px; font-size: 15px; }
     .report-evidence > p { margin: 0 0 12px; color: #758078; font-size: 10px; line-height: 1.5; }
     .report-feedback { margin-top: 24px; padding: 14px; border: 1px solid #e6ebe6; border-radius: 8px; background: #fbfcfb; }
+    .report-recovery { margin-top: 18px; padding: 12px 14px; border: 1px solid #e8d9a8; border-radius: 8px; background: #fff9e6; }
+    .report-recovery h2 { margin: 0 0 6px; font-size: 14px; }
+    .report-recovery p { margin: 0; color: #5c4a10; font-size: 11px; line-height: 1.6; }
     .report-feedback h2 { margin: 0 0 7px; font-size: 14px; }
     .report-feedback p { margin: 0; color: #49534b; font-size: 11px; line-height: 1.6; white-space: pre-wrap; }
     table { width: 100%; border-collapse: collapse; }

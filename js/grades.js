@@ -1,6 +1,7 @@
 import { getActivityOffers, getSequenceActivities, isStudentAssociatedWithOffering } from "./data.js";
 
 export const SCORE_BY_LEVEL = [null, 2.5, 5, 7.5, 10, 0];
+export const RECOVERED_MAX_SCORE = 5;
 export const NOT_SUBMITTED_LEVEL = 5;
 export const NOT_SUBMITTED_LABEL = "No presentat";
 export const LEVEL_LABELS = ["Sense evidència", "Inicial", "En procés", "Assolit", "Avançat"];
@@ -76,6 +77,11 @@ export function areAllActivityEvidencesAssessed(activity, assessment) {
   });
 }
 
+// Una activitat recuperada mai pot superar 5/10.
+function capRecoveredScore(score, assessment) {
+  return assessment?.recovered ? Math.min(score, RECOVERED_MAX_SCORE) : score;
+}
+
 function isValidLevel(level) {
   return Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
 }
@@ -87,8 +93,9 @@ export function getActivityGroupEvidenceScore(data, activity, group, offeringId,
     if (offering && !isStudentAssociatedWithOffering(data, offering, memberId)) continue;
     if (isStudentExemptFromActivity(data, memberId, activity.id) ||
       offering && isStudentExemptFromSubject(data, memberId, offering.subjectId)) continue;
-    const level = getAssessment(data, memberId, activity.id, offeringId)?.levels[evidenceId];
-    if (isValidLevel(level)) scores.push(SCORE_BY_LEVEL[level]);
+    const memberAssessment = getAssessment(data, memberId, activity.id, offeringId);
+    const level = memberAssessment?.levels[evidenceId];
+    if (isValidLevel(level)) scores.push(capRecoveredScore(SCORE_BY_LEVEL[level], memberAssessment));
   }
   return scores.length ? scores.reduce((total, score) => total + score, 0) / scores.length : null;
 }
@@ -113,8 +120,9 @@ export function getEvidenceScore(data, activity, studentId, offeringId, evidence
     ? (activity.groups || []).find(item => item.studentIds.includes(studentId))
     : null;
   if (!group) {
-    const level = getAssessment(data, studentId, activity.id, offeringId)?.levels[evidenceId];
-    return isValidLevel(level) ? SCORE_BY_LEVEL[level] : null;
+    const assessment = getAssessment(data, studentId, activity.id, offeringId);
+    const level = assessment?.levels[evidenceId];
+    return isValidLevel(level) ? capRecoveredScore(SCORE_BY_LEVEL[level], assessment) : null;
   }
   return getActivityGroupEvidenceScore(data, activity, group, offeringId, evidenceId);
 }

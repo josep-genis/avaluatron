@@ -524,6 +524,7 @@ export function validateData(value, makeId) {
     if (!assessment || !studentIds.has(assessment.studentId) || !activityIds.has(assessment.activityId) ||
       assessment.offeringId && !value.teachingOffers.some(offer => offer.id === assessment.offeringId) ||
       !assessment.levels || typeof assessment.levels !== "object" ||
+      assessment.recovered !== undefined && typeof assessment.recovered !== "boolean" ||
       assessment.feedback !== undefined && (typeof assessment.feedback !== "string" || assessment.feedback.length > 2000)) {
       throw new Error("hi ha una avaluació sense alumne o activitat vàlids.");
     }

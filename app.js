@@ -2038,6 +2038,43 @@ content.addEventListener("change", event => {
     if (dailySelect) dailySelect.className = `grade-select ${gradeColorClass(dailySelect.value ? SCORE_BY_LEVEL[Number(dailySelect.value)] : null)}`;
     return;
   }
+  const recoveredToggle = event.target.closest("[data-activity-recovered]");
+  if (recoveredToggle) {
+    const studentId = recoveredToggle.dataset.studentId;
+    const activity = data.activities.find(item => item.id === state.selectedActivityId);
+    const offering = data.teachingOffers.find(item => item.id === state.selectedOfferingId);
+    if (!activity || !offering || offering.status !== "active" || offering.academicYearId !== data.currentAcademicYearId ||
+      !getOfferingStudents(data, offering).some(student => student.id === studentId)) {
+      showToast("No es pot modificar aquest alumne: l'activitat no està assignada a una oferta vigent o l'alumne no hi està matriculat.", true);
+      renderActivityDetail();
+      return;
+    }
+    const previousData = clone(data);
+    let assessment = data.assessments.find(item =>
+      item.studentId === studentId && item.activityId === activity.id && item.offeringId === offering.id
+    );
+    if (recoveredToggle.checked) {
+      if (!assessment) {
+        assessment = { studentId, activityId: activity.id, offeringId: offering.id, levels: {} };
+        data.assessments.push(assessment);
+      }
+      assessment.recovered = true;
+    } else if (assessment) {
+      delete assessment.recovered;
+      if (!Object.keys(assessment.levels).length && !assessment.feedback) {
+        data.assessments = data.assessments.filter(item => item !== assessment);
+      }
+    }
+    if (!saveData()) {
+      setData(previousData);
+      renderActivityDetail();
+      return;
+    }
+    updateActivityAssessmentRow(studentId, calculateActivityGrade(data, studentId, activity, offering.subjectId, offering.id));
+    refreshActivityGroups(studentId);
+    showToast(recoveredToggle.checked ? "Activitat marcada com a recuperada: la nota no pot superar 5." : "Recuperació desmarcada.");
+    return;
+  }
   const select = event.target.closest("[data-assess-student][data-evidence]");
   if (!select) return;
   const studentId = select.dataset.assessStudent;

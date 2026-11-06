@@ -66,7 +66,7 @@ export function exportActivityTable(format) {
     });
     const grade = exempt ? null : getActivityGrade(data, student.id, activity, offering.subjectId, offering.id);
     const status = exempt ? "Exempt/a" : areAllActivityEvidencesAssessed(activity, assessment)
-      ? "Avaluat/ada" : levels.some(level => level !== null) ? "Parcial" : "Pendent";
+      ? (assessment?.recovered ? "Avaluat/ada (recuperada)" : "Avaluat/ada") : levels.some(level => level !== null) ? "Parcial" : "Pendent";
     const group = data.classGroups.find(item => item.id === student.classGroupId)?.name || "";
     const activityGroup = !activity.isGroup ? "" : activity.groups.find(item => item.studentIds.includes(student.id))?.name || "";
     return [student.lastName, student.firstName, group, ...(activity.isGroup ? [activityGroup] : []), ...levels.map(level => level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : level ?? ""),
