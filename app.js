@@ -1,5 +1,5 @@
 import {
-  clone, DAILY_FOLLOWUP_CRITERIA, getActivityOffers,
+  clone, DAILY_FOLLOWUP_CRITERIA, getActivityOffers, getLevelOffers,
   getOfferingStudents, getSequenceActivities, getSequenceItems, getStudentEnrollment,
   validateData as validateStoredData
 } from "./js/data.js";
@@ -18,6 +18,7 @@ import { escapeHtml, icon, formatDate, gradeColorClass } from "./js/formatting.j
 import { EDUCATIONAL_LEVELS } from "./js/education.js";
 import { openSwipeDeck } from "./js/swipe-followup.js";
 import { planStudentImport } from "./js/student-csv.js";
+import { planDailyImport } from "./js/daily-csv.js";
 import { withoutUnmodifiedBank, getBankCompetency, isBankCompetency } from "./js/competency-bank.js";
 import { openActivityReport, openActivityGroupReports, openGroupAssessmentForms } from "./js/activity-report.js";
 import { exportActivityReportsBatch } from "./js/activity-batch-report.js";
@@ -745,6 +746,73 @@ document.querySelector("#student-csv-file").addEventListener("change", event => 
   event.target.value = "";
 });
 
+function importDailyCsv(file, context) {
+  const reader = new FileReader();
+  reader.onerror = () => showToast("No s'ha pogut llegir el fitxer seleccionat.", true);
+  reader.onload = () => {
+    let plan;
+    try {
+      plan = planDailyImport(String(reader.result));
+    } catch (error) {
+      showToast(`No s'ha importat cap seguiment: ${error.message}`, true);
+      return;
+    }
+    if (plan.errors.length) {
+      const shown = plan.errors.slice(0, 5).join(" ");
+      showToast(`No s'ha importat cap seguiment. ${shown}${plan.errors.length > 5 ? ` (+${plan.errors.length - 5} errors més)` : ""}`, true);
+      return;
+    }
+    const { studentId, subjectId, levelId, academicYearId } = context;
+    if (data.currentAcademicYearId !== academicYearId ||
+      isStudentExemptFromSubject(data, studentId, subjectId) ||
+      !getLevelOffers(data, levelId, subjectId).some(offer =>
+        getOfferingStudents(data, offer).some(student => student.id === studentId)
+      )) {
+      showToast("No s'ha importat el CSV: l'alumne ja no cursa aquest nivell o està exempt de l'assignatura.", true);
+      return;
+    }
+    const existing = data.dailyAssessments.filter(item =>
+      item.studentId === studentId && item.subjectId === subjectId &&
+      plan.assessments.some(row => row.date === item.date)
+    );
+    const absences = existing.filter(item => item.absent).length;
+    if (existing.length && !globalThis.confirm(
+      `${existing.length} ${existing.length === 1 ? "dia ja té" : "dies ja tenen"} seguiment. Les valoracions se substituiran i es conservaran les observacions.${absences ? ` ${absences} ${absences === 1 ? "absència quedarà anul·lada" : "absències quedaran anul·lades"}.` : ""}\n\nVols continuar?`
+    )) return;
+    const previousData = clone(data);
+    for (const row of plan.assessments) {
+      const assessment = data.dailyAssessments.find(item =>
+        item.studentId === studentId && item.subjectId === subjectId && item.date === row.date
+      );
+      if (assessment) {
+        assessment.levels = row.levels;
+        delete assessment.absent;
+      } else {
+        data.dailyAssessments.push({ studentId, subjectId, date: row.date, levels: row.levels, note: row.note });
+      }
+    }
+    if (!saveData()) {
+      setData(previousData);
+      render();
+      return;
+    }
+    render();
+    showToast(`${plan.assessments.length} ${plan.assessments.length === 1 ? "seguiment importat" : "seguiments importats"}${existing.length ? `; ${existing.length} ${existing.length === 1 ? "dia actualitzat" : "dies actualitzats"}` : ""}.`);
+  };
+  reader.readAsText(file);
+}
+
+document.querySelector("#daily-csv-file").addEventListener("change", event => {
+  const file = event.target.files?.[0];
+  if (file) importDailyCsv(file, {
+    studentId: state.selectedStudentId,
+    subjectId: state.selectedStudentSubjectId,
+    levelId: state.selectedStudentLevelId,
+    academicYearId: data.currentAcademicYearId
+  });
+  event.target.value = "";
+});
+
 document.querySelectorAll(".nav-link").forEach(button => button.addEventListener("click", () => setView(button.dataset.view)));
 document.querySelector("#export-button").addEventListener("click", exportData);
 document.querySelector("#teacher-profile-button").addEventListener("click", () => setView("teacher-profile"));
@@ -756,6 +824,10 @@ document.querySelector("#import-file").addEventListener("change", event => {
 });
 
 document.addEventListener("click", event => {
+  if (event.target.closest("[data-import-daily-csv]")) {
+    document.querySelector("#daily-csv-file").click();
+    return;
+  }
   const groupAssessmentFormsButton = event.target.closest("[data-export-group-assessment-forms]");
   if (groupAssessmentFormsButton) {
     groupAssessmentFormsButton.closest("details")?.removeAttribute("open");

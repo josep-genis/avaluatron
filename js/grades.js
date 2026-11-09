@@ -205,6 +205,27 @@ export function getLevelCompetencyGrade(data, level, studentId, competencyId, su
   return totalContribution ? weightedScore / totalContribution : null;
 }
 
+export function getLevelCompetencyAssessmentProgress(data, level, studentId, competencyId, subjectId) {
+  if (isStudentExemptFromSubject(data, studentId, subjectId)) return null;
+  let totalWeight = 0;
+  let assessedWeight = 0;
+  for (const item of getSequenceActivities(level)) {
+    const activity = data.activities.find(record => record.id === item.activityId);
+    if (!activity || isStudentExemptFromActivity(data, studentId, item.activityId)) continue;
+    const offerings = getRelevantOfferings(data, activity.id, studentId, subjectId);
+    if (!offerings.length) continue;
+    for (const evidence of activity.evidences) {
+      const weight = Number(evidence.contributions[competencyId] || 0) * Number(item.hours);
+      if (weight <= 0) continue;
+      totalWeight += weight;
+      if (offerings.length === 1 && getEvidenceScore(data, activity, studentId, offerings[0].id, evidence.id) !== null) {
+        assessedWeight += weight;
+      }
+    }
+  }
+  return totalWeight ? assessedWeight / totalWeight * 100 : null;
+}
+
 export function getStudentActivityCount(data, studentId) {
   return data.activities.filter(activity => {
     if (isStudentExemptFromActivity(data, studentId, activity.id)) return false;

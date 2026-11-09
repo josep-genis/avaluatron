@@ -1,29 +1,47 @@
 const normalize = value => String(value ?? "").trim().toLocaleLowerCase("ca").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-export function parseCsv(text) {
+export function parseCsv(text, { strict = false } = {}) {
   const source = String(text).replace(/^\uFEFF/, "");
   const firstLine = source.split(/\r?\n/, 1)[0];
-  const delimiter = [";", "\t", ","].map(char => [char, firstLine.split(char).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const delimiterCounts = new Map([";", "\t", ","].map(char => [char, 0]));
+  let inQuotes = false;
+  for (let index = 0; index < firstLine.length; index++) {
+    const char = firstLine[index];
+    if (char === '"') {
+      if (inQuotes && firstLine[index + 1] === '"') index++;
+      else inQuotes = !inQuotes;
+    } else if (!inQuotes && delimiterCounts.has(char)) {
+      delimiterCounts.set(char, delimiterCounts.get(char) + 1);
+    }
+  }
+  const delimiter = [...delimiterCounts].sort((a, b) => b[1] - a[1])[0][0];
   const rows = [];
   let row = [];
   let cell = "";
   let quoted = false;
+  let closedQuote = false;
   for (let index = 0; index < source.length; index++) {
     const char = source[index];
     if (quoted) {
       if (char === '"' && source[index + 1] === '"') { cell += '"'; index++; }
-      else if (char === '"') quoted = false;
+      else if (char === '"') { quoted = false; closedQuote = true; }
       else cell += char;
-    } else if (char === '"') quoted = true;
-    else if (char === delimiter) { row.push(cell); cell = ""; }
+    } else if (strict && closedQuote && char !== delimiter && char !== "\n" && char !== "\r" && !/\s/.test(char)) {
+      throw new Error("El CSV conté text després d'un camp entre cometes.");
+    } else if (char === '"') {
+      if (strict && (cell.trim() || closedQuote)) throw new Error("El CSV conté cometes en una posició invàlida.");
+      quoted = true;
+    } else if (char === delimiter) { row.push(cell); cell = ""; closedQuote = false; }
     else if (char === "\n" || char === "\r") {
       if (char === "\r" && source[index + 1] === "\n") index++;
       row.push(cell);
       rows.push(row);
       row = [];
       cell = "";
+      closedQuote = false;
     } else cell += char;
   }
+  if (strict && quoted) throw new Error("El CSV conté un camp entre cometes sense tancar.");
   if (cell || row.length) { row.push(cell); rows.push(row); }
   return rows.map(cells => cells.map(value => value.trim())).filter(cells => cells.some(Boolean));
 }
