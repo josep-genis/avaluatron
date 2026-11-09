@@ -753,6 +753,11 @@ function importDailyCsv(file, context) {
     let plan;
     try {
       plan = planDailyImport(String(reader.result));
+      if (plan.needsHeaderConfirmation && globalThis.confirm(
+        "La primera fila no és una data vàlida ni una capçalera reconeguda. Vols ometre-la com a capçalera?\n\nLes columnes han d'estar en aquest ordre: dia, participació, preparació, autonomia, col·laboració i, opcionalment, observacions."
+      )) {
+        plan = planDailyImport(String(reader.result), { skipFirstRow: true });
+      }
     } catch (error) {
       showToast(`No s'ha importat cap seguiment: ${error.message}`, true);
       return;

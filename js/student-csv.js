@@ -2,17 +2,19 @@ const normalize = value => String(value ?? "").trim().toLocaleLowerCase("ca").no
 
 export function parseCsv(text, { strict = false } = {}) {
   const source = String(text).replace(/^\uFEFF/, "");
-  const firstLine = source.split(/\r?\n/, 1)[0];
   const delimiterCounts = new Map([";", "\t", ","].map(char => [char, 0]));
-  let inQuotes = false;
-  for (let index = 0; index < firstLine.length; index++) {
-    const char = firstLine[index];
-    if (char === '"') {
-      if (inQuotes && firstLine[index + 1] === '"') index++;
-      else inQuotes = !inQuotes;
-    } else if (!inQuotes && delimiterCounts.has(char)) {
-      delimiterCounts.set(char, delimiterCounts.get(char) + 1);
+  for (const line of source.split(/\r\n|\r|\n/)) {
+    let inQuotes = false;
+    for (let index = 0; index < line.length; index++) {
+      const char = line[index];
+      if (char === '"') {
+        if (inQuotes && line[index + 1] === '"') index++;
+        else inQuotes = !inQuotes;
+      } else if (!inQuotes && delimiterCounts.has(char)) {
+        delimiterCounts.set(char, delimiterCounts.get(char) + 1);
+      }
     }
+    if ([...delimiterCounts.values()].some(count => count > 0) || inQuotes) break;
   }
   const delimiter = [...delimiterCounts].sort((a, b) => b[1] - a[1])[0][0];
   const rows = [];

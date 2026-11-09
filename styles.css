@@ -571,8 +571,8 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .form-actions-right { display: flex; gap: 8px; margin-left: auto; }
 .toast { position: fixed; right: 24px; bottom: 23px; z-index: 6; max-width: min(380px, calc(100vw - 32px)); padding: 12px 16px; transform: translateY(12px); border-radius: 8px; background: var(--green); color: var(--on-accent); box-shadow: 0 8px 25px rgba(0,0,0,.15); font-size: 11px; opacity: 0; pointer-events: none; transition: .2s; }
 .toast.visible { transform: translateY(0); opacity: 1; }
-.toast.error { background: var(--red); }
-.toast.warning { background: var(--warn); }
+.toast.error { background: var(--danger-soft); color: var(--danger); box-shadow: 0 0 0 1px var(--danger-line), 0 8px 25px rgba(0,0,0,.15); }
+.toast.warning { background: var(--warn-soft); color: var(--warn); box-shadow: 0 0 0 1px var(--warn-line), 0 8px 25px rgba(0,0,0,.15); }
 .evidence-competency-warning { display: flex; gap: 7px; align-items: flex-start; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--warn-line); border-radius: 6px; background: var(--warn-soft); color: var(--warn); font-size: 10px; line-height: 1.5; }
 .evidence-competency-warning[hidden] { display: none; }
 .activity-rubric-editor { min-width: 0; }

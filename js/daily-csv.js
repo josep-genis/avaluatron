@@ -20,25 +20,23 @@ function parseDate(value) {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-export function planDailyImport(text) {
+export function planDailyImport(text, { skipFirstRow = false } = {}) {
   const rows = parseCsv(text, { strict: true });
   const errors = [];
   const assessments = [];
   const seen = new Set();
-  const hasHeader = rows.length > 0 && ["dia", "data"].includes(normalize(rows[0][0]));
-  if (hasHeader) {
-    const header = rows[0].map(normalize);
-    if (![5, 6].includes(header.length) || header[1] !== "participacio" || header[2] !== "preparacio" ||
-      header[3] !== "autonomia" || header[4] !== "collaboracio" ||
-      header.length === 6 && !["observacio", "observacions"].includes(header[5])) {
-      errors.push("La capçalera ha de ser: dia, participació, preparació, autonomia, col·laboració, observacions.");
-    }
-  }
+  const header = rows[0]?.map(normalize) || [];
+  const recognizedHeader = ["dia", "data"].includes(header[0]) &&
+    [5, 6].includes(header.length) && header[1] === "participacio" && header[2] === "preparacio" &&
+    header[3] === "autonomia" && header[4] === "collaboracio" &&
+    (header.length === 5 || ["observacio", "observacions"].includes(header[5]));
+  const needsHeaderConfirmation = !skipFirstRow && !recognizedHeader && rows.length > 1 && !parseDate(rows[0][0]);
+  const hasHeader = recognizedHeader || skipFirstRow;
   const dataRows = rows.slice(hasHeader ? 1 : 0);
   if (!dataRows.length) errors.push("El fitxer CSV no conté cap seguiment.");
   dataRows.forEach((cells, index) => {
     const row = index + (hasHeader ? 2 : 1);
-    if (![5, 6].includes(cells.length) || hasHeader && cells.length !== rows[0].length) {
+    if (![5, 6].includes(cells.length)) {
       errors.push(`Fila ${row}: calen cinc columnes de valoració i, opcionalment, una d'observacions.`);
       return;
     }
@@ -73,5 +71,5 @@ export function planDailyImport(text) {
     }
     assessments.push({ date, levels, note });
   });
-  return { assessments, errors };
+  return { assessments, errors, needsHeaderConfirmation };
 }
