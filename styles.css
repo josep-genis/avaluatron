@@ -569,7 +569,7 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .field-hint { display: block; margin-top: 6px; color: var(--muted); font-size: 9px; line-height: 1.5; }
 .form-actions { display: flex; justify-content: space-between; gap: 9px; margin-top: 17px; padding-top: 14px; border-top: 1px solid var(--line); }
 .form-actions-right { display: flex; gap: 8px; margin-left: auto; }
-.toast { position: fixed; right: 24px; bottom: 23px; z-index: 6; max-width: min(380px, calc(100vw - 32px)); padding: 12px 16px; transform: translateY(12px); border-radius: 8px; background: var(--green); color: var(--on-accent); box-shadow: 0 8px 25px rgba(0,0,0,.15); font-size: 11px; opacity: 0; pointer-events: none; transition: .2s; }
+.toast { position: fixed; right: 24px; bottom: 23px; z-index: 101; max-width: min(380px, calc(100vw - 32px)); padding: 12px 16px; transform: translateY(12px); border-radius: 8px; background: var(--green); color: var(--on-accent); box-shadow: 0 8px 25px rgba(0,0,0,.15); font-size: 11px; opacity: 0; pointer-events: none; transition: .2s; }
 .toast.visible { transform: translateY(0); opacity: 1; }
 .toast.error { background: var(--danger-soft); color: var(--danger); box-shadow: 0 0 0 1px var(--danger-line), 0 8px 25px rgba(0,0,0,.15); }
 .toast.warning { background: var(--warn-soft); color: var(--warn); box-shadow: 0 0 0 1px var(--warn-line), 0 8px 25px rgba(0,0,0,.15); }
@@ -794,6 +794,8 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .swipe-card p { margin: 0; color: var(--text-2); font-size: 13px; }
 .swipe-card-avatar { display: grid; width: 64px; height: 64px; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 22px; }
 .swipe-card-criterion { margin-top: 10px; padding: 7px 16px; border-radius: 99px; background: var(--accent); color: #fff; font-weight: 700; font-size: 15px; }
+.swipe-card-note { width: 100%; min-height: 82px; resize: vertical; padding: 9px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 13px; line-height: 1.4; text-align: left; cursor: text; touch-action: auto; user-select: text; }
+.swipe-card-note:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
 .swipe-stamp { position: absolute; top: 14px; right: 14px; padding: 4px 12px; border: 3px solid currentColor; border-radius: 10px; font: 800 24px "Manrope", sans-serif; opacity: 0; pointer-events: none; }
 .swipe-stamp[data-dir="up"] { color: #1f8a4c; }
 .swipe-stamp[data-dir="right"] { color: #2d7bd0; }

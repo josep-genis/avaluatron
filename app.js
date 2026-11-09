@@ -987,7 +987,9 @@ document.addEventListener("click", event => {
       const name = row.querySelector(".daily-student strong")?.textContent || "";
       const group = row.querySelector(".daily-student small")?.textContent || "";
       const initials = row.querySelector(".daily-student-avatar")?.textContent || "";
-      return [...row.querySelectorAll("[data-daily-assessment]")].filter(select => !select.value && !select.disabled).map(select => ({
+      const note = row.querySelector("[data-daily-note]");
+      if (!note || row.querySelector("[data-daily-absent]")?.checked) return [];
+      const ratings = [...row.querySelectorAll("[data-daily-assessment]")].filter(select => !select.value && !select.disabled).map(select => ({
         studentId: select.dataset.studentId,
         criterionId: select.dataset.criterionId,
         title: name,
@@ -995,9 +997,18 @@ document.addEventListener("click", event => {
         initials,
         criterion: DAILY_FOLLOWUP_CRITERIA.find(item => item.id === select.dataset.criterionId)?.name || ""
       }));
+      return [...ratings, {
+        type: "note",
+        studentId: note.dataset.studentId,
+        title: name,
+        subtitle: group,
+        initials,
+        criterion: "Observació",
+        note: note.value
+      }];
     });
     if (!cards.length) {
-      showToast("Tots els indicadors d'aquesta sessió ja tenen valoració.");
+      showToast("No hi ha alumnes presents en aquesta selecció.");
       return;
     }
     openSwipeDeck({
@@ -1017,7 +1028,18 @@ document.addEventListener("click", event => {
         if (!select) return false;
         select.value = level ? String(level) : "";
         select.dispatchEvent(new Event("change", { bubbles: true }));
-        return select.value === (level ? String(level) : "");
+        const assessment = data.dailyAssessments.find(item => item.studentId === card.studentId &&
+          item.subjectId === state.dailySelectedSubjectId && item.date === state.dailySelectedDate);
+        return select.isConnected && (assessment?.levels[card.criterionId] || null) === level;
+      },
+      onNote: (card, note) => {
+        const input = [...content.querySelectorAll("[data-daily-note]")].find(item => item.dataset.studentId === card.studentId);
+        if (!input) return false;
+        input.value = note;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        const assessment = data.dailyAssessments.find(item => item.studentId === card.studentId &&
+          item.subjectId === state.dailySelectedSubjectId && item.date === state.dailySelectedDate);
+        return input.isConnected && (assessment?.note || "") === note.trim();
       }
     });
     return;

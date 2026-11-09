@@ -10,10 +10,7 @@ const DIRECTIONS = {
 const KEY_DIRECTIONS = { ArrowUp: "up", ArrowRight: "right", ArrowDown: "down", ArrowLeft: "left" };
 const SWIPE_THRESHOLD = 90;
 
-// Obre un mazo de targetes. `cards` = [{ id, title, subtitle, initials, criterion }].
-// `onRate(card, level | null)` desa o desfà la valoració i retorna `false` si ha fallat.
-// Si hi ha `onAbsent(card, absent)`, es pot marcar l'alumne com a absent (i es treuen les seves altres targetes).
-export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
+export function openSwipeDeck({ cards, heading, onRate, onAbsent, onNote }) {
   const root = document.createElement("div");
   root.className = "swipe-overlay";
   root.setAttribute("role", "dialog");
@@ -26,14 +23,19 @@ export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
   let drag = null;
 
   const close = () => {
+    const currentNote = root.querySelector("[data-swipe-note]");
+    if (currentNote) cards[index].draft = currentNote.value;
+    if (cards.some(card => card.type === "note" && card.draft !== undefined && card.draft !== (card.note || "")) &&
+      !globalThis.confirm("Hi ha observacions sense desar. Vols tancar el mode targetes i descartar-les?")) return;
     document.removeEventListener("keydown", onKey);
     root.remove();
   };
 
   function render() {
     const card = cards[index];
+    const isNote = card?.type === "note";
     const hints = Object.entries(DIRECTIONS).map(([name, item]) =>
-      `<button type="button" class="swipe-hint swipe-hint-${name}" data-swipe-dir="${name}" ${card ? "" : "disabled"} aria-label="${item.code}: ${item.label}"><strong>${item.arrow} ${item.code}</strong><small>${item.label}</small></button>`
+      `<button type="button" class="swipe-hint swipe-hint-${name}" data-swipe-dir="${name}" ${card ? "" : "disabled"} aria-label="${isNote ? `Acaba l'observació ${item.arrow}` : `${item.code}: ${item.label}`}"><strong>${item.arrow} ${isNote ? "Fet" : item.code}</strong><small>${isNote ? "Acaba l'observació" : item.label}</small></button>`
     ).join("");
     root.innerHTML = `<div class="swipe-shell">
       <header class="swipe-header">
@@ -53,10 +55,11 @@ export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
           <h2>${escapeHtml(card.title)}</h2>
           <p>${escapeHtml(card.subtitle)}</p>
           <span class="swipe-card-criterion">${escapeHtml(card.criterion)}</span>
+          ${isNote ? `<textarea class="swipe-card-note" data-swipe-note maxlength="500" aria-label="Observació de ${escapeHtml(card.title)}" placeholder="Afegeix una observació…">${escapeHtml(card.draft ?? card.note ?? "")}</textarea>` : ""}
           <span class="swipe-stamp" aria-hidden="true"></span>
         </article>` : `<div class="swipe-done"><h2>Fet!</h2><p>No queden targetes pendents.</p><button type="button" class="button button-primary" data-swipe-close>Acaba</button></div>`}
       </div>
-      <p class="swipe-help">Arrossega la targeta o usa les fletxes del teclat: ↑ AE · → AN · ↓ NA · ← AS${onAbsent ? " · A absent" : ""}</p>
+      <p class="swipe-help">${isNote ? "Edita l'observació i arrossega la targeta en qualsevol direcció per acabar. També pots usar les fletxes fora del camp de text." : "Arrossega la targeta o usa les fletxes del teclat: ↑ AE · → AN · ↓ NA · ← AS"}${onAbsent ? " · A absent" : ""}</p>
     </div>`;
     root.querySelector(".swipe-card")?.focus({ preventScroll: true });
   }
@@ -64,16 +67,32 @@ export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
   function commit(direction) {
     const card = cards[index];
     if (!card) return;
-    const { level } = DIRECTIONS[direction];
-    if (onRate(card, level) === false) return;
-    history.push({ card, index });
+    if (card.type === "note") {
+      const previousNote = card.note || "";
+      const note = root.querySelector("[data-swipe-note]").value.trim();
+      if (onNote(card, note) === false) return;
+      card.note = note;
+      delete card.draft;
+      history.push({ card, index, previousNote });
+    } else {
+      const { level } = DIRECTIONS[direction];
+      if (onRate(card, level) === false) return;
+      history.push({ card, index });
+    }
     index += 1;
     render();
   }
 
   function markAbsent() {
     const card = cards[index];
-    if (!card || !onAbsent || onAbsent(card, true) === false) return;
+    if (!card || !onAbsent) return;
+    if (card.type === "note") {
+      card.draft = root.querySelector("[data-swipe-note]").value;
+    }
+    if (cards.slice(index).some(item => item.studentId === card.studentId && item.type === "note" &&
+      item.draft !== undefined && item.draft !== (item.note || "")) &&
+      !globalThis.confirm("L'observació encara no s'ha desat. Vols marcar l'alumne com a absent?")) return;
+    if (onAbsent(card, true) === false) return;
     const removed = cards.slice(index + 1).filter(item => item.studentId === card.studentId);
     for (const item of removed) cards.splice(cards.indexOf(item), 1);
     history.push({ card, index, absent: true, removed });
@@ -83,6 +102,7 @@ export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
 
   function skip() {
     if (!cards[index]) return;
+    if (cards[index].type === "note") cards[index].draft = root.querySelector("[data-swipe-note]").value;
     cards.push(cards.splice(index, 1)[0]);
     if (index >= cards.length) index = cards.length - 1;
     render();
@@ -91,9 +111,15 @@ export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
   function undo() {
     const last = history.pop();
     if (!last) return;
-    if ((last.absent ? onAbsent(last.card, false) : onRate(last.card, null)) === false) {
+    const success = last.absent ? onAbsent(last.card, false) :
+      last.card.type === "note" ? onNote(last.card, last.previousNote) : onRate(last.card, null);
+    if (success === false) {
       history.push(last);
       return;
+    }
+    if (last.card.type === "note" && !last.absent) {
+      last.card.note = last.previousNote;
+      delete last.card.draft;
     }
     if (last.absent) cards.splice(last.index + 1, 0, ...last.removed);
     index = last.index;
@@ -108,6 +134,8 @@ export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
     if (event.key === "Escape") {
       event.preventDefault();
       close();
+    } else if (event.target.closest("input, textarea, select, [contenteditable='true']")) {
+      return;
     } else if (KEY_DIRECTIONS[event.key]) {
       event.preventDefault();
       commit(KEY_DIRECTIONS[event.key]);
@@ -130,6 +158,7 @@ export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
   });
 
   root.addEventListener("pointerdown", event => {
+    if (event.target.closest("input, textarea, button, select")) return;
     const el = event.target.closest(".swipe-card");
     if (!el) return;
     drag = { el, x: event.clientX, y: event.clientY, dx: 0, dy: 0 };
@@ -145,7 +174,7 @@ export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
     const distance = Math.hypot(drag.dx, drag.dy);
     drag.el.style.transform = `translate(${drag.dx}px, ${drag.dy}px) rotate(${drag.dx / 20}deg)`;
     const stamp = drag.el.querySelector(".swipe-stamp");
-    stamp.textContent = distance > 30 ? DIRECTIONS[direction].code : "";
+    stamp.textContent = distance > 30 ? (cards[index]?.type === "note" ? "Fet" : DIRECTIONS[direction].code) : "";
     stamp.dataset.dir = direction;
     stamp.style.opacity = Math.min(distance / SWIPE_THRESHOLD, 1);
   });
@@ -157,6 +186,7 @@ export function openSwipeDeck({ cards, heading, onRate, onAbsent }) {
     el.classList.remove("dragging");
     if (event.type !== "pointercancel" && Math.hypot(dx, dy) >= SWIPE_THRESHOLD) {
       commit(directionOf(dx, dy));
+      if (el.isConnected) el.style.transform = "";
     } else {
       el.style.transform = "";
       const stamp = el.querySelector(".swipe-stamp");
