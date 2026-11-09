@@ -8,6 +8,8 @@ import {
 } from "./grades.js";
 import { escapeHtml, formatDate, formatGradeWithCode, gradeColorClass } from "./formatting.js";
 
+export const RECOVERY_EXPLANATION = `Aquesta activitat s'ha qualificat com a recuperada. Per això la nota de cada evidència, i per tant la nota final de l'activitat, no pot superar ${formatGradeWithCode(RECOVERED_MAX_SCORE)}. Les evidències amb una nota inferior es mantenen sense canvis.`;
+
 function studentName(student) {
   return `${student.firstName} ${student.lastName}`.trim();
 }
@@ -26,7 +28,7 @@ function evidenceContributionLabel(evidence) {
   return contributions.length ? contributions.join(" · ") : "Sense competències vinculades";
 }
 
-function studentReport(activity, student, subjectId, offeringId = null, editableFeedback = false) {
+export function getStudentReportData(activity, student, subjectId, offeringId = null) {
   const assessment = getAssessment(data, student.id, activity.id, offeringId);
   const activityExempt = isStudentExemptFromActivity(data, student.id, activity.id);
   const subjectExempt = isStudentExemptFromSubjectForActivity(data, student.id, activity.id, subjectId);
@@ -39,10 +41,7 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
   const gradeLabel = exempt
     ? subjectExempt ? "Exempt/a de l’assignatura" : "Exempt/a de l’activitat"
     : grade === null ? "Pendent d’avaluar" : formatGradeWithCode(grade);
-  const gradeClass = grade === null ? "" : gradeColorClass(grade);
-  const recoveredNote = assessment?.recovered ? " (recuperada, màxim 5/AS)" : "";
-  const feedback = String(assessment?.feedback || "");
-  const evidenceRows = activity.evidences.map(evidence => {
+  const evidences = activity.evidences.map(evidence => {
     const level = assessment?.levels[evidence.id];
     const hasGrade = Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
     const result = exempt
@@ -51,12 +50,34 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
         ? `${level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : LEVEL_LABELS[level]} · ${formatGradeWithCode(SCORE_BY_LEVEL[level])}`
         : "Pendent d’avaluar";
     const descriptor = hasGrade ? evidence.descriptors?.[level] : "";
-    const cappedNote = hasGrade && assessment?.recovered && SCORE_BY_LEVEL[level] > RECOVERED_MAX_SCORE
+    return {
+      name: evidence.name,
+      contributions: evidenceContributionLabel(evidence),
+      weight: getEvidenceActivityWeight(evidence),
+      result,
+      descriptor,
+      capped: hasGrade && !exempt && assessment?.recovered && SCORE_BY_LEVEL[level] > RECOVERED_MAX_SCORE
+    };
+  });
+  return {
+    grade, gradeLabel, exempt, recovered: Boolean(assessment?.recovered),
+    evaluatedEvidenceCount, feedback: String(assessment?.feedback || ""), evidences,
+    studentName: studentName(student), studentGroup: studentGroup(student)
+  };
+}
+
+function studentReport(activity, student, subjectId, offeringId = null, editableFeedback = false) {
+  const report = getStudentReportData(activity, student, subjectId, offeringId);
+  const { grade, gradeLabel, exempt, recovered, evaluatedEvidenceCount, feedback } = report;
+  const gradeClass = grade === null ? "" : gradeColorClass(grade);
+  const recoveredNote = recovered ? " (recuperada, màxim 5/AS)" : "";
+  const evidenceRows = report.evidences.map(evidence => {
+    const cappedNote = evidence.capped
       ? `<small>Nota limitada a ${formatGradeWithCode(RECOVERED_MAX_SCORE)} per recuperació.</small>` : "";
     return `<tr>
-      <td><strong>${escapeHtml(evidence.name)}</strong><small>${escapeHtml(evidenceContributionLabel(evidence))}</small></td>
-      <td>${getEvidenceActivityWeight(evidence)}%</td>
-      <td>${result}${cappedNote}${descriptor ? `<small>${escapeHtml(descriptor).replaceAll("\n", "<br>")}</small>` : ""}</td>
+      <td><strong>${escapeHtml(evidence.name)}</strong><small>${escapeHtml(evidence.contributions)}</small></td>
+      <td>${evidence.weight}%</td>
+      <td>${escapeHtml(evidence.result)}${cappedNote}${evidence.descriptor ? `<small>${escapeHtml(evidence.descriptor).replaceAll("\n", "<br>")}</small>` : ""}</td>
     </tr>`;
   }).join("");
 
@@ -74,7 +95,7 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
       <div><span>Nota final de l’activitat</span><small>${exempt ? "Aquesta activitat no es compta en la qualificació de l’alumne/a." : `${evaluatedEvidenceCount} de ${activity.evidences.length} evidències avaluades`}</small></div>
       <strong class="${gradeClass}">${escapeHtml(gradeLabel + (grade === null ? "" : recoveredNote))}</strong>
     </section>
-    ${assessment?.recovered && !exempt ? `<section class="report-recovery"><h2>Activitat recuperada</h2><p>Aquesta activitat s'ha qualificat com a recuperada. Per això la nota de cada evidència, i per tant la nota final de l'activitat, no pot superar ${formatGradeWithCode(RECOVERED_MAX_SCORE)}. Les evidències amb una nota inferior es mantenen sense canvis.</p></section>` : ""}
+    ${recovered && !exempt ? `<section class="report-recovery"><h2>Activitat recuperada</h2><p>${escapeHtml(RECOVERY_EXPLANATION)}</p></section>` : ""}
     <section class="report-evidence">
       <h2>Progrés per evidència</h2>
       <p>La nota de cada evidència es mostra sobre 10 amb la seva qualificació textual.</p>
@@ -82,7 +103,7 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
     </section>
     ${editableFeedback
       ? `<section class="report-feedback"><label for="activity-student-feedback">Retroacció per a ${escapeHtml(studentName(student))}</label><p>Es desa amb l'avaluació d'aquest alumne per a l'activitat.</p><textarea id="activity-student-feedback" data-activity-feedback data-activity-id="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" data-offering-id="${escapeHtml(offeringId || "")}" maxlength="2000" rows="5" placeholder="Escriu una retroacció específica per a aquest alumne…">${escapeHtml(feedback)}</textarea><small>Fins a 2.000 caràcters</small></section>`
-      : feedback.trim() ? `<section class="report-feedback"><h2>Retroacció</h2><p>${escapeHtml(feedback).replaceAll("\\n", "<br>")}</p></section>` : ""}
+      : feedback.trim() ? `<section class="report-feedback"><h2>Retroacció</h2><p>${escapeHtml(feedback)}</p></section>` : ""}
     <footer class="report-footer"><span>Avaluatró · Informe generat el ${new Intl.DateTimeFormat("ca-ES", { dateStyle: "long" }).format(new Date())}</span><span>NA: No assolit · AS: Assoliment satisfactori · AN: Assoliment notable · AE: Assoliment excel·lent</span></footer>
   </article>`;
 }

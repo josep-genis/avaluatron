@@ -328,6 +328,9 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .activity-assessment-table tbody tr:nth-child(even) > td.activity-grade-cell { background: var(--surface-soft); }
 .activity-assessment-table th.activity-exemption-cell, .activity-assessment-table td.activity-exemption-cell { width: 54px; min-width: 54px; padding-right: 5px; padding-left: 5px; text-align: center; }
 .activity-assessment-table th:nth-child(n + 4), .activity-assessment-table td:nth-child(n + 4) { width: 155px; min-width: 155px; }
+.activity-assessment-table th.activity-feedback-cell, .activity-assessment-table td.activity-feedback-cell { width: 250px; min-width: 250px; }
+.activity-assessment-table td.activity-feedback-cell textarea { display: block; box-sizing: border-box; width: 100%; min-width: 220px; height: 24px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); font: inherit; font-size: 11px; line-height: 1.4; resize: none; }
+.activity-assessment-table td.activity-feedback-cell textarea:focus { outline: 2px solid var(--accent-ring); border-color: var(--line-strong); }
 .activity-assessment-table .exemption-control { justify-content: center; }
 .student-activity-report-link { padding: 0; border: 0; background: none; color: var(--green-dark); font: inherit; text-align: left; cursor: pointer; }
 .student-activity-report-link:hover { text-decoration: underline; }

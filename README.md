@@ -14,6 +14,8 @@ Atura el servidor amb `Ctrl+C`.
 
 El codi d'arrencada i les accions de l'aplicació es troben a `app.js`. La carpeta `js/` separa la validació i les dades, els càlculs de notes, l'estat, les vistes i els formats compartits.
 
+L'exportació dels informes en lot fa servir pdfmake 0.2.20 i fflate 0.8.2, inclosos a `third-party/` amb les llicències corresponents. Es carreguen localment només quan es genera el ZIP.
+
 ## Funcionalitats
 
 - Crea cursos acadèmics i grups classe anuals amb desdoblaments opcionals. Les matrícules de l'alumnat es conserven per curs; cada alumne també pot pertànyer a diversos grups addicionals.
@@ -30,7 +32,7 @@ El codi d'arrencada i les accions de l'aplicació es troben a `app.js`. La carpe
 - En obrir una activitat, consulta primer la rúbrica d'evidències, les competències a què contribueix cadascuna, el progrés d'avaluació i la nota mitjana de cada evidència; a sota, registra el nivell assolit per cada alumne i evidència.
 - La rúbrica s'edita en una pàgina independent de l'activitat. Per cada evidència s'hi vinculen una o més competències i s'hi defineix el criteri observable dels nivells NA, AS, AN i AE; els descriptors també apareixen als exports PDF/CSV/TSV i als informes de l'alumnat.
 - El resum de l'activitat mostra la mitjana, mediana, percentatge d'aprovats i alumnat avaluat, així com la distribució real de notes en comparació amb una campana de Gauss de referència. Un alumne només compta com a avaluat quan té una qualificació registrada a totes les evidències de l'activitat. Cada punt correspon a un alumne i en mostra el nom i la nota en passar-hi el cursor.
-- Obre l'informe resum d'un alumne clicant el seu nom a l'avaluació d'una activitat o una activitat del seu perfil. A l'informe pots escriure una retroacció específica per a l'alumne, que es desa amb la seva avaluació i també apareix al PDF. Des de l'informe pots exportar un PDF individual; des de l'avaluació de l'activitat també pots exportar en un sol document els informes de tot l'alumnat de l'oferta. Les opcions d'exportació CSV, TSV i PDF s'agrupen al botó «Exporta».
+- Obre l'informe resum d'un alumne clicant el seu nom a l'avaluació d'una activitat o una activitat del seu perfil. A l'informe pots escriure una retroacció específica per a l'alumne, que es desa amb la seva avaluació i també apareix al PDF. Des de l'informe pots exportar un PDF individual; des de l'avaluació de l'activitat pots descarregar un ZIP que conté un PDF independent per alumne de l'oferta. Els fitxers es generen localment al navegador. Les opcions d'exportació CSV, TSV i PDF s'agrupen al botó «Exporta».
 - Els tipus d'activitat són «Prova» i «Activitat». Qualsevol activitat sense evidències és no avaluativa: no mostra rúbrica, avaluació ni informes, i no compta en les qualificacions.
 - Les classes magistrals són elements de la seqüència (títol i hores, sense activitat) que s'avaluen amb el seguiment diari; no compten en les qualificacions per hores.
 - Una activitat es pot marcar com «Activitat en grup» en crear-la o editar-la; només llavors mostra la secció d'agrupaments (nom i membres, un agrupament per alumne). El commutador «Individual / En grup» decideix la qualificació: en mode grup tots els membres reben la mitjana de les avaluacions individuals dels components; les avaluacions individuals no es modifiquen.
@@ -46,6 +48,7 @@ El codi d'arrencada i les accions de l'aplicació es troben a `app.js`. La carpe
 - Les qualificacions fan servir un codi de color coherent als indicadors i desplegables: inferior a 5 (warning/no assolit), 5–6,9 (en procés), 7–8,9 (assolit) i 9–10 (avançat). L'alumnat amb una nota d'activitat inferior a 5 queda marcat com a warning.
 - En avaluar una evidència, a més dels nivells de la rúbrica es pot marcar «No presentat»: compta com a avaluada i aporta 0 a la nota de l'activitat.
 - Cada alumne pot marcar-se com a activitat «recuperada» (columna Rec.): la nota de les seves evidències, i per tant la de l'activitat i les competències, no pot superar 5/AS.
+- La columna «Retroacció» de la taula d'avaluació permet desar comentaris per alumne i activitat; aquests comentaris també apareixen als informes exportats.
 - Sempre que es mostra una qualificació, s'hi inclou la nota sobre 10 i la sigla textual corresponent: NA (<5), AS (5–<7), AN (7–<9) o AE (9–10). A la taula d'avaluació de cada activitat, el nom de l'alumne i la seva nota d'activitat queden fixos en desplaçar-se horitzontalment.
 - Les dades s'emmagatzemen en format JSON a `localStorage` del navegador. Fes servir **Exporta JSON** per desar una còpia i **Importa** per restaurar-la o traslladar-la.
 - Les dades de la versió 1 s'actualitzen automàticament a l'esquema 2 quan es carreguen. La migració crea el curs vigent, matrícula l'alumnat als grups actuals i transforma les assignacions de grup dels nivells en ofertes docents; les qualificacions existents es vinculen a les ofertes corresponents.

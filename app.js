@@ -20,6 +20,7 @@ import { openSwipeDeck } from "./js/swipe-followup.js";
 import { planStudentImport } from "./js/student-csv.js";
 import { withoutUnmodifiedBank, getBankCompetency, isBankCompetency } from "./js/competency-bank.js";
 import { openActivityReport, openActivityGroupReports, openGroupAssessmentForms } from "./js/activity-report.js";
+import { exportActivityReportsBatch } from "./js/activity-batch-report.js";
 import {
   exportActivityTable, exportActivityGroupsTable, exportActivityRubricTable,
   openActivityRubricReport
@@ -793,9 +794,22 @@ document.addEventListener("click", event => {
   const studentReportButton = event.target.closest("[data-export-student-report]");
   const activityReportsButton = event.target.closest("[data-export-activity-reports]");
   const activityGroupReportsButton = event.target.closest("[data-export-activity-group-reports]");
-  if (studentReportButton || activityReportsButton || activityGroupReportsButton) {
-    const exportButton = activityReportsButton || activityGroupReportsButton;
-    exportButton?.closest("details")?.removeAttribute("open");
+  if (activityReportsButton) {
+    activityReportsButton.closest("details")?.removeAttribute("open");
+    activityReportsButton.disabled = true;
+    showToast("Generant els informes PDF...");
+    exportActivityReportsBatch().then(count => {
+      showToast(`S'han generat ${count} informes PDF en un fitxer ZIP.`);
+    }).catch(error => {
+      console.error("Error en exportar els informes:", error);
+      showToast(`No s'han pogut exportar els informes: ${error instanceof Error ? error.message : String(error)}`, true);
+    }).finally(() => {
+      activityReportsButton.disabled = false;
+    });
+    return;
+  }
+  if (studentReportButton || activityGroupReportsButton) {
+    activityGroupReportsButton?.closest("details")?.removeAttribute("open");
     const opened = activityGroupReportsButton
       ? openActivityGroupReports()
       : openActivityReport(studentReportButton?.dataset.exportStudentReport || null);
@@ -1847,7 +1861,7 @@ content.addEventListener("change", event => {
     } else if (assessment) {
       if (feedback) assessment.feedback = feedback;
       else delete assessment.feedback;
-      if (!Object.keys(assessment.levels).length && !assessment.feedback) {
+      if (!Object.keys(assessment.levels).length && !assessment.feedback && !assessment.recovered) {
         data.assessments = data.assessments.filter(item => item !== assessment);
       }
     }
