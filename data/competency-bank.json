@@ -230,7 +230,7 @@
     ]
   },
   {
-    "id": "bank-cpsaa-1",
+    "id": "bank-cc",
     "educationalLevels": [
       "1r d'ESO",
       "2n d'ESO",
@@ -240,43 +240,137 @@
     "subjects": [
       "Competències transversals"
     ],
-    "name": "CPSAA-CE1",
-    "description": "Regular i expressar les seves emocions enfortint l’optimisme, la resiliència, l’autoeficàcia i la recerca de propòsit i motivació cap a l’aprenentatge per gestionar els reptes i canvis i harmonitzar-los amb els seus propis objectius.",
+    "name": "Competència ciutadana (CC)",
+    "description": "Participar de manera responsable, democràtica i respectuosa en la vida col·lectiva, fonamentant-se en els drets humans i en els valors de convivència, equitat, diversitat, sostenibilitat i ciutadania global.",
     "learningOutcomes": [
       {
-        "id": "bank-cpsaa-1-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
+        "id": "bank-cc-ra-1",
+        "name": "CC1 — Identitat i convivència",
+        "description": "Analitzar i comprendre idees relatives a la dimensió social i ciutadana de la seva pròpia identitat, així com als fets socials, històrics i normatius que la determinen, demostrant respecte per les normes, empatia, equitat i esperit constructiu en la interacció amb els altres en diferents contextos socioinstitucionals.",
         "criteria": [
           {
-            "id": "bank-cpsaa-1-ra-1-ce-1",
-            "text": "1.1. Expressar les emocions i els sentiments de forma respectuosa i assertiva, a través de diferents mitjans en situacions d’interacció social."
+            "id": "bank-cc-ra-1-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 1.1. Identificar les relacions entre esdeveniments històrics i el present, incloent-hi la pròpia història personal, i imaginant possibles escenaris futurs, a través de la comprensió de determinades problemàtiques i reptes identificats."
           },
           {
-            "id": "bank-cpsaa-1-ra-1-ce-2",
-            "text": "1.2. Emprar, amb iniciativa, estratègies de regulació emocional que afavoreixin el propi aprenentatge."
+            "id": "bank-cc-ra-1-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 1.2. Valorar críticament els processos de construcció de la pròpia identitat, reflexionant sobre les diferències, les semblances i les interdependències que ens vinculen amb persones i col·lectius de l’entorn i de l’àmbit global."
+          },
+          {
+            "id": "bank-cc-ra-1-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 1.3. Construir relacions de convivència assertives i respectuoses amb totes les persones i grups socials, independentment del seu origen o grup de pertinença."
+          },
+          {
+            "id": "bank-cc-ra-1-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 1.1. Justificar els grans canvis del món actual en els diferents àmbits de les humanitats i de les tecnologies, debatent les seves implicacions per a les generacions actuals i futures, a partir de l’anàlisi de problemes de l’entorn local i les seves implicacions globals."
+          },
+          {
+            "id": "bank-cc-ra-1-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 1.2. Avaluar els processos de construcció de la identitat individual i col·lectiva, a través de la implementació de pràctiques i estratègies que promouen la reflexió crítica sobre els reptes i conflictes socials, des d’una comprensió sistèmica i global."
+          },
+          {
+            "id": "bank-cc-ra-1-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 1.3. Proposar accions que promoguin relacions de convivència amb totes les persones i grups socials, tant de l’entorn proper com de l’àmbit global."
           }
         ]
       },
       {
-        "id": "bank-cpsaa-1-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
+        "id": "bank-cc-ra-2",
+        "name": "CC2 — Participació democràtica i drets",
+        "description": "Analitzar i assumir amb fonament els principis i valors que emanen del procés d’integració europeu, de l’ordenament jurídic de l’Estat espanyol i de Catalunya i dels drets humans i de l’infant, participant en activitats comunitàries, com la presa de decisions o la resolució de conflictes, amb actitud democràtica, respecte per la diversitat, i compromís amb la igualtat de gènere, la cohesió social, el desenvolupament sostenible i l’assoliment de la ciutadania mundial.",
         "criteria": [
           {
-            "id": "bank-cpsaa-1-ra-2-ce-1",
-            "text": "1.1. Analitzar la gestió de les emocions en les relacions amb els altres dins el context educatiu i social."
+            "id": "bank-cc-ra-2-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 2.1. Esquematitzar els trets bàsics de l’organització social, política i econòmica d’algunes societats europees, valorant de manera crítica el grau d’equitat en els intercanvis i les relacions amb altres països o pobles."
           },
           {
-            "id": "bank-cpsaa-1-ra-2-ce-2",
-            "text": "1.2. Validar i emprar de forma proactiva estratègies de regulació emocional anticipant-se a situacions d’incertesa i de canvi que suposin un repte."
+            "id": "bank-cc-ra-2-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 2.2. Participar activament en l’organització i desenvolupament de projectes de l’entorn que integrin la capacitat per treballar en equip, la presa de decisions consensuades, la comunicació efectiva i la resolució de problemes."
+          },
+          {
+            "id": "bank-cc-ra-2-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 2.3. Distingir els trets fonamentals de les societats democràtiques, valorant les consecucions de la democràcia i la vigència dels drets humans individuals i col·lectius i de les llibertats, i proposar accions per protegir-los."
+          },
+          {
+            "id": "bank-cc-ra-2-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 2.1. Caracteritzar els mecanismes dels estats per garantir l’accés equitatiu als serveis públics dels ciutadans i ciutadanes amb l’objectiu de reduir les desigualtats i assegurar una vida digna per a tothom."
+          },
+          {
+            "id": "bank-cc-ra-2-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 2.2. Participar de manera activa i compromesa en l’organització i desenvolupament de projectes comunitaris, que fomentin la reflexió crítica i la millora de les habilitats socials necessàries per treballar en equip i contribuir a la construcció d’una societat més lliure, justa, equitativa i cohesionada."
+          },
+          {
+            "id": "bank-cc-ra-2-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 2.3. Exposar amb criteri propi algunes problemàtiques que afectin els drets de determinats col·lectius per mitjà de la participació activa i compromesa, individualment i en equip, en projectes socials i cívics que comportin la defensa d’aquests drets."
+          }
+        ]
+      },
+      {
+        "id": "bank-cc-ra-3",
+        "name": "CC3 — Ètica i igualtat",
+        "description": "Analitzar i comprendre problemes ètics fonamentals i d’actualitat, considerant críticament els valors propis i aliens, i desenvolupant els seus propis judicis per afrontar la controvèrsia moral amb actitud dialogant, argumentativa, respectuosa i oposada a qualsevol tipus de discriminació o violència —incloent-hi la violència masclista, LGTBI-fòbica, racista o capacitista— o fonamentalisme ideològic.",
+        "criteria": [
+          {
+            "id": "bank-cc-ra-3-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 3.1. Pronunciar-se, aportant els arguments pertinents, i actuar enfront de les actituds violentes i discriminatòries envers persones i col·lectius, amb una atenció especial a la diversitat d’identitats i expressions de gènere i diversitat afectivosexual."
+          },
+          {
+            "id": "bank-cc-ra-3-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 3.2. Identificar les limitacions socials i culturals que han impedit que algunes persones hagin pogut desenvolupar les seves aspiracions al llarg de diferents generacions."
+          },
+          {
+            "id": "bank-cc-ra-3-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 3.3. Identificar les causes que han relegat les dones i altres col·lectius i minories a un rol secundari al llarg de la història i en el present, rebutjant actituds discriminatòries i per posar en valor la importància de la cura de les persones."
+          },
+          {
+            "id": "bank-cc-ra-3-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 3.1. Citar de manera contextualitzada diferents moviments, causes i lideratges que han lluitat i lluiten per a l’eliminació de la desigualtat i la discriminació per raó de gènere i d’opció afectivosexual."
+          },
+          {
+            "id": "bank-cc-ra-3-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 3.2. Adoptar un paper actiu i compromès en la lluita per la superació d’estereotips i prejudicis, perquè totes les persones puguin desenvolupar les seves aspiracions."
+          },
+          {
+            "id": "bank-cc-ra-3-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 3.3. Formar-se un criteri propi a través de la participació activa i compromesa, individualment i en equip, en projectes socials i cívics que comportin la dignificació de les aportacions de determinats col·lectius i la defensa dels seus drets per garantir la cura i el benestar de les persones."
+          }
+        ]
+      },
+      {
+        "id": "bank-cc-ra-4",
+        "name": "CC4 — Sostenibilitat i interdependència",
+        "description": "Interpretar les relacions sistèmiques d’interdependència, ecodependència i interconnexió entre actuacions locals i globals i adoptar, conscientment i motivadament, un estil de vida sostenible i ecosocialment responsable.",
+        "criteria": [
+          {
+            "id": "bank-cc-ra-4-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 4.1. Analitzar aspectes del funcionament de les societats en el món i l’accés als recursos, destacant les relacions d’interdependència i les desigualtats que es generen, i posant èmfasi en els col·lectius vulnerables."
+          },
+          {
+            "id": "bank-cc-ra-4-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 4.2. Participar en accions comunitàries per contribuir a la millora ambiental de l’entorn, com la reducció de residus, l’ús responsable de l’aigua i l’energia o la creació de campanyes i materials de conscienciació mediambiental."
+          },
+          {
+            "id": "bank-cc-ra-4-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 4.3. Justificar la necessitat de potenciar hàbits sostenibles per al benestar dels individus i la salut del planeta i la importància de la protecció dels éssers vius de l’entorn aplicant el concepte científic de la biodiversitat."
+          },
+          {
+            "id": "bank-cc-ra-4-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 4.1. Interpretar algunes problemàtiques ambientals en l’entorn proper, com ara la contaminació, la degradació dels ecosistemes i la pèrdua de biodiversitat."
+          },
+          {
+            "id": "bank-cc-ra-4-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 4.2. Proporcionar arguments sobre el risc per a la salut i la sostenibilitat ambiental de determinades pràctiques, comportaments i hàbits, contrastant informacions fiables, objectives i amb una base científica vàlida."
+          },
+          {
+            "id": "bank-cc-ra-4-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 4.3. Justificar amb fonaments científics la importància de la preservació de la biodiversitat i la conservació i la protecció dels éssers vius de l’entorn, per contribuir al desenvolupament sostenible i la millora de la qualitat de vida."
           }
         ]
       }
     ]
   },
   {
-    "id": "bank-cpsaa-2",
+    "id": "bank-cd",
     "educationalLevels": [
       "1r d'ESO",
       "2n d'ESO",
@@ -286,43 +380,200 @@
     "subjects": [
       "Competències transversals"
     ],
-    "name": "CPSAA-CE2",
-    "description": "Conèixer els riscos per a la salut relacionats amb factors socials, per consolidar hàbits de vida saludable en el terreny físic i mental.",
+    "name": "Competència digital (CD)",
+    "description": "Utilitzar les tecnologies digitals de manera crítica, segura, responsable, saludable i sostenible per cercar i valorar informació, comunicar-se i col·laborar, crear continguts i resoldre problemes.",
     "learningOutcomes": [
       {
-        "id": "bank-cpsaa-2-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
+        "id": "bank-cd-ra-1",
+        "name": "CD1 — Cerca i gestió de la informació",
+        "description": "Fer cerques avançades a Internet atenent a criteris de validesa, qualitat, actualitat i fiabilitat, seleccionant-les de manera crítica i arxivant-les per recuperar, referenciar i reutilitzar aquestes recerques respecte a la propietat intel·lectual.",
         "criteria": [
           {
-            "id": "bank-cpsaa-2-ra-1-ce-1",
-            "text": "2.1. Incorporar, en la vida quotidiana, hàbits saludables que parteixen de la reflexió crítica en la cerca de la millora del benestar físic i emocional propi i col·lectiu."
+            "id": "bank-cd-ra-1-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 1.1. Utilitzar cercadors genèrics fent ús d’opcions i d’estratègies avançades a Internet en relació amb el repte plantejat."
           },
           {
-            "id": "bank-cpsaa-2-ra-1-ce-2",
-            "text": "2.2. Analitzar críticament els riscos de la manca d’hàbits saludables per a la salut física, emocional i mental, en l’àmbit personal i col·lectiu, valorant les relacions personals i els entorns socials saludables."
+            "id": "bank-cd-ra-1-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 1.2. Verificar, de manera autònoma, la validesa (font digital, autoria, data d’actualització, etc.), la qualitat, l’actualitat i la fiabilitat de la informació en relació amb el repte plantejat."
+          },
+          {
+            "id": "bank-cd-ra-1-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 1.3. Organitzar i emmagatzemar, de manera autònoma, la informació trobada amb recursos digitals."
+          },
+          {
+            "id": "bank-cd-ra-1-criteri-1r-2n-4",
+            "text": "[1r i 2n d’ESO] 1.4. Recuperar, de manera autònoma, la informació emmagatzemada necessària per donar resposta al repte plantejat."
+          },
+          {
+            "id": "bank-cd-ra-1-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 1.1. Utilitzar cercadors genèrics i específics fent ús d’opcions avançades i seleccionant i aplicant les estratègies més eficients en relació amb el repte plantejat."
+          },
+          {
+            "id": "bank-cd-ra-1-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 1.2. Seleccionar, de manera autònoma, la informació trobada amb actitud crítica a partir de la verificació realitzada en relació amb el repte plantejat."
+          },
+          {
+            "id": "bank-cd-ra-1-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 1.3. Emmagatzemar la informació trobada referenciant les cerques per reutilitzar-la en relació amb el repte plantejat, respectant la propietat intel·lectual."
+          },
+          {
+            "id": "bank-cd-ra-1-criteri-3r-4t-4",
+            "text": "[3r i 4t d’ESO] 1.4. Recuperar eficientment la informació emmagatzemada necessària per donar resposta al repte plantejat."
           }
         ]
       },
       {
-        "id": "bank-cpsaa-2-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
+        "id": "bank-cd-ra-2",
+        "name": "CD2 — Creació de continguts digitals",
+        "description": "Gestionar i utilitzar el propi entorn personal digital d’aprenentatge permanent per construir nou coneixement i crear continguts digitals, mitjançant estratègies de tractament de la informació i l’ús de diferents eines digitals, seleccionant i configurant la més adequada en funció de la tasca i de les necessitats en cada ocasió.",
         "criteria": [
           {
-            "id": "bank-cpsaa-2-ra-2-ce-1",
-            "text": "2.1. Consolidar, en la vida quotidiana, els hàbits de vida saludable, fent-ne propostes de millora justificades i amb sentit crític mitjançant el treball en grup i la retroacció."
+            "id": "bank-cd-ra-2-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 2.1. Seleccionar i configurar l’eina i el format més adequat en la creació de continguts digitals, en funció de la tasca i de les seves necessitats, de manera guiada."
           },
           {
-            "id": "bank-cpsaa-2-ra-2-ce-2",
-            "text": "2.2. Proposar, a partir de la reflexió crítica, accions dirigides a produir canvis en l’entorn per reduir els riscos per a la salut física, emocional i mental, en l’àmbit personal i col·lectiu."
+            "id": "bank-cd-ra-2-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 2.2. Crear i editar produccions digitals avançades de manera guiada en tasques pròpies del context escolar."
+          },
+          {
+            "id": "bank-cd-ra-2-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 2.3. Aplicar els drets d’autoria propis i d’altres persones, identificant els continguts de la xarxa sotmesos a drets d’autoria i els de lliure distribució."
+          },
+          {
+            "id": "bank-cd-ra-2-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 2.1. Seleccionar i configurar l’eina i el format més adequat en la creació de continguts digitals, en funció de la tasca i de les seves necessitats, de manera autònoma."
+          },
+          {
+            "id": "bank-cd-ra-2-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 2.2. Crear i editar produccions digitals avançades de manera autònoma en tasques pròpies del context escolar."
+          },
+          {
+            "id": "bank-cd-ra-2-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 2.3. Aplicar els drets d’autoria propis i d’altres persones, identificant els continguts de la xarxa sotmesos a drets d’autoria i també els de lliure distribució."
+          }
+        ]
+      },
+      {
+        "id": "bank-cd-ra-3",
+        "name": "CD3 — Comunicació i ciutadania digital",
+        "description": "Participar, col·laborar i interactuar mitjançant eines o plataformes virtuals per comunicar-se, treballar col·laborativament i compartir continguts, dades i informació, gestionant de manera responsable les pròpies accions, presència i visibilitat a la xarxa i exercint una ciutadania digital activa, cívica i reflexiva.",
+        "criteria": [
+          {
+            "id": "bank-cd-ra-3-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 3.1. Seleccionar la plataforma de comunicació més adequada en funció de les necessitats i utilitzar-la i configurar-la amb responsabilitat."
+          },
+          {
+            "id": "bank-cd-ra-3-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 3.2. Realitzar productes digitals de manera col·laborativa, tant per a creacions digitals com per a l’organització del treball en grup, seleccionant les eines col·laboratives més adequades."
+          },
+          {
+            "id": "bank-cd-ra-3-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 3.3. Publicar creacions digitals a la xarxa restringida de manera reflexiva i responsable, tenint en compte la visibilitat que tindrà."
+          },
+          {
+            "id": "bank-cd-ra-3-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 3.1. Aplicar diferents normes de comportament cívic i coneixements tècnics utilitzant tecnologies digitals i interactuant en entorns digitals."
+          },
+          {
+            "id": "bank-cd-ra-3-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 3.2. Realitzar productes digitals de manera col·laborativa, tant per a creacions digitals com per a l’organització del treball en grup, seleccionant les eines col·laboratives més adequades."
+          },
+          {
+            "id": "bank-cd-ra-3-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 3.3. Valorar i utilitzar múltiples maneres d’expressar la identitat, la personalitat i el coneixement a través de mitjans digitals garantint la pròpia seguretat i la dels altres i protegint la identitat digital."
+          }
+        ]
+      },
+      {
+        "id": "bank-cd-ra-4",
+        "name": "CD4 — Seguretat i sostenibilitat digital",
+        "description": "Identificar riscos i adoptar mesures en l’ús de les tecnologies digitals per protegir els dispositius, les dades personals, la salut i el medi ambient i per prendre consciència de la importància i necessitat de fer un ús crític, legal, segur, saludable i sostenible d’aquestes tecnologies.",
+        "criteria": [
+          {
+            "id": "bank-cd-ra-4-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 4.1. Adoptar mesures de seguretat dels comptes i dels dispositius a partir d’accions avançades (detectar enllaços maliciosos, evitar descàrregues de llocs poc fiables, etc.)."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 4.2. Utilitzar els recursos digitals de manera legal, en entorns personals i educatius amb l’acompanyament del o de la docent."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 4.3. Fer un ús responsable de la identitat digital, respectant la dels altres i denunciant actituds inadequades en l’ús de les tecnologies."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-1r-2n-4",
+            "text": "[1r i 2n d’ESO] 4.4. Evitar els riscos físics, de manera autònoma, mantenint una postura saludable a partir de criteris ergonòmics en l’ús de tecnologies."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-1r-2n-5",
+            "text": "[1r i 2n d’ESO] 4.5. Preveure conductes addictives de manera autònoma, en l’ús de les tecnologies."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-1r-2n-6",
+            "text": "[1r i 2n d’ESO] 4.6. Fer un ús eficient i sostenible dels dispositius digitals vetllant per la seva reutilització i el seu reciclatge en l’entorn educatiu."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 4.1. Garantir la seguretat dels comptes i dels dispositius a partir d’accions avançades (detectar enllaços maliciosos, evitar descàrregues de llocs poc fiables, etc.)."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 4.2. Utilitzar els recursos digitals de manera legal, en entorns personals i educatius."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 4.3. Fer un ús responsable de la identitat digital, respectant la dels altres i denunciant i actuant davant d’actituds no adequades en l’ús de les tecnologies."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-3r-4t-4",
+            "text": "[3r i 4t d’ESO] 4.4. Evitar els riscos físics, de manera autònoma, mantenint una postura saludable a partir de criteris ergonòmics en l’ús de tecnologies."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-3r-4t-5",
+            "text": "[3r i 4t d’ESO] 4.5. Preveure conductes addictives de manera autònoma, en l’ús de les tecnologies."
+          },
+          {
+            "id": "bank-cd-ra-4-criteri-3r-4t-6",
+            "text": "[3r i 4t d’ESO] 4.6. Fer un ús eficient i sostenible dels dispositius digitals promovent la seva reutilització i el seu reciclatge, en l’entorn personal i educatiu."
+          }
+        ]
+      },
+      {
+        "id": "bank-cd-ra-5",
+        "name": "CD5 — Programació i solucions digitals",
+        "description": "Desenvolupar aplicacions informàtiques senzilles i solucions tecnològiques creatives i sostenibles per resoldre problemes concrets o respondre a reptes proposats, i mostrar interès i curiositat per l’evolució de les tecnologies digitals i pel seu desenvolupament sostenible i ús ètic.",
+        "criteria": [
+          {
+            "id": "bank-cd-ra-5-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 5.1. Programar, amb l’orientació del o de la docent, aplicacions senzilles per a diferents dispositius (ordinadors, dispositius mòbils i altres) emprant els elements de programació de manera apropiada, fent servir el programari i els llenguatges de programació adients, per resoldre problemes concrets."
+          },
+          {
+            "id": "bank-cd-ra-5-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 5.2. Dissenyar i implementar construccions i estructures complexes per resoldre reptes proposats a través de la robòtica."
+          },
+          {
+            "id": "bank-cd-ra-5-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 5.3. Fer un ús responsable i ètic de les tecnologies, amb l’orientació del o de la docent, tot identificant les seves aportacions al benestar i promovent accions per a la reducció de l’impacte ambiental, en un context educatiu."
+          },
+          {
+            "id": "bank-cd-ra-5-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 5.1. Programar aplicacions senzilles per a diferents dispositius (ordinadors, dispositius mòbils i altres) emprant els elements de programació de manera apropiada, fent servir el programari i els llenguatges de programació adients, per resoldre problemes concrets."
+          },
+          {
+            "id": "bank-cd-ra-5-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 5.2. Dissenyar i implementar construccions i estructures complexes per resoldre problemes concrets amb solucions creatives a través de la robòtica."
+          },
+          {
+            "id": "bank-cd-ra-5-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 5.3. Fer un ús responsable i ètic de les tecnologies, tot identificant les seves aportacions al benestar i promovent accions per a la reducció de l’impacte ambiental, en un context personal i educatiu."
           }
         ]
       }
     ]
   },
   {
-    "id": "bank-cpsaa-3",
+    "id": "bank-ce",
     "educationalLevels": [
       "1r d'ESO",
       "2n d'ESO",
@@ -332,43 +583,106 @@
     "subjects": [
       "Competències transversals"
     ],
-    "name": "CPSAA-CE3",
-    "description": "Comprendre proactivament les perspectives i les experiències dels altres i incorporar-les al seu aprenentatge per participar en el treball en grup distribuint i acceptant tasques i responsabilitats de manera equitativa i emprant estratègies cooperatives.",
+    "name": "Competència emprenedora (CE)",
+    "description": "Identificar necessitats i oportunitats, generar i desenvolupar idees innovadores i sostenibles, prendre decisions i gestionar recursos i projectes per crear valor personal, social, cultural i econòmic.",
     "learningOutcomes": [
       {
-        "id": "bank-cpsaa-3-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
+        "id": "bank-ce-ra-1",
+        "name": "CE1 — Reptes i oportunitats",
+        "description": "Analitzar necessitats i oportunitats i afrontar reptes amb sentit crític, fent balanç de la seva sostenibilitat i valorant l’impacte que puguin suposar en l’entorn, per presentar idees i solucions innovadores, ètiques i sostenibles dirigides a crear valor en l’àmbit personal, social, cultural i econòmic.",
         "criteria": [
           {
-            "id": "bank-cpsaa-3-ra-1-ce-1",
-            "text": "3.1. Mostrar respecte per les perspectives, les experiències i les emocions dels altres sense jutjar-les fent que les altres persones se sentin escoltades i compreses mitjançant estratègies de comunicació efectiva, activa i empàtica."
+            "id": "bank-ce-ra-1-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 1.1. Diagnosticar i analitzar les necessitats de l’entorn social i natural, tenint en compte les causes que les han provocat i valorant-ne la importància."
           },
           {
-            "id": "bank-cpsaa-3-ra-1-ce-2",
-            "text": "3.2. Emprar estratègies de treball cooperatiu, complint els acords, prioritzant l’objectiu de l’equip i valorant les aportacions del grup amb respecte i responsabilitat."
+            "id": "bank-ce-ra-1-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 1.2. Generar idees argumentades, de forma individual i col·lectiva, utilitzant estratègies de creativitat, per desenvolupar solucions innovadores al repte."
+          },
+          {
+            "id": "bank-ce-ra-1-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 1.3. Decidir de forma raonada una idea basada en criteris ètics i de viabilitat que generi una millora en el desenvolupament sostenible de l’entorn social i mediambiental."
+          },
+          {
+            "id": "bank-ce-ra-1-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 1.1. Diagnosticar i analitzar les necessitats o problemes de l’entorn social i mediambiental, tenint en compte les causes, les conseqüències, els agents involucrats i afectats i l’impacte que podria generar la seva solució des d’una perspectiva ètica, tenint com a horitzó els objectius de desenvolupament sostenible."
+          },
+          {
+            "id": "bank-ce-ra-1-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 1.2. Generar una gran varietat d’idees argumentades, de forma individual i col·lectiva, utilitzant diferents estratègies de creativitat i amb la retroacció a partir del diàleg, per tal de desenvolupar les aportacions de cadascú i trobar solucions innovadores al repte escollit, i integrar noves tècniques productives de creativitat al propi repertori."
+          },
+          {
+            "id": "bank-ce-ra-1-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 1.3. Justificar la idea escollida de forma metòdica i argumentada, basada en criteris ètics i de viabilitat que tingui en compte el desenvolupament sostenible de l’entorn."
           }
         ]
       },
       {
-        "id": "bank-cpsaa-3-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
+        "id": "bank-ce-ra-2",
+        "name": "CE2 — Autoconeixement i recursos",
+        "description": "Avaluar les fortaleses i debilitats pròpies fent ús d’estratègies d’autoconeixement i autoeficàcia, comprendre els elements fonamentals de l’economia i les finances i aplicar coneixements econòmics i financers a activitats i situacions concretes, utilitzant habilitats que afavoreixin el treball col·laboratiu i en equip, per reunir i optimitzar els recursos necessaris que portin a l’acció una experiència emprenedora de valor.",
         "criteria": [
           {
-            "id": "bank-cpsaa-3-ra-2-ce-1",
-            "text": "3.1. Emprendre accions, de forma proactiva, que mostrin comprensió i respecte per les emocions, perspectives i experiències dels altres valorant la diversitat mitjançant estratègies de comunicació efectiva, activa i empàtica."
+            "id": "bank-ce-ra-2-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 2.1. Analitzar les pròpies debilitats i les fortaleses que poden ajudar a desenvolupar la idea triada i saber-les compartir amb els membres del grup."
           },
           {
-            "id": "bank-cpsaa-3-ra-2-ce-2",
-            "text": "3.2. Emprar de forma proactiva estratègies cooperatives dirigides a l’autogestió del grup vetllant per la distribució equitativa de les tasques i els rols i assumint l’èxit col·lectiu com una millora personal."
+            "id": "bank-ce-ra-2-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 2.2. Fer cerca, en l’entorn proper, de solucions a idees similars per tal de detectar recursos que puguin ser útils per desenvolupar la idea pròpia."
+          },
+          {
+            "id": "bank-ce-ra-2-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 2.3. Dissenyar la idea triada cooperativament tenint present els recursos materials i humans necessaris i el seu cost econòmic."
+          },
+          {
+            "id": "bank-ce-ra-2-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 2.1. Justificar les pròpies fortaleses i habilitats que exigeix el repte, per tal de conèixer-se millor i saber-ho identificar amb les característiques d’una persona emprenedora."
+          },
+          {
+            "id": "bank-ce-ra-2-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 2.2. Investigar, en un entorn proper i a escala global, solucions a idees similars, per tal de detectar recursos que puguin ser útils per desenvolupar la idea pròpia."
+          },
+          {
+            "id": "bank-ce-ra-2-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 2.3. Dissenyar cooperativament la idea triada tenint en compte els recursos materials, econòmics i financers, i humans òptims i necessaris, de manera detallada i acurada."
+          }
+        ]
+      },
+      {
+        "id": "bank-ce-ra-3",
+        "name": "CE3 — Desenvolupament de projectes emprenedors",
+        "description": "Desenvolupar el procés de creació d’idees i solucions valuoses i prendre decisions, de manera raonada, utilitzant estratègies àgils de planificació i gestió i reflexionant sobre el procés realitzat i el resultat obtingut, per dur a terme el procés de creació de prototips innovadors i de valor, considerant l’experiència com una oportunitat per aprendre.",
+        "criteria": [
+          {
+            "id": "bank-ce-ra-3-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 3.1. Concretar totes les fases a seguir per desenvolupar la idea triada: tasques, temporalització, espais i persones responsables."
+          },
+          {
+            "id": "bank-ce-ra-3-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 3.2. Desenvolupar el projecte emprenedor seguint la planificació de manera detallada i introduint els canvis necessaris."
+          },
+          {
+            "id": "bank-ce-ra-3-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 3.3. Reflexionar de manera individual i grupal sobre el procés realitzat i el producte final obtingut, introduint propostes de millora i saber-ho comunicar formalment i en públic."
+          },
+          {
+            "id": "bank-ce-ra-3-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 3.1. Planificar l’execució de la idea triada a partir del disseny realitzat, definint les tasques, la temporalització, els espais i les persones responsables de cada fase."
+          },
+          {
+            "id": "bank-ce-ra-3-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 3.2. Desenvolupar el projecte emprenedor utilitzant una metodologia avançada de gestió, que identifiqui els canvis necessaris per donar resposta a les necessitats detectades amb la presa de decisions col·lectiva."
+          },
+          {
+            "id": "bank-ce-ra-3-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 3.3. Avaluar i coavaluar de manera crítica el projecte emprenedor aportant propostes de millora i donar a conèixer el procés realitzat i el producte final obtingut de manera formal i pública."
           }
         ]
       }
     ]
   },
   {
-    "id": "bank-cpsaa-4",
+    "id": "bank-cpsaa",
     "educationalLevels": [
       "1r d'ESO",
       "2n d'ESO",
@@ -378,794 +692,153 @@
     "subjects": [
       "Competències transversals"
     ],
-    "name": "CPSAA-CE4",
-    "description": "Fer autoavaluacions sobre el propi procés d’aprenentatge, buscant fonts fiables per validar, sustentar i contrastar la informació i per obtenir conclusions rellevants.",
+    "name": "Competència personal, social i d’aprendre a aprendre (CPSAA)",
+    "description": "Conèixer i regular les emocions, cuidar el benestar físic i mental, relacionar-se de manera empàtica i cooperativa, i desenvolupar aprenentatges autònoms, reflexius i autoregulats al llarg de la vida.",
     "learningOutcomes": [
       {
-        "id": "bank-cpsaa-4-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
+        "id": "bank-cpsaa-ra-1",
+        "name": "CPSAA1 — Gestió emocional",
+        "description": "Regular i expressar les seves emocions enfortint l’optimisme, la resiliència, l’autoeficàcia i la recerca de propòsit i motivació cap a l’aprenentatge per gestionar els reptes i canvis i harmonitzar-los amb els seus propis objectius.",
         "criteria": [
           {
-            "id": "bank-cpsaa-4-ra-1-ce-1",
-            "text": "4.1. Argumentar de forma constructiva, amb ajuda si escau, sobre les fortaleses i les debilitats pròpies mitjançant l’ús d’estratègies d’autoavaluació i coavaluació."
+            "id": "bank-cpsaa-ra-1-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 1.1. Expressar les emocions i els sentiments de forma respectuosa i assertiva, a través de diferents mitjans en situacions d’interacció social."
           },
           {
-            "id": "bank-cpsaa-4-ra-1-ce-2",
-            "text": "4.2. Planificar i anticipar, amb ajuda si escau, les accions necessàries per fer front als reptes d’aprenentatge en les situacions d’aula amb responsabilitat, esforç i constància proposant diverses solucions i demanant ajuda quan calgui."
+            "id": "bank-cpsaa-ra-1-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 1.2. Emprar, amb iniciativa, estratègies de regulació emocional que afavoreixin el propi aprenentatge."
           },
           {
-            "id": "bank-cpsaa-4-ra-1-ce-3",
-            "text": "4.3. Argumentar, a partir d’estratègies de pensament crític, sobre la veracitat i la qualitat de diferents fonts d’informació diferenciant fets d’opinions."
+            "id": "bank-cpsaa-ra-1-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 1.1. Analitzar la gestió de les emocions en les relacions amb els altres dins el context educatiu i social."
           },
           {
-            "id": "bank-cpsaa-4-ra-1-ce-4",
-            "text": "4.4. Analitzar la informació seleccionada procedent de diferents fonts en les tasques i els treballs d’investigació de l’aula, discriminant autònomament la veracitat de la informació."
+            "id": "bank-cpsaa-ra-1-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 1.2. Validar i emprar de forma proactiva estratègies de regulació emocional anticipant-se a situacions d’incertesa i de canvi que suposin un repte."
           }
         ]
       },
       {
-        "id": "bank-cpsaa-4-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
+        "id": "bank-cpsaa-ra-2",
+        "name": "CPSAA2 — Hàbits saludables",
+        "description": "Conèixer els riscos per a la salut relacionats amb factors socials, per consolidar hàbits de vida saludable en el terreny físic i mental.",
         "criteria": [
           {
-            "id": "bank-cpsaa-4-ra-2-ce-1",
-            "text": "4.1. Argumentar de forma constructiva i amb autonomia, sobre les fortaleses i les debilitats pròpies mitjançant l’ús d’estratègies d’autoavaluació i coavaluació."
+            "id": "bank-cpsaa-ra-2-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 2.1. Incorporar, en la vida quotidiana, hàbits saludables que parteixen de la reflexió crítica en la cerca de la millora del benestar físic i emocional propi i col·lectiu."
           },
           {
-            "id": "bank-cpsaa-4-ra-2-ce-2",
-            "text": "4.2. Planificar i anticipar, amb autonomia, les accions necessàries per fer front als reptes d’aprenentatge en les situacions d’aula amb responsabilitat, constància, esforç i rigor, formulant diverses solucions i ajudant quan calgui."
+            "id": "bank-cpsaa-ra-2-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 2.2. Analitzar críticament els riscos de la manca d’hàbits saludables per a la salut física, emocional i mental, en l’àmbit personal i col·lectiu, valorant les relacions personals i els entorns socials saludables."
           },
           {
-            "id": "bank-cpsaa-4-ra-2-ce-3",
-            "text": "4.3. Proposar actuacions responsables i creatives, a partir de l’anàlisi crítica, sobre la veracitat, la qualitat i la fiabilitat de les diferents fonts d’informació."
+            "id": "bank-cpsaa-ra-2-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 2.1. Consolidar, en la vida quotidiana, els hàbits de vida saludable, fent-ne propostes de millora justificades i amb sentit crític mitjançant el treball en grup i la retroacció."
           },
           {
-            "id": "bank-cpsaa-4-ra-2-ce-4",
-            "text": "4.4. Argumentar amb criteri si una informació rebuda és certa o no, en les tasques i els treballs d’investigació de l’aula."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-cpsaa-5",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CPSAA-CE5",
-    "description": "Planificar objectius a mitjà termini i desenvolupar processos metacognitius de retroacció per aprendre dels propis errors en el procés de construcció de coneixement.",
-    "learningOutcomes": [
-      {
-        "id": "bank-cpsaa-5-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cpsaa-5-ra-1-ce-1",
-            "text": "5.1. Mostrar, a través de diferents mitjans i amb suport si escau, l’apropiació i diferenciació dels objectius d’aprenentatge a mitjà i llarg termini."
-          },
-          {
-            "id": "bank-cpsaa-5-ra-1-ce-2",
-            "text": "5.2. Anticipar i planificar, amb suport, les accions més pertinents per aprendre mitjançant processos de metacognició i identificant l’error com una font d’aprenentatge."
-          },
-          {
-            "id": "bank-cpsaa-5-ra-1-ce-3",
-            "text": "5.3. Seleccionar i aplicar, amb suport, les estratègies d’aprenentatge pertinents a la tasca proposada que afavoreixin l’aprenentatge en contextos educatius."
-          },
-          {
-            "id": "bank-cpsaa-5-ra-1-ce-4",
-            "text": "5.4. Seleccionar i aplicar, de forma autònoma, instruments i estratègies d’autoavaluació i coavaluació en processos d’autoregulació de l’aprenentatge."
+            "id": "bank-cpsaa-ra-2-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 2.2. Proposar, a partir de la reflexió crítica, accions dirigides a produir canvis en l’entorn per reduir els riscos per a la salut física, emocional i mental, en l’àmbit personal i col·lectiu."
           }
         ]
       },
       {
-        "id": "bank-cpsaa-5-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
+        "id": "bank-cpsaa-ra-3",
+        "name": "CPSAA3 — Empatia i cooperació",
+        "description": "Comprendre proactivament les perspectives i les experiències dels altres i incorporar-les al seu aprenentatge per participar en el treball en grup distribuint i acceptant tasques i responsabilitats de manera equitativa i emprant estratègies cooperatives.",
         "criteria": [
           {
-            "id": "bank-cpsaa-5-ra-2-ce-1",
-            "text": "5.1. Mostrar, a través de diferents mitjans i de manera autònoma, l’apropiació i diferenciació dels objectius d’aprenentatge a mitjà i llarg termini."
+            "id": "bank-cpsaa-ra-3-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 3.1. Mostrar respecte per les perspectives, les experiències i les emocions dels altres sense jutjar-les fent que les altres persones se sentin escoltades i compreses mitjançant estratègies de comunicació efectiva, activa i empàtica."
           },
           {
-            "id": "bank-cpsaa-5-ra-2-ce-2",
-            "text": "5.2. Anticipar i planificar, de manera autònoma, les accions més pertinents per aprendre mitjançant processos de metacognició i identificant l’error com una font d’aprenentatge."
+            "id": "bank-cpsaa-ra-3-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 3.2. Emprar estratègies de treball cooperatiu, complint els acords, prioritzant l’objectiu de l’equip i valorant les aportacions del grup amb respecte i responsabilitat."
           },
           {
-            "id": "bank-cpsaa-5-ra-2-ce-3",
-            "text": "5.3. Seleccionar i aplicar, de manera autònoma, les estratègies d’aprenentatge pertinents a la tasca proposada que afavoreixi l’aprenentatge en qualsevol context."
+            "id": "bank-cpsaa-ra-3-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 3.1. Emprendre accions, de forma proactiva, que mostrin comprensió i respecte per les emocions, perspectives i experiències dels altres valorant la diversitat mitjançant estratègies de comunicació efectiva, activa i empàtica."
           },
           {
-            "id": "bank-cpsaa-5-ra-2-ce-4",
-            "text": "5.4. Crear, amb suport si escau, instruments i estratègies d’autoavaluació i coavaluació en processos d’autoregulació de l’aprenentatge."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-cd-1",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CD-CE1",
-    "description": "Fer cerques avançades a Internet atenent a criteris de validesa, qualitat, actualitat i fiabilitat, seleccionant-les de manera crítica i arxivant-les per recuperar, referenciar i reutilitzar aquestes recerques respecte a la propietat intel·lectual.",
-    "learningOutcomes": [
-      {
-        "id": "bank-cd-1-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cd-1-ra-1-ce-1",
-            "text": "1.1. Utilitzar cercadors genèrics fent ús d’opcions i d’estratègies avançades a Internet en relació amb el repte plantejat."
-          },
-          {
-            "id": "bank-cd-1-ra-1-ce-2",
-            "text": "1.2. Verificar, de manera autònoma, la validesa (font digital, autoria, data d’actualització, etc.), la qualitat, l’actualitat i la fiabilitat de la informació en relació amb el repte plantejat."
-          },
-          {
-            "id": "bank-cd-1-ra-1-ce-3",
-            "text": "1.3. Organitzar i emmagatzemar, de manera autònoma, la informació trobada amb recursos digitals."
-          },
-          {
-            "id": "bank-cd-1-ra-1-ce-4",
-            "text": "1.4. Recuperar, de manera autònoma, la informació emmagatzemada necessària per donar resposta al repte plantejat."
+            "id": "bank-cpsaa-ra-3-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 3.2. Emprar de forma proactiva estratègies cooperatives dirigides a l’autogestió del grup vetllant per la distribució equitativa de les tasques i els rols i assumint l’èxit col·lectiu com una millora personal."
           }
         ]
       },
       {
-        "id": "bank-cd-1-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
+        "id": "bank-cpsaa-ra-4",
+        "name": "CPSAA4 — Autoavaluació i pensament crític",
+        "description": "Fer autoavaluacions sobre el propi procés d’aprenentatge, buscant fonts fiables per validar, sustentar i contrastar la informació i per obtenir conclusions rellevants.",
         "criteria": [
           {
-            "id": "bank-cd-1-ra-2-ce-1",
-            "text": "1.1. Utilitzar cercadors genèrics i específics fent ús d’opcions avançades i seleccionant i aplicant les estratègies més eficients en relació amb el repte plantejat."
+            "id": "bank-cpsaa-ra-4-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 4.1. Argumentar de forma constructiva, amb ajuda si escau, sobre les fortaleses i les debilitats pròpies mitjançant l’ús d’estratègies d’autoavaluació i coavaluació."
           },
           {
-            "id": "bank-cd-1-ra-2-ce-2",
-            "text": "1.2. Seleccionar, de manera autònoma, la informació trobada amb actitud crítica a partir de la verificació realitzada en relació amb el repte plantejat."
+            "id": "bank-cpsaa-ra-4-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 4.2. Planificar i anticipar, amb ajuda si escau, les accions necessàries per fer front als reptes d’aprenentatge en les situacions d’aula amb responsabilitat, esforç i constància proposant diverses solucions i demanant ajuda quan calgui."
           },
           {
-            "id": "bank-cd-1-ra-2-ce-3",
-            "text": "1.3. Emmagatzemar la informació trobada referenciant les cerques per reutilitzar-la en relació amb el repte plantejat, respectant la propietat intel·lectual."
+            "id": "bank-cpsaa-ra-4-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 4.3. Argumentar, a partir d’estratègies de pensament crític, sobre la veracitat i la qualitat de diferents fonts d’informació diferenciant fets d’opinions."
           },
           {
-            "id": "bank-cd-1-ra-2-ce-4",
-            "text": "1.4. Recuperar eficientment la informació emmagatzemada necessària per donar resposta al repte plantejat."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-cd-2",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CD-CE2",
-    "description": "Gestionar i utilitzar el propi entorn personal digital d’aprenentatge permanent per construir nou coneixement i crear continguts digitals, mitjançant estratègies de tractament de la informació i l’ús de diferents eines digitals, seleccionant i configurant la més adequada en funció de la tasca i de les necessitats en cada ocasió.",
-    "learningOutcomes": [
-      {
-        "id": "bank-cd-2-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cd-2-ra-1-ce-1",
-            "text": "2.1. Seleccionar i configurar l’eina i el format més adequat en la creació de continguts digitals, en funció de la tasca i de les seves necessitats, de manera guiada."
+            "id": "bank-cpsaa-ra-4-criteri-1r-2n-4",
+            "text": "[1r i 2n d’ESO] 4.4. Analitzar la informació seleccionada procedent de diferents fonts en les tasques i els treballs d’investigació de l’aula, discriminant autònomament la veracitat de la informació."
           },
           {
-            "id": "bank-cd-2-ra-1-ce-2",
-            "text": "2.2. Crear i editar produccions digitals avançades de manera guiada en tasques pròpies del context escolar."
+            "id": "bank-cpsaa-ra-4-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 4.1. Argumentar de forma constructiva i amb autonomia, sobre les fortaleses i les debilitats pròpies mitjançant l’ús d’estratègies d’autoavaluació i coavaluació."
           },
           {
-            "id": "bank-cd-2-ra-1-ce-3",
-            "text": "2.3. Aplicar els drets d’autoria propis i d’altres persones, identificant els continguts de la xarxa sotmesos a drets d’autoria i els de lliure distribució."
+            "id": "bank-cpsaa-ra-4-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 4.2. Planificar i anticipar, amb autonomia, les accions necessàries per fer front als reptes d’aprenentatge en les situacions d’aula amb responsabilitat, constància, esforç i rigor, formulant diverses solucions i ajudant quan calgui."
+          },
+          {
+            "id": "bank-cpsaa-ra-4-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 4.3. Proposar actuacions responsables i creatives, a partir de l’anàlisi crítica, sobre la veracitat, la qualitat i la fiabilitat de les diferents fonts d’informació."
+          },
+          {
+            "id": "bank-cpsaa-ra-4-criteri-3r-4t-4",
+            "text": "[3r i 4t d’ESO] 4.4. Argumentar amb criteri si una informació rebuda és certa o no, en les tasques i els treballs d’investigació de l’aula."
           }
         ]
       },
       {
-        "id": "bank-cd-2-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
+        "id": "bank-cpsaa-ra-5",
+        "name": "CPSAA5 — Autoregulació de l’aprenentatge",
+        "description": "Planificar objectius a mitjà termini i desenvolupar processos metacognitius de retroacció per aprendre dels propis errors en el procés de construcció de coneixement.",
         "criteria": [
           {
-            "id": "bank-cd-2-ra-2-ce-1",
-            "text": "2.1. Seleccionar i configurar l’eina i el format més adequat en la creació de continguts digitals, en funció de la tasca i de les seves necessitats, de manera autònoma."
+            "id": "bank-cpsaa-ra-5-criteri-1r-2n-1",
+            "text": "[1r i 2n d’ESO] 5.1. Mostrar, a través de diferents mitjans i amb suport si escau, l’apropiació i diferenciació dels objectius d’aprenentatge a mitjà i llarg termini."
           },
           {
-            "id": "bank-cd-2-ra-2-ce-2",
-            "text": "2.2. Crear i editar produccions digitals avançades de manera autònoma en tasques pròpies del context escolar."
+            "id": "bank-cpsaa-ra-5-criteri-1r-2n-2",
+            "text": "[1r i 2n d’ESO] 5.2. Anticipar i planificar, amb suport, les accions més pertinents per aprendre mitjançant processos de metacognició i identificant l’error com una font d’aprenentatge."
           },
           {
-            "id": "bank-cd-2-ra-2-ce-3",
-            "text": "2.3. Aplicar els drets d’autoria propis i d’altres persones, identificant els continguts de la xarxa sotmesos a drets d’autoria i també els de lliure distribució."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-cd-3",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CD-CE3",
-    "description": "Participar, col·laborar i interactuar mitjançant eines o plataformes virtuals per comunicar-se, treballar col·laborativament i compartir continguts, dades i informació, gestionant de manera responsable les pròpies accions, presència i visibilitat a la xarxa i exercint una ciutadania digital activa, cívica i reflexiva.",
-    "learningOutcomes": [
-      {
-        "id": "bank-cd-3-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cd-3-ra-1-ce-1",
-            "text": "3.1. Seleccionar la plataforma de comunicació més adequada en funció de les necessitats i utilitzar-la i configurar-la amb responsabilitat."
+            "id": "bank-cpsaa-ra-5-criteri-1r-2n-3",
+            "text": "[1r i 2n d’ESO] 5.3. Seleccionar i aplicar, amb suport, les estratègies d’aprenentatge pertinents a la tasca proposada que afavoreixin l’aprenentatge en contextos educatius."
           },
           {
-            "id": "bank-cd-3-ra-1-ce-2",
-            "text": "3.2. Realitzar productes digitals de manera col·laborativa, tant per a creacions digitals com per a l’organització del treball en grup, seleccionant les eines col·laboratives més adequades."
+            "id": "bank-cpsaa-ra-5-criteri-1r-2n-4",
+            "text": "[1r i 2n d’ESO] 5.4. Seleccionar i aplicar, de forma autònoma, instruments i estratègies d’autoavaluació i coavaluació en processos d’autoregulació de l’aprenentatge."
           },
           {
-            "id": "bank-cd-3-ra-1-ce-3",
-            "text": "3.3. Publicar creacions digitals a la xarxa restringida de manera reflexiva i responsable, tenint en compte la visibilitat que tindrà."
-          }
-        ]
-      },
-      {
-        "id": "bank-cd-3-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cd-3-ra-2-ce-1",
-            "text": "3.1. Aplicar diferents normes de comportament cívic i coneixements tècnics utilitzant tecnologies digitals i interactuant en entorns digitals."
+            "id": "bank-cpsaa-ra-5-criteri-3r-4t-1",
+            "text": "[3r i 4t d’ESO] 5.1. Mostrar, a través de diferents mitjans i de manera autònoma, l’apropiació i diferenciació dels objectius d’aprenentatge a mitjà i llarg termini."
           },
           {
-            "id": "bank-cd-3-ra-2-ce-2",
-            "text": "3.2. Realitzar productes digitals de manera col·laborativa, tant per a creacions digitals com per a l’organització del treball en grup, seleccionant les eines col·laboratives més adequades."
+            "id": "bank-cpsaa-ra-5-criteri-3r-4t-2",
+            "text": "[3r i 4t d’ESO] 5.2. Anticipar i planificar, de manera autònoma, les accions més pertinents per aprendre mitjançant processos de metacognició i identificant l’error com una font d’aprenentatge."
           },
           {
-            "id": "bank-cd-3-ra-2-ce-3",
-            "text": "3.3. Valorar i utilitzar múltiples maneres d’expressar la identitat, la personalitat i el coneixement a través de mitjans digitals garantint la pròpia seguretat i la dels altres i protegint la identitat digital."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-cd-4",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CD-CE4",
-    "description": "Identificar riscos i adoptar mesures en l’ús de les tecnologies digitals per protegir els dispositius, les dades personals, la salut i el medi ambient i per prendre consciència de la importància i necessitat de fer un ús crític, legal, segur, saludable i sostenible d’aquestes tecnologies.",
-    "learningOutcomes": [
-      {
-        "id": "bank-cd-4-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cd-4-ra-1-ce-1",
-            "text": "4.1. Adoptar mesures de seguretat dels comptes i dels dispositius a partir d’accions avançades (detectar enllaços maliciosos, evitar descàrregues de llocs poc fiables, etc.)."
+            "id": "bank-cpsaa-ra-5-criteri-3r-4t-3",
+            "text": "[3r i 4t d’ESO] 5.3. Seleccionar i aplicar, de manera autònoma, les estratègies d’aprenentatge pertinents a la tasca proposada que afavoreixi l’aprenentatge en qualsevol context."
           },
           {
-            "id": "bank-cd-4-ra-1-ce-2",
-            "text": "4.2. Utilitzar els recursos digitals de manera legal, en entorns personals i educatius amb l’acompanyament del o de la docent."
-          },
-          {
-            "id": "bank-cd-4-ra-1-ce-3",
-            "text": "4.3. Fer un ús responsable de la identitat digital, respectant la dels altres i denunciant actituds inadequades en l’ús de les tecnologies."
-          },
-          {
-            "id": "bank-cd-4-ra-1-ce-4",
-            "text": "4.4. Evitar els riscos físics, de manera autònoma, mantenint una postura saludable a partir de criteris ergonòmics en l’ús de tecnologies."
-          },
-          {
-            "id": "bank-cd-4-ra-1-ce-5",
-            "text": "4.5. Preveure conductes addictives de manera autònoma, en l’ús de les tecnologies."
-          },
-          {
-            "id": "bank-cd-4-ra-1-ce-6",
-            "text": "4.6. Fer un ús eficient i sostenible dels dispositius digitals vetllant per la seva reutilització i el seu reciclatge en l’entorn educatiu."
-          }
-        ]
-      },
-      {
-        "id": "bank-cd-4-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cd-4-ra-2-ce-1",
-            "text": "4.1. Garantir la seguretat dels comptes i dels dispositius a partir d’accions avançades (detectar enllaços maliciosos, evitar descàrregues de llocs poc fiables, etc.)."
-          },
-          {
-            "id": "bank-cd-4-ra-2-ce-2",
-            "text": "4.2. Utilitzar els recursos digitals de manera legal, en entorns personals i educatius."
-          },
-          {
-            "id": "bank-cd-4-ra-2-ce-3",
-            "text": "4.3. Fer un ús responsable de la identitat digital, respectant la dels altres i denunciant i actuant davant d’actituds no adequades en l’ús de les tecnologies."
-          },
-          {
-            "id": "bank-cd-4-ra-2-ce-4",
-            "text": "4.4. Evitar els riscos físics, de manera autònoma, mantenint una postura saludable a partir de criteris ergonòmics en l’ús de tecnologies."
-          },
-          {
-            "id": "bank-cd-4-ra-2-ce-5",
-            "text": "4.5. Preveure conductes addictives de manera autònoma, en l’ús de les tecnologies."
-          },
-          {
-            "id": "bank-cd-4-ra-2-ce-6",
-            "text": "4.6. Fer un ús eficient i sostenible dels dispositius digitals promovent la seva reutilització i el seu reciclatge, en l’entorn personal i educatiu."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-cd-5",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CD-CE5",
-    "description": "Desenvolupar aplicacions informàtiques senzilles i solucions tecnològiques creatives i sostenibles per resoldre problemes concrets o respondre a reptes proposats, i mostrar interès i curiositat per l’evolució de les tecnologies digitals i pel seu desenvolupament sostenible i ús ètic.",
-    "learningOutcomes": [
-      {
-        "id": "bank-cd-5-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cd-5-ra-1-ce-1",
-            "text": "5.1. Programar, amb l’orientació del o de la docent, aplicacions senzilles per a diferents dispositius (ordinadors, dispositius mòbils i altres) emprant els elements de programació de manera apropiada, fent servir el programari i els llenguatges de programació adients, per resoldre problemes concrets."
-          },
-          {
-            "id": "bank-cd-5-ra-1-ce-2",
-            "text": "5.2. Dissenyar i implementar construccions i estructures complexes per resoldre reptes proposats a través de la robòtica."
-          },
-          {
-            "id": "bank-cd-5-ra-1-ce-3",
-            "text": "5.3. Fer un ús responsable i ètic de les tecnologies, amb l’orientació del o de la docent, tot identificant les seves aportacions al benestar i promovent accions per a la reducció de l’impacte ambiental, en un context educatiu."
-          }
-        ]
-      },
-      {
-        "id": "bank-cd-5-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cd-5-ra-2-ce-1",
-            "text": "5.1. Programar aplicacions senzilles per a diferents dispositius (ordinadors, dispositius mòbils i altres) emprant els elements de programació de manera apropiada, fent servir el programari i els llenguatges de programació adients, per resoldre problemes concrets."
-          },
-          {
-            "id": "bank-cd-5-ra-2-ce-2",
-            "text": "5.2. Dissenyar i implementar construccions i estructures complexes per resoldre problemes concrets amb solucions creatives a través de la robòtica."
-          },
-          {
-            "id": "bank-cd-5-ra-2-ce-3",
-            "text": "5.3. Fer un ús responsable i ètic de les tecnologies, tot identificant les seves aportacions al benestar i promovent accions per a la reducció de l’impacte ambiental, en un context personal i educatiu."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-ce-1",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CE-CE1",
-    "description": "Analitzar necessitats i oportunitats i afrontar reptes amb sentit crític, fent balanç de la seva sostenibilitat i valorant l’impacte que puguin suposar en l’entorn, per presentar idees i solucions innovadores, ètiques i sostenibles dirigides a crear valor en l’àmbit personal, social, cultural i econòmic.",
-    "learningOutcomes": [
-      {
-        "id": "bank-ce-1-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-ce-1-ra-1-ce-1",
-            "text": "1.1. Diagnosticar i analitzar les necessitats de l’entorn social i natural, tenint en compte les causes que les han provocat i valorant-ne la importància."
-          },
-          {
-            "id": "bank-ce-1-ra-1-ce-2",
-            "text": "1.2. Generar idees argumentades, de forma individual i col·lectiva, utilitzant estratègies de creativitat, per desenvolupar solucions innovadores al repte."
-          },
-          {
-            "id": "bank-ce-1-ra-1-ce-3",
-            "text": "1.3. Decidir de forma raonada una idea basada en criteris ètics i de viabilitat que generi una millora en el desenvolupament sostenible de l’entorn social i mediambiental."
-          }
-        ]
-      },
-      {
-        "id": "bank-ce-1-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-ce-1-ra-2-ce-1",
-            "text": "1.1. Diagnosticar i analitzar les necessitats o problemes de l’entorn social i mediambiental, tenint en compte les causes, les conseqüències, els agents involucrats i afectats i l’impacte que podria generar la seva solució des d’una perspectiva ètica, tenint com a horitzó els objectius de desenvolupament sostenible."
-          },
-          {
-            "id": "bank-ce-1-ra-2-ce-2",
-            "text": "1.2. Generar una gran varietat d’idees argumentades, de forma individual i col·lectiva, utilitzant diferents estratègies de creativitat i amb la retroacció a partir del diàleg, per tal de desenvolupar les aportacions de cadascú i trobar solucions innovadores al repte escollit, i integrar noves tècniques productives de creativitat al propi repertori."
-          },
-          {
-            "id": "bank-ce-1-ra-2-ce-3",
-            "text": "1.3. Justificar la idea escollida de forma metòdica i argumentada, basada en criteris ètics i de viabilitat que tingui en compte el desenvolupament sostenible de l’entorn."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-ce-2",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CE-CE2",
-    "description": "Avaluar les fortaleses i debilitats pròpies fent ús d’estratègies d’autoconeixement i autoeficàcia, comprendre els elements fonamentals de l’economia i les finances i aplicar coneixements econòmics i financers a activitats i situacions concretes, utilitzant habilitats que afavoreixin el treball col·laboratiu i en equip, per reunir i optimitzar els recursos necessaris que portin a l’acció una experiència emprenedora de valor.",
-    "learningOutcomes": [
-      {
-        "id": "bank-ce-2-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-ce-2-ra-1-ce-1",
-            "text": "2.1. Analitzar les pròpies debilitats i les fortaleses que poden ajudar a desenvolupar la idea triada i saber-les compartir amb els membres del grup."
-          },
-          {
-            "id": "bank-ce-2-ra-1-ce-2",
-            "text": "2.2. Fer cerca, en l’entorn proper, de solucions a idees similars per tal de detectar recursos que puguin ser útils per desenvolupar la idea pròpia."
-          },
-          {
-            "id": "bank-ce-2-ra-1-ce-3",
-            "text": "2.3. Dissenyar la idea triada cooperativament tenint present els recursos materials i humans necessaris i el seu cost econòmic."
-          }
-        ]
-      },
-      {
-        "id": "bank-ce-2-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-ce-2-ra-2-ce-1",
-            "text": "2.1. Justificar les pròpies fortaleses i habilitats que exigeix el repte, per tal de conèixer-se millor i saber-ho identificar amb les característiques d’una persona emprenedora."
-          },
-          {
-            "id": "bank-ce-2-ra-2-ce-2",
-            "text": "2.2. Investigar, en un entorn proper i a escala global, solucions a idees similars, per tal de detectar recursos que puguin ser útils per desenvolupar la idea pròpia."
-          },
-          {
-            "id": "bank-ce-2-ra-2-ce-3",
-            "text": "2.3. Dissenyar cooperativament la idea triada tenint en compte els recursos materials, econòmics i financers, i humans òptims i necessaris, de manera detallada i acurada."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-ce-3",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CE-CE3",
-    "description": "Desenvolupar el procés de creació d’idees i solucions valuoses i prendre decisions, de manera raonada, utilitzant estratègies àgils de planificació i gestió i reflexionant sobre el procés realitzat i el resultat obtingut, per dur a terme el procés de creació de prototips innovadors i de valor, considerant l’experiència com una oportunitat per aprendre.",
-    "learningOutcomes": [
-      {
-        "id": "bank-ce-3-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-ce-3-ra-1-ce-1",
-            "text": "3.1. Concretar totes les fases a seguir per desenvolupar la idea triada: tasques, temporalització, espais i persones responsables."
-          },
-          {
-            "id": "bank-ce-3-ra-1-ce-2",
-            "text": "3.2. Desenvolupar el projecte emprenedor seguint la planificació de manera detallada i introduint els canvis necessaris."
-          },
-          {
-            "id": "bank-ce-3-ra-1-ce-3",
-            "text": "3.3. Reflexionar de manera individual i grupal sobre el procés realitzat i el producte final obtingut, introduint propostes de millora i saber-ho comunicar formalment i en públic."
-          }
-        ]
-      },
-      {
-        "id": "bank-ce-3-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-ce-3-ra-2-ce-1",
-            "text": "3.1. Planificar l’execució de la idea triada a partir del disseny realitzat, definint les tasques, la temporalització, els espais i les persones responsables de cada fase."
-          },
-          {
-            "id": "bank-ce-3-ra-2-ce-2",
-            "text": "3.2. Desenvolupar el projecte emprenedor utilitzant una metodologia avançada de gestió, que identifiqui els canvis necessaris per donar resposta a les necessitats detectades amb la presa de decisions col·lectiva."
-          },
-          {
-            "id": "bank-ce-3-ra-2-ce-3",
-            "text": "3.3. Avaluar i coavaluar de manera crítica el projecte emprenedor aportant propostes de millora i donar a conèixer el procés realitzat i el producte final obtingut de manera formal i pública."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-cc-1",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CC-CE1",
-    "description": "Analitzar i comprendre idees relatives a la dimensió social i ciutadana de la seva pròpia identitat, així com als fets socials, històrics i normatius que la determinen, demostrant respecte per les normes, empatia, equitat i esperit constructiu en la interacció amb els altres en diferents contextos socioinstitucionals.",
-    "learningOutcomes": [
-      {
-        "id": "bank-cc-1-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cc-1-ra-1-ce-1",
-            "text": "1.1. Identificar les relacions entre esdeveniments històrics i el present, incloent-hi la pròpia història personal, i imaginant possibles escenaris futurs, a través de la comprensió de determinades problemàtiques i reptes identificats."
-          },
-          {
-            "id": "bank-cc-1-ra-1-ce-2",
-            "text": "1.2. Valorar críticament els processos de construcció de la pròpia identitat, reflexionant sobre les diferències, les semblances i les interdependències que ens vinculen amb persones i col·lectius de l’entorn i de l’àmbit global."
-          },
-          {
-            "id": "bank-cc-1-ra-1-ce-3",
-            "text": "1.3. Construir relacions de convivència assertives i respectuoses amb totes les persones i grups socials, independentment del seu origen o grup de pertinença."
-          }
-        ]
-      },
-      {
-        "id": "bank-cc-1-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cc-1-ra-2-ce-1",
-            "text": "1.1. Justificar els grans canvis del món actual en els diferents àmbits de les humanitats i de les tecnologies, debatent les seves implicacions per a les generacions actuals i futures, a partir de l’anàlisi de problemes de l’entorn local i les seves implicacions globals."
-          },
-          {
-            "id": "bank-cc-1-ra-2-ce-2",
-            "text": "1.2. Avaluar els processos de construcció de la identitat individual i col·lectiva, a través de la implementació de pràctiques i estratègies que promouen la reflexió crítica sobre els reptes i conflictes socials, des d’una comprensió sistèmica i global."
-          },
-          {
-            "id": "bank-cc-1-ra-2-ce-3",
-            "text": "1.3. Proposar accions que promoguin relacions de convivència amb totes les persones i grups socials, tant de l’entorn proper com de l’àmbit global."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-cc-2",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CC-CE2",
-    "description": "Analitzar i assumir amb fonament els principis i valors que emanen del procés d’integració europeu, de l’ordenament jurídic de l’Estat espanyol i de Catalunya i dels drets humans i de l’infant, participant en activitats comunitàries, com la presa de decisions o la resolució de conflictes, amb actitud democràtica, respecte per la diversitat, i compromís amb la igualtat de gènere, la cohesió social, el desenvolupament sostenible i l’assoliment de la ciutadania mundial.",
-    "learningOutcomes": [
-      {
-        "id": "bank-cc-2-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cc-2-ra-1-ce-1",
-            "text": "2.1. Esquematitzar els trets bàsics de l’organització social, política i econòmica d’algunes societats europees, valorant de manera crítica el grau d’equitat en els intercanvis i les relacions amb altres països o pobles."
-          },
-          {
-            "id": "bank-cc-2-ra-1-ce-2",
-            "text": "2.2. Participar activament en l’organització i desenvolupament de projectes de l’entorn que integrin la capacitat per treballar en equip, la presa de decisions consensuades, la comunicació efectiva i la resolució de problemes."
-          },
-          {
-            "id": "bank-cc-2-ra-1-ce-3",
-            "text": "2.3. Distingir els trets fonamentals de les societats democràtiques, valorant les consecucions de la democràcia i la vigència dels drets humans individuals i col·lectius i de les llibertats, i proposar accions per protegir-los."
-          }
-        ]
-      },
-      {
-        "id": "bank-cc-2-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cc-2-ra-2-ce-1",
-            "text": "2.1. Caracteritzar els mecanismes dels estats per garantir l’accés equitatiu als serveis públics dels ciutadans i ciutadanes amb l’objectiu de reduir les desigualtats i assegurar una vida digna per a tothom."
-          },
-          {
-            "id": "bank-cc-2-ra-2-ce-2",
-            "text": "2.2. Participar de manera activa i compromesa en l’organització i desenvolupament de projectes comunitaris, que fomentin la reflexió crítica i la millora de les habilitats socials necessàries per treballar en equip i contribuir a la construcció d’una societat més lliure, justa, equitativa i cohesionada."
-          },
-          {
-            "id": "bank-cc-2-ra-2-ce-3",
-            "text": "2.3. Exposar amb criteri propi algunes problemàtiques que afectin els drets de determinats col·lectius per mitjà de la participació activa i compromesa, individualment i en equip, en projectes socials i cívics que comportin la defensa d’aquests drets."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-cc-3",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CC-CE3",
-    "description": "Analitzar i comprendre problemes ètics fonamentals i d’actualitat, considerant críticament els valors propis i aliens, i desenvolupant els seus propis judicis per afrontar la controvèrsia moral amb actitud dialogant, argumentativa, respectuosa i oposada a qualsevol tipus de discriminació o violència —incloent-hi la violència masclista, LGTBI-fòbica, racista o capacitista— o fonamentalisme ideològic.",
-    "learningOutcomes": [
-      {
-        "id": "bank-cc-3-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cc-3-ra-1-ce-1",
-            "text": "3.1. Pronunciar-se, aportant els arguments pertinents, i actuar enfront de les actituds violentes i discriminatòries envers persones i col·lectius, amb una atenció especial a la diversitat d’identitats i expressions de gènere i diversitat afectivosexual."
-          },
-          {
-            "id": "bank-cc-3-ra-1-ce-2",
-            "text": "3.2. Identificar les limitacions socials i culturals que han impedit que algunes persones hagin pogut desenvolupar les seves aspiracions al llarg de diferents generacions."
-          },
-          {
-            "id": "bank-cc-3-ra-1-ce-3",
-            "text": "3.3. Identificar les causes que han relegat les dones i altres col·lectius i minories a un rol secundari al llarg de la història i en el present, rebutjant actituds discriminatòries i per posar en valor la importància de la cura de les persones."
-          }
-        ]
-      },
-      {
-        "id": "bank-cc-3-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cc-3-ra-2-ce-1",
-            "text": "3.1. Citar de manera contextualitzada diferents moviments, causes i lideratges que han lluitat i lluiten per a l’eliminació de la desigualtat i la discriminació per raó de gènere i d’opció afectivosexual."
-          },
-          {
-            "id": "bank-cc-3-ra-2-ce-2",
-            "text": "3.2. Adoptar un paper actiu i compromès en la lluita per la superació d’estereotips i prejudicis, perquè totes les persones puguin desenvolupar les seves aspiracions."
-          },
-          {
-            "id": "bank-cc-3-ra-2-ce-3",
-            "text": "3.3. Formar-se un criteri propi a través de la participació activa i compromesa, individualment i en equip, en projectes socials i cívics que comportin la dignificació de les aportacions de determinats col·lectius i la defensa dels seus drets per garantir la cura i el benestar de les persones."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "id": "bank-cc-4",
-    "educationalLevels": [
-      "1r d'ESO",
-      "2n d'ESO",
-      "3r d'ESO",
-      "4t d'ESO"
-    ],
-    "subjects": [
-      "Competències transversals"
-    ],
-    "name": "CC-CE4",
-    "description": "Interpretar les relacions sistèmiques d’interdependència, ecodependència i interconnexió entre actuacions locals i globals i adoptar, conscientment i motivadament, un estil de vida sostenible i ecosocialment responsable.",
-    "learningOutcomes": [
-      {
-        "id": "bank-cc-4-ra-1",
-        "name": "Criteris d'avaluació (1r i 2n d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cc-4-ra-1-ce-1",
-            "text": "4.1. Analitzar aspectes del funcionament de les societats en el món i l’accés als recursos, destacant les relacions d’interdependència i les desigualtats que es generen, i posant èmfasi en els col·lectius vulnerables."
-          },
-          {
-            "id": "bank-cc-4-ra-1-ce-2",
-            "text": "4.2. Participar en accions comunitàries per contribuir a la millora ambiental de l’entorn, com la reducció de residus, l’ús responsable de l’aigua i l’energia o la creació de campanyes i materials de conscienciació mediambiental."
-          },
-          {
-            "id": "bank-cc-4-ra-1-ce-3",
-            "text": "4.3. Justificar la necessitat de potenciar hàbits sostenibles per al benestar dels individus i la salut del planeta i la importància de la protecció dels éssers vius de l’entorn aplicant el concepte científic de la biodiversitat."
-          }
-        ]
-      },
-      {
-        "id": "bank-cc-4-ra-2",
-        "name": "Criteris d'avaluació (3r i 4t d'ESO)",
-        "description": "",
-        "criteria": [
-          {
-            "id": "bank-cc-4-ra-2-ce-1",
-            "text": "4.1. Interpretar algunes problemàtiques ambientals en l’entorn proper, com ara la contaminació, la degradació dels ecosistemes i la pèrdua de biodiversitat."
-          },
-          {
-            "id": "bank-cc-4-ra-2-ce-2",
-            "text": "4.2. Proporcionar arguments sobre el risc per a la salut i la sostenibilitat ambiental de determinades pràctiques, comportaments i hàbits, contrastant informacions fiables, objectives i amb una base científica vàlida."
-          },
-          {
-            "id": "bank-cc-4-ra-2-ce-3",
-            "text": "4.3. Justificar amb fonaments científics la importància de la preservació de la biodiversitat i la conservació i la protecció dels éssers vius de l’entorn, per contribuir al desenvolupament sostenible i la millora de la qualitat de vida."
+            "id": "bank-cpsaa-ra-5-criteri-3r-4t-4",
+            "text": "[3r i 4t d’ESO] 5.4. Crear, amb suport si escau, instruments i estratègies d’autoavaluació i coavaluació en processos d’autoregulació de l’aprenentatge."
           }
         ]
       }

@@ -1,6 +1,6 @@
 import { DEFAULT_APPEARANCE, isValidAppearance } from "./themes.js";
 import { EDUCATIONAL_LEVEL_NAMES } from "./education.js";
-import { mergeCompetencyBank } from "./competency-bank.js";
+import { mergeCompetencyBank, migrateLegacyTransversalCompetencies } from "./competency-bank.js";
 
 export const DAILY_FOLLOWUP_CRITERIA = [
   { id: "participation", name: "Participació" },
@@ -228,6 +228,7 @@ export function validateData(value, makeId) {
   }
   for (const classGroup of value.classGroups) classGroup.subgroups ||= [];
   if (value.schemaVersion === 1) migrateVersionOne(value, makeId);
+  migrateLegacyTransversalCompetencies(value);
   mergeCompetencyBank(value.competencies);
   for (const competency of value.competencies) {
     if (!competency || typeof competency !== "object") continue;

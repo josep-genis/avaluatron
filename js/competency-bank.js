@@ -24,6 +24,45 @@ export function mergeCompetencyBank(competencies) {
   }
 }
 
+export function migrateLegacyTransversalCompetencies(value) {
+  const legacyId = /^bank-(cpsaa|cd|ce|cc)-\d+$/;
+  const mapId = id => {
+    const match = typeof id === "string" ? id.match(legacyId) : null;
+    return match ? `bank-${match[1]}` : id;
+  };
+
+  for (const activity of value.activities || []) {
+    for (const criterion of activity.criteria || []) {
+      if (criterion?.competencyId) criterion.competencyId = mapId(criterion.competencyId);
+    }
+    for (const evidence of activity.evidences || []) {
+      if (!evidence.contributions || typeof evidence.contributions !== "object") continue;
+      const contributions = new Map();
+      for (const [id, weight] of Object.entries(evidence.contributions)) {
+        const mappedId = mapId(id);
+        const current = contributions.get(mappedId) || { total: 0, count: 0 };
+        current.total += Number(weight);
+        current.count += 1;
+        contributions.set(mappedId, current);
+      }
+      // Consolidated competencies should not receive duplicate weight from their old entries.
+      evidence.contributions = Object.fromEntries(
+        [...contributions].map(([id, value]) => [id, value.count > 1 ? value.total / value.count : value.total])
+      );
+    }
+  }
+
+  for (const subject of value.subjects || []) {
+    for (const level of subject.levels || []) {
+      if (Array.isArray(level.competencyIds)) {
+        level.competencyIds = [...new Set(level.competencyIds.map(mapId))];
+      }
+    }
+  }
+
+  // Keep saved legacy entries; they may contain user edits and now behave as custom competencies.
+}
+
 // Elimina del desat les competències del banc que l'usuari no ha modificat.
 export function withoutUnmodifiedBank(value) {
   const unchanged = competency => {
