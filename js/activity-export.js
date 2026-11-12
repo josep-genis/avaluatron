@@ -6,6 +6,7 @@ import {
   getEvidenceActivityWeight, isStudentExemptFromActivity, isStudentExemptFromSubjectForActivity
 } from "./grades.js";
 import { escapeHtml, formatDate, gradeAbbreviation } from "./formatting.js";
+import { getEvaluationConfig, getEvaluationItems } from "./assessment.js";
 
 const DELIMITERS = { csv: ";", tsv: "\t" };
 
@@ -54,13 +55,14 @@ export function exportActivityTable(format) {
     `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, "ca"));
   if (!students.length) return { ok: false, message: "No hi ha alumnat per exportar." };
 
-  const header = ["Cognoms", "Nom", "Grup", ...(activity.isGroup ? ["Agrupament"] : []), ...activity.evidences.map(evidence => `${evidence.name} (nivell)`),
-    ...activity.evidences.map(evidence => `${evidence.name} (nota /10)`), "Nota activitat /10", "Qualificació", "Estat"];
+  const items = getEvaluationItems(activity);
+  const header = ["Cognoms", "Nom", "Grup", ...(activity.isGroup ? ["Agrupament"] : []), ...items.map(evidence => `${evidence.name} (nivell)`),
+    ...items.map(evidence => `${evidence.name} (nota /10)`), "Nota de l'element /10", "Qualificació", "Estat"];
   const rows = students.map(student => {
     const assessment = getAssessment(data, student.id, activity.id, offering.id);
     const exempt = isStudentExemptFromActivity(data, student.id, activity.id) ||
       isStudentExemptFromSubjectForActivity(data, student.id, activity.id, offering.subjectId);
-    const levels = activity.evidences.map(evidence => {
+    const levels = items.map(evidence => {
       const level = assessment?.levels[evidence.id];
       return Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length ? level : null;
     });
@@ -91,16 +93,18 @@ export function exportActivityGroupsTable(format) {
   })).filter(item => item.members.length);
   if (!groups.length) return { ok: false, message: "No hi ha agrupaments amb alumnes en aquesta oferta." };
 
-  const header = ["Agrupament", "Membres", ...activity.evidences.map(evidence => `${evidence.name} (mitjana /10)`),
-    "Nota del grup /10", "Qualificació", "Evidències avaluades"];
+  const items = getEvaluationItems(activity);
+  const config = getEvaluationConfig(activity);
+  const header = ["Agrupament", "Membres", ...items.map(evidence => `${evidence.name} (mitjana /10)`),
+    "Nota del grup /10", "Qualificació", `${config.itemLabelPlural} avaluades`];
   const rows = groups.map(({ group, members }) => {
-    const evidenceScores = activity.evidences.map(evidence =>
+    const evidenceScores = items.map(evidence =>
       getActivityGroupEvidenceScore(data, activity, group, offering.id, evidence.id));
     const grade = getActivityGroupGrade(data, activity, group, offering.id);
     const assessedCount = evidenceScores.filter(score => score !== null).length;
     return [group.name, members.map(student => `${student.firstName} ${student.lastName}`.trim()).join(", "),
       ...evidenceScores.map(formatNumber), formatNumber(grade), grade === null ? "" : gradeAbbreviation(grade),
-      `${assessedCount}/${activity.evidences.length}`];
+      `${assessedCount}/${items.length}`];
   });
   downloadTable(format, `agrupaments-${slug(activity.title)}.${format}`, [header, ...rows]);
   return { ok: true, message: `Avaluació dels agrupaments exportada com a ${format.toUpperCase()}.` };
@@ -110,48 +114,61 @@ export function exportActivityRubricTable(format) {
   const delimiter = DELIMITERS[format];
   const activity = data.activities.find(item => item.id === state.selectedActivityId);
   if (!delimiter || !activity) return { ok: false, message: "No s'ha trobat l'activitat." };
-  if (!activity.evidences.length) return { ok: false, message: "Aquesta activitat no té evidències per exportar." };
+  const items = getEvaluationItems(activity);
+  const config = getEvaluationConfig(activity);
+  if (!items.length) return { ok: false, message: `Aquest element no té ${config.itemLabelPlural} per exportar.` };
 
-  const header = ["Evidència", "Pes en l'activitat (%)", "Competències i pesos",
-    ...LEVEL_LABELS.slice(1).map((_, index) => `${["NA", "AS", "AN", "AE"][index]} · ${formatNumber(SCORE_BY_LEVEL[index + 1])}/10`)];
-  const rows = activity.evidences.map(evidence => {
+  const header = activity.type === "Prova"
+    ? ["Pregunta", "Pes de la pregunta (%)", "Competències i pesos", "Solucionari"]
+    : ["Evidència", "Pes en l'activitat (%)", "Competències i pesos",
+      ...LEVEL_LABELS.slice(1).map((_, index) => `${["NA", "AS", "AN", "AE"][index]} · ${formatNumber(SCORE_BY_LEVEL[index + 1])}/10`)];
+  const rows = items.map(evidence => {
     const contributions = Object.entries(evidence.contributions).map(([competencyId, weight]) => {
       const competency = data.competencies.find(item => item.id === competencyId);
       return competency ? `${competency.name} (${Number(weight)}%)` : "";
     }).filter(Boolean).join(" · ");
-    return [evidence.name, getEvidenceActivityWeight(evidence), contributions,
-      ...["1", "2", "3", "4"].map(level => evidence.descriptors?.[level] || "")];
+    return activity.type === "Prova"
+      ? [evidence.name, getEvidenceActivityWeight(evidence), contributions, evidence.answerKey || ""]
+      : [evidence.name, getEvidenceActivityWeight(evidence), contributions,
+        ...["1", "2", "3", "4"].map(level => evidence.descriptors?.[level] || "")];
   });
-  downloadTable(format, `rubrica-${slug(activity.title)}.${format}`, [header, ...rows]);
-  return { ok: true, message: `Rúbrica exportada com a ${format.toUpperCase()}.` };
+  downloadTable(format, `${slug(config.editorLabel)}-${slug(activity.title)}.${format}`, [header, ...rows]);
+  return { ok: true, message: `${config.editorLabel[0].toLocaleUpperCase("ca")}${config.editorLabel.slice(1)} exportat com a ${format.toUpperCase()}.` };
 }
 
 export function openActivityRubricReport() {
   const activity = data.activities.find(item => item.id === state.selectedActivityId);
   if (!activity) return false;
-  if (!activity.evidences.length) return false;
+  const items = getEvaluationItems(activity);
+  if (!items.length) return false;
 
-  const evidenceRows = activity.evidences.map(evidence => {
+  const evidenceRows = items.map(evidence => {
     const contributions = Object.entries(evidence.contributions).map(([competencyId, weight]) => {
       const competency = data.competencies.find(item => item.id === competencyId);
       return competency ? `${escapeHtml(competency.name)} (${Number(weight)}%)` : "";
     }).filter(Boolean).join("<br>");
-    const descriptors = ["1", "2", "3", "4"].map(level =>
-      `<td>${escapeHtml(evidence.descriptors?.[level] || "—").replaceAll("\n", "<br>")}</td>`
-    ).join("");
-    return `<tr><td><strong>${escapeHtml(evidence.name)}</strong></td><td>${getEvidenceActivityWeight(evidence)}%</td><td>${contributions || "Sense competències vinculades"}</td>${descriptors}</tr>`;
+    const achievement = activity.type === "Prova"
+      ? `<td>${escapeHtml(evidence.answerKey || "—").replaceAll("\n", "<br>")}</td>`
+      : ["1", "2", "3", "4"].map(level =>
+        `<td>${escapeHtml(evidence.descriptors?.[level] || "—").replaceAll("\n", "<br>")}</td>`
+      ).join("");
+    return `<tr><td><strong>${escapeHtml(evidence.name)}</strong></td><td>${getEvidenceActivityWeight(evidence)}%</td><td>${contributions || "Sense competències vinculades"}</td>${achievement}</tr>`;
   }).join("");
+  const achievementHeaders = activity.type === "Prova"
+    ? "<th>Solucionari</th>"
+    : `<th>NA · ${formatNumber(SCORE_BY_LEVEL[1])}</th><th>AS · ${formatNumber(SCORE_BY_LEVEL[2])}</th><th>AN · ${formatNumber(SCORE_BY_LEVEL[3])}</th><th>AE · ${formatNumber(SCORE_BY_LEVEL[4])}</th>`;
+  const config = getEvaluationConfig(activity);
   const report = `<article class="report-page">
-    <header class="report-header"><div><p class="report-eyebrow">Rúbrica de l’activitat</p><h1>${escapeHtml(activity.title)}</h1></div><span class="report-type">${escapeHtml(activity.type)}</span></header>
-    <div class="report-student"><div><span>Data</span><strong>${escapeHtml(formatDate(activity.date))}</strong></div><div><span>Evidències</span><strong>${activity.evidences.length}</strong></div><div><span>Pes total</span><strong>${activity.evidences.reduce((total, evidence) => total + getEvidenceActivityWeight(evidence), 0)}%</strong></div></div>
-    <section class="report-evidence"><h2>Evidències i criteris d'avaluació</h2><p>El pes de l'evidència en l'activitat és la suma dels pesos assignats a les competències.</p>
-      <table><thead><tr><th>Evidència</th><th>Pes</th><th>Competències</th><th>NA · ${formatNumber(SCORE_BY_LEVEL[1])}</th><th>AS · ${formatNumber(SCORE_BY_LEVEL[2])}</th><th>AN · ${formatNumber(SCORE_BY_LEVEL[3])}</th><th>AE · ${formatNumber(SCORE_BY_LEVEL[4])}</th></tr></thead><tbody>${evidenceRows}</tbody></table>
+    <header class="report-header"><div><p class="report-eyebrow">${escapeHtml(config.editorLabel)} de ${activity.type === "Prova" ? "la prova" : "l’activitat"}</p><h1>${escapeHtml(activity.title)}</h1></div><span class="report-type">${escapeHtml(activity.type)}</span></header>
+    <div class="report-student"><div><span>Data</span><strong>${escapeHtml(formatDate(activity.date))}</strong></div><div><span>${escapeHtml(config.itemLabelPlural)}</span><strong>${items.length}</strong></div><div><span>Pes total</span><strong>${items.reduce((total, evidence) => total + getEvidenceActivityWeight(evidence), 0)}%</strong></div></div>
+    <section class="report-evidence"><h2>${activity.type === "Prova" ? "Preguntes i solucionari" : "Evidències i criteris d'avaluació"}</h2><p>El pes de cada ${escapeHtml(config.itemLabel)} és la suma dels pesos assignats a les competències.</p>
+      <table><thead><tr><th>${activity.type === "Prova" ? "Pregunta" : "Evidència"}</th><th>Pes</th><th>Competències</th>${achievementHeaders}</tr></thead><tbody>${evidenceRows}</tbody></table>
     </section>
-    <footer class="report-footer"><span>Avaluatró · Rúbrica generada el ${new Intl.DateTimeFormat("ca-ES", { dateStyle: "long" }).format(new Date())}</span></footer>
+    <footer class="report-footer"><span>Avaluatró · Document del ${escapeHtml(config.editorLabel)} generat el ${new Intl.DateTimeFormat("ca-ES", { dateStyle: "long" }).format(new Date())}</span></footer>
   </article>`;
   const reportWindow = window.open("", "_blank");
   if (!reportWindow) return false;
-  const documentMarkup = `<!doctype html><html lang="ca"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Rúbrica - ${escapeHtml(activity.title)}</title>
+  const documentMarkup = `<!doctype html><html lang="ca"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(config.editorLabel)} - ${escapeHtml(activity.title)}</title>
   <style>
     :root { color-scheme: light; font-family: Arial, sans-serif; color: #303832; }
     * { box-sizing: border-box; }

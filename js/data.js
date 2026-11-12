@@ -1,6 +1,7 @@
 import { DEFAULT_APPEARANCE, isValidAppearance } from "./themes.js";
 import { EDUCATIONAL_LEVEL_NAMES } from "./education.js";
 import { mergeCompetencyBank, migrateLegacyTransversalCompetencies } from "./competency-bank.js";
+import { EVALUATION_TYPES, getEvaluationItems } from "./assessment.js";
 
 export const DAILY_FOLLOWUP_CRITERIA = [
   { id: "participation", name: "Participació" },
@@ -339,36 +340,89 @@ export function validateData(value, makeId) {
   const legacyLectures = new Map(value.activities.filter(activity => activity?.type === "Magistral").map(activity => [activity.id, activity]));
   const convertedLectureIds = new Set();
   for (const activity of value.activities) {
-    if (activity && typeof activity === "object" && activity.type !== "Prova") activity.type = "Activitat";
+    if (activity && typeof activity === "object" && !["Activitat", "Prova"].includes(activity.type)) activity.type = "Activitat";
   }
   const activityIds = new Set(value.activities.map(activity => activity.id));
   for (const activity of value.activities) {
-    if (Array.isArray(activity.criteria) && !Array.isArray(activity.evidences)) {
-      activity.evidences = activity.criteria.map(criterion => criterion && ({
+    if (Array.isArray(activity.criteria) && !Array.isArray(activity.evidences) && !Array.isArray(activity.questions)) {
+      const legacyItems = activity.criteria.map(criterion => criterion && ({
         id: criterion.id,
         name: criterion.name,
         contributions: { [criterion.competencyId]: criterion.weight }
       }));
+      if (activity.type === "Prova") {
+        activity.questions = legacyItems.map(item => ({ ...item, answerKey: "" }));
+      } else {
+        activity.evidences = legacyItems;
+      }
+    }
+    if (activity.type === "Prova" && !Array.isArray(activity.questions) && Array.isArray(activity.evidences)) {
+      activity.conversionData ??= {};
+      activity.conversionData.Activitat = Object.fromEntries(activity.evidences.map(evidence => [
+        evidence.id, { descriptors: evidence.descriptors || {} }
+      ]));
+      activity.questions = activity.evidences.map(evidence => ({
+        id: evidence.id,
+        name: evidence.name,
+        contributions: evidence.contributions,
+        answerKey: evidence.descriptors?.["4"] || ""
+      }));
+      delete activity.evidences;
     }
     delete activity.criteria;
-    if (typeof activity.title !== "string" || !Array.isArray(activity.evidences)) throw new Error("hi ha una activitat invàlida.");
-    for (const evidence of activity.evidences) {
-      if (!evidence || typeof evidence.id !== "string" || !evidence.id || ids.has(evidence.id) ||
-        typeof evidence.name !== "string" || !evidence.name.trim() ||
-        !evidence.contributions || typeof evidence.contributions !== "object" || Array.isArray(evidence.contributions) ||
-        !Object.keys(evidence.contributions).length ||
-        Object.entries(evidence.contributions).some(([competencyId, weight]) => !competencyIds.has(competencyId) || !Number.isFinite(Number(weight)) || Number(weight) <= 0 || Number(weight) > 100)) {
-        throw new Error("hi ha una evidència de rúbrica invàlida o sense competències associades.");
+    const itemCollection = activity.type === "Prova" ? "questions" : "evidences";
+    if (typeof activity.title !== "string" || !Array.isArray(activity[itemCollection]) ||
+      activity.type === "Prova" && Array.isArray(activity.evidences) ||
+      activity.type === "Activitat" && Array.isArray(activity.questions)) {
+      throw new Error("hi ha un element avaluable invàlid.");
+    }
+    for (const item of getEvaluationItems(activity)) {
+      if (!item || typeof item.id !== "string" || !item.id || ids.has(item.id) ||
+        typeof item.name !== "string" || !item.name.trim() ||
+        !item.contributions || typeof item.contributions !== "object" || Array.isArray(item.contributions) ||
+        !Object.keys(item.contributions).length ||
+        Object.entries(item.contributions).some(([competencyId, weight]) => !competencyIds.has(competencyId) || !Number.isFinite(Number(weight)) || Number(weight) <= 0 || Number(weight) > 100)) {
+        throw new Error("hi ha una evidència o pregunta invàlida o sense competències associades.");
       }
-      evidence.descriptors ??= {};
-      if (!evidence.descriptors || typeof evidence.descriptors !== "object" || Array.isArray(evidence.descriptors) ||
-        Object.entries(evidence.descriptors).some(([level, descriptor]) =>
-          !["1", "2", "3", "4"].includes(level) || typeof descriptor !== "string" || descriptor.length > 500
-        )) {
-        throw new Error("hi ha criteris d'avaluació invàlids a la rúbrica.");
+      if (activity.type === "Prova") {
+        item.answerKey ??= "";
+        if (typeof item.answerKey !== "string" || item.answerKey.length > 2000 ||
+          "descriptors" in item || "preservedAchievementLevels" in item) {
+          throw new Error("hi ha un solucionari invàlid a la prova.");
+        }
+      } else {
+        item.descriptors ??= {};
+        if (!item.descriptors || typeof item.descriptors !== "object" || Array.isArray(item.descriptors) ||
+          Object.entries(item.descriptors).some(([level, descriptor]) =>
+            !["1", "2", "3", "4"].includes(level) || typeof descriptor !== "string" || descriptor.length > 500
+          ) || "answerKey" in item) {
+          throw new Error("hi ha criteris d'avaluació invàlids a la rúbrica.");
+        }
       }
-      delete evidence.weight;
-      ids.add(evidence.id);
+      delete item.weight;
+      ids.add(item.id);
+    }
+    if (activity.conversionData !== undefined) {
+      const currentItemIds = new Set(getEvaluationItems(activity).map(item => item.id));
+      if (!activity.conversionData || typeof activity.conversionData !== "object" || Array.isArray(activity.conversionData)) {
+        throw new Error("les dades de conversió d'un element avaluable no són vàlides.");
+      }
+      for (const [type, snapshots] of Object.entries(activity.conversionData)) {
+        const config = EVALUATION_TYPES[type];
+        if (!config || !snapshots || typeof snapshots !== "object" || Array.isArray(snapshots) ||
+          Object.entries(snapshots).some(([id, fields]) =>
+            !currentItemIds.has(id) || !fields || typeof fields !== "object" || Array.isArray(fields) ||
+            Object.keys(fields).some(field => !config.itemFields.includes(field)) ||
+            config.itemFields.some(field => field in fields && typeof fields[field] !== (field === "descriptors" ? "object" : "string")) ||
+            fields.descriptors && (Array.isArray(fields.descriptors) ||
+              Object.entries(fields.descriptors).some(([level, descriptor]) =>
+                !["1", "2", "3", "4"].includes(level) || typeof descriptor !== "string" || descriptor.length > 500
+              )) ||
+            fields.answerKey !== undefined && fields.answerKey.length > 2000
+          )) {
+          throw new Error("les dades de conversió d'un element avaluable no són vàlides.");
+        }
+      }
     }
     activity.groups ??= [];
     activity.isGroup = activity.isGroup === true || (activity.isGroup === undefined && activity.groups.length > 0);

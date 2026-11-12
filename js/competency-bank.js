@@ -35,7 +35,7 @@ export function migrateLegacyTransversalCompetencies(value) {
     for (const criterion of activity.criteria || []) {
       if (criterion?.competencyId) criterion.competencyId = mapId(criterion.competencyId);
     }
-    for (const evidence of activity.evidences || []) {
+    for (const evidence of [...(activity.evidences || []), ...(activity.questions || [])]) {
       if (!evidence.contributions || typeof evidence.contributions !== "object") continue;
       const contributions = new Map();
       for (const [id, weight] of Object.entries(evidence.contributions)) {

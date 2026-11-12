@@ -22,6 +22,7 @@ import { planDailyImport } from "./js/daily-csv.js";
 import { withoutUnmodifiedBank, getBankCompetency, isBankCompetency } from "./js/competency-bank.js";
 import { openActivityReport, openActivityGroupReports, openGroupAssessmentForms } from "./js/activity-report.js";
 import { exportActivityReportsBatch } from "./js/activity-batch-report.js";
+import { convertEvaluationItems, getEvaluationConfig, getEvaluationItems } from "./js/assessment.js";
 import {
   exportActivityTable, exportActivityGroupsTable, exportActivityRubricTable,
   openActivityRubricReport
@@ -226,9 +227,9 @@ function deleteCompetency(competencyId) {
     return;
   }
   const usedByLevel = data.subjects.some(subject => subject.levels.some(level => level.competencyIds.includes(competencyId)));
-  const usedByEvidence = data.activities.some(activity => activity.evidences.some(evidence => Object.hasOwn(evidence.contributions || {}, competencyId)));
+  const usedByEvidence = data.activities.some(activity => getEvaluationItems(activity).some(evidence => Object.hasOwn(evidence.contributions || {}, competencyId)));
   if (usedByLevel || usedByEvidence) {
-    showToast("No pots eliminar una competència utilitzada en nivells o evidències d'activitats. Treu-la'n primer.", true);
+    showToast("No pots eliminar una competència utilitzada en nivells, evidències o preguntes. Treu-la'n primer.", true);
     return;
   }
   if (!globalThis.confirm(`Vols eliminar la competència «${competency.name}»?`)) return;
@@ -498,10 +499,10 @@ function openSequenceActivityDialog(situationId) {
   const availableActivities = data.activities.filter(activity => !usedActivityIds.has(activity.id));
   const selectedActivityId = availableActivities[0]?.id || "";
   const activityOptions = availableActivities.map(activity => `<option value="${escapeHtml(activity.id)}">${escapeHtml(activity.title)} · ${escapeHtml(activity.type)}</option>`).join("");
-  openDialog("Afegeix una activitat a la situació", `La nova activitat s'afegirà a «${escapeHtml(situation.name)}». La contribució es calcularà a partir de les evidències de l'activitat i es ponderarà segons les hores.`, `<div class="form-grid">
-    <div class="field full"><label for="sequence-activity-select">Activitat o examen</label><select id="sequence-activity-select" name="sequenceActivityId" required ${availableActivities.length ? "" : "disabled"}>${activityOptions || '<option value="">No hi ha activitats disponibles</option>'}</select>${availableActivities.length ? "" : '<span class="field-hint">Crea primer una activitat o examen des de «Activitats i proves».</span>'}</div>
+  openDialog("Afegeix un element avaluable a la situació", `L'element s'afegirà a «${escapeHtml(situation.name)}». Les contribucions per competència es ponderaran segons les hores.`, `<div class="form-grid">
+    <div class="field full"><label for="sequence-activity-select">Activitat o prova</label><select id="sequence-activity-select" name="sequenceActivityId" required ${availableActivities.length ? "" : "disabled"}>${activityOptions || '<option value="">No hi ha elements avaluatius disponibles</option>'}</select>${availableActivities.length ? "" : '<span class="field-hint">Crea primer una activitat o prova des de «Activitats i proves».</span>'}</div>
     <div class="field"><label>Inversió de temps (hores)</label><input name="sequenceHours" type="number" min="0.25" max="1000" step="0.25" value="1" required></div>
-  </div>`, "Afegeix activitat");
+  </div>`, "Afegeix element");
   dialogForm.dataset.formType = "sequence-activity";
   dialogForm.dataset.recordId = level.id;
   dialogForm.dataset.situationId = situation.id;
@@ -652,14 +653,14 @@ function openActivityDialog(activityId = null) {
     return;
   }
   const editing = Boolean(activity);
-  const typeOptions = ["Prova", "Activitat"];
+  const typeOptions = ["Activitat", "Prova"];
   if (activity && !typeOptions.includes(activity.type)) typeOptions.push(activity.type);
-  openDialog(editing ? "Edita l'activitat" : "Crea una activitat", editing ? "Actualitza les dades de l'activitat. La rúbrica s'edita en una pàgina independent." : "Defineix les dades bàsiques. Després podràs crear-ne la rúbrica en una pàgina independent.", `<div class="form-grid">
-    <div class="field full"><label for="activity-title">Nom de l'activitat</label><input id="activity-title" name="title" required maxlength="140" placeholder="Ex.: Projecte de sostenibilitat" value="${escapeHtml(activity?.title || "")}"></div>
-    <div class="field"><label for="activity-type">Tipus</label><select id="activity-type" name="type">${typeOptions.map(type => `<option ${activity?.type === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></div>
+  openDialog(editing ? "Edita l'element avaluable" : "Crea un element avaluable", editing ? "Actualitza les dades bàsiques. En canviar el tipus, es conserva la correspondència entre els ítems i les qualificacions." : "Defineix una activitat o una prova per incorporar-la a la programació.", `<div class="form-grid">
+    <div class="field full"><label for="activity-title">Nom de l'element</label><input id="activity-title" name="title" required maxlength="140" placeholder="Ex.: Projecte de sostenibilitat o prova del tema 1" value="${escapeHtml(activity?.title || "")}"></div>
+    <div class="field"><label for="activity-type">Tipus d'element avaluable</label><select id="activity-type" name="type">${typeOptions.map(type => `<option ${activity?.type === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></div>
     <div class="field"><label for="activity-date">Data (opcional)</label><input id="activity-date" name="date" type="date" value="${escapeHtml(activity?.date || "")}"></div>
     <div class="field full"><label class="checkbox-option"><input type="checkbox" name="isGroup" ${activity?.isGroup ? "checked" : ""}> Activitat en grup (permet crear agrupaments d'alumnes)</label></div>
-  </div>`, editing ? "Desa els canvis" : "Crea activitat");
+  </div>`, editing ? "Desa els canvis" : "Crea element");
   dialogForm.dataset.formType = editing ? "edit-activity" : "activity";
   dialogForm.dataset.recordId = activity?.id || "";
 }
@@ -1339,9 +1340,11 @@ document.addEventListener("click", event => {
   }
   if (event.target.closest("[data-add-rubric-evidence]")) {
     const body = document.querySelector("#activity-rubric-form tbody");
+    const form = document.querySelector("#activity-rubric-form");
+    const isTest = form.dataset.itemType === "Prova";
     body.querySelector(".rubric-empty-row")?.remove();
     const index = body.querySelectorAll("[data-rubric-evidence-row]").length;
-    body.insertAdjacentHTML("beforeend", activityRubricEvidenceRowMarkup(index, null, makeId("row")));
+    body.insertAdjacentHTML("beforeend", activityRubricEvidenceRowMarkup(index, null, makeId("row"), isTest));
     body.lastElementChild.querySelector('[name="rubricEvidenceName"]').focus();
   }
   const removeRubricEvidenceButton = event.target.closest("[data-remove-rubric-evidence]");
@@ -1349,7 +1352,9 @@ document.addEventListener("click", event => {
     const body = removeRubricEvidenceButton.closest("tbody");
     removeRubricEvidenceButton.closest("[data-rubric-evidence-row]").remove();
     if (!body.querySelector("[data-rubric-evidence-row]")) {
-      body.innerHTML = '<tr class="rubric-empty-row"><td colspan="6">Encara no hi ha evidències. Afegeix-ne una per començar la rúbrica.</td></tr>';
+      const isTest = document.querySelector("#activity-rubric-form").dataset.itemType === "Prova";
+      const config = getEvaluationConfig({ type: isTest ? "Prova" : "Activitat" });
+      body.innerHTML = `<tr class="rubric-empty-row"><td colspan="${isTest ? 3 : 6}">Encara no hi ha ${config.itemLabelPlural}. Afegeix-ne una per començar el ${config.editorLabel}.</td></tr>`;
     }
     return;
   }
@@ -1364,7 +1369,8 @@ document.addEventListener("click", event => {
         showToast("Selecciona una competència vàlida per afegir-la a l'evidència.", true);
         return;
       }
-      const evidence = { name: evidenceRow.querySelector('[name="rubricEvidenceName"]').value || "evidència" };
+      const isTest = document.querySelector("#activity-rubric-form").dataset.itemType === "Prova";
+      const evidence = { name: evidenceRow.querySelector('[name="rubricEvidenceName"]').value || (isTest ? "pregunta" : "evidència") };
       evidenceRow.querySelector("[data-rubric-competencies]").insertAdjacentHTML("beforeend", activityRubricCompetencyMarkup(evidence, competency, 100));
     } else {
       removeRubricCompetencyButton.closest("[data-rubric-competency-row]").remove();
@@ -1791,15 +1797,17 @@ dialogForm.addEventListener("submit", event => {
       return;
     }
     const activityId = activity?.id || makeId("ac");
+    const type = String(formData.get("type"));
+    if (activity) convertEvaluationItems(activity, type);
     const updatedActivity = {
       id: activityId,
       title: String(formData.get("title")).trim(),
-      type: String(formData.get("type")),
+      type,
       date: String(formData.get("date") || ""),
       isGroup: formData.get("isGroup") === "on",
       groups: activity?.groups || [],
       groupGrading: activity?.groupGrading || "individual",
-      evidences: activity?.evidences || []
+      [type === "Prova" ? "questions" : "evidences"]: activity ? getEvaluationItems(activity) : []
     };
     if (activity) Object.assign(activity, updatedActivity);
     else data.activities.push(updatedActivity);
@@ -1829,8 +1837,8 @@ dialogForm.addEventListener("submit", event => {
     "sequence-activity": "Activitat afegida a la situació d'aprenentatge.",
     "sequence-lecture": "Classe afegida a la situació d'aprenentatge.",
     competency: "Competència creada.",
-    activity: "Activitat creada. Defineix-ne ara la rúbrica.",
-    "edit-activity": "Activitat actualitzada.",
+    activity: "Element avaluable creat. Defineix-ne ara els ítems.",
+    "edit-activity": "Element avaluable actualitzat.",
     "teacher-profile": "Perfil docent actualitzat."
   };
   showToast(messages[formType]);
@@ -1846,21 +1854,26 @@ content.addEventListener("submit", event => {
       showToast("No s'ha trobat l'activitat que vols editar.", true);
       return;
     }
+    const isTest = activity.type === "Prova";
     const evidenceRows = [...rubricForm.querySelectorAll("[data-rubric-evidence-row]")];
     const evidenceItems = evidenceRows.map(row => {
       const contributions = Object.fromEntries([...row.querySelectorAll("[data-rubric-competency-row]")].map(competencyRow => [
         competencyRow.querySelector('[name="rubricCompetencyId"]').value,
         Number(competencyRow.querySelector('[name="rubricCompetencyWeight"]').value)
       ]));
-      const descriptors = Object.fromEntries(["1", "2", "3", "4"].map(level => [
-        level, String(row.querySelector(`[name="rubricDescriptor${level}"]`).value).trim()
-      ]));
-      return {
+      const item = {
         id: row.querySelector('[name="rubricEvidenceId"]').value,
         name: String(row.querySelector('[name="rubricEvidenceName"]').value).trim(),
-        contributions,
-        descriptors
+        contributions
       };
+      if (isTest) {
+        item.answerKey = String(row.querySelector('[name="rubricAnswerKey"]').value).trim();
+      } else {
+        item.descriptors = Object.fromEntries(["1", "2", "3", "4"].map(level => [
+          level, String(row.querySelector(`[name="rubricDescriptor${level}"]`).value).trim()
+        ]));
+      }
+      return item;
     });
     const unlinkedEvidence = evidenceItems.find(evidence => !Object.keys(evidence.contributions).length);
     if (unlinkedEvidence) {
@@ -1881,13 +1894,32 @@ content.addEventListener("submit", event => {
       return;
     }
     const previousData = clone(data);
-    const oldEvidenceIds = new Set(activity.evidences.map(evidence => evidence.id));
+    const oldItems = getEvaluationItems(activity);
+    const oldEvidenceIds = new Set(oldItems.map(evidence => evidence.id));
     const retainedEvidenceIds = new Set();
-    activity.evidences = evidenceItems.map(evidence => {
+    const updatedItems = evidenceItems.map(evidence => {
       const id = oldEvidenceIds.has(evidence.id) && !retainedEvidenceIds.has(evidence.id) ? evidence.id : makeId("ev");
       retainedEvidenceIds.add(id);
-      return { ...evidence, id };
+      const previousItem = oldItems.find(item => item.id === id);
+      return {
+        ...previousItem,
+        ...evidence,
+        id
+      };
     });
+    if (isTest) {
+      activity.questions = updatedItems;
+      delete activity.evidences;
+    } else {
+      activity.evidences = updatedItems;
+      delete activity.questions;
+    }
+    for (const snapshots of Object.values(activity.conversionData || {})) {
+      if (!snapshots || typeof snapshots !== "object") continue;
+      for (const itemId of Object.keys(snapshots)) {
+        if (!retainedEvidenceIds.has(itemId)) delete snapshots[itemId];
+      }
+    }
     for (const assessment of data.assessments.filter(item => item.activityId === activity.id)) {
       for (const evidenceId of oldEvidenceIds) {
         if (!retainedEvidenceIds.has(evidenceId)) delete assessment.levels[evidenceId];
@@ -1901,7 +1933,7 @@ content.addEventListener("submit", event => {
     state.currentView = "activities";
     renderActivityDetail();
     window.scrollTo(0, 0);
-    showToast("Rúbrica desada.");
+    showToast(`${getEvaluationConfig(activity).editorLabel[0].toLocaleUpperCase("ca")}${getEvaluationConfig(activity).editorLabel.slice(1)} desat.`);
     return;
   }
   const form = event.target.closest("#competency-form");

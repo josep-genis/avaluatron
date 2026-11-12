@@ -1,4 +1,5 @@
 import { getActivityOffers, getSequenceActivities, isStudentAssociatedWithOffering } from "./data.js";
+import { getEvaluationItems } from "./assessment.js";
 
 export const SCORE_BY_LEVEL = [null, 2.5, 5, 7.5, 10, 0];
 export const RECOVERED_MAX_SCORE = 5;
@@ -60,18 +61,19 @@ export function getEvidenceActivityWeight(evidence) {
 }
 
 export function getActivityCompetencyContribution(activity, competencyId) {
-  return activity.evidences.reduce(
+  return getEvaluationItems(activity).reduce(
     (total, evidence) => total + Number(evidence.contributions[competencyId] || 0),
     0
   );
 }
 
 export function isNonAssessedActivity(activity) {
-  return !activity.evidences.length;
+  return !getEvaluationItems(activity).length;
 }
 
 export function areAllActivityEvidencesAssessed(activity, assessment) {
-  return activity.evidences.length > 0 && activity.evidences.every(evidence => {
+  const items = getEvaluationItems(activity);
+  return items.length > 0 && items.every(evidence => {
     const level = assessment?.levels[evidence.id];
     return Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
   });
@@ -103,7 +105,7 @@ export function getActivityGroupEvidenceScore(data, activity, group, offeringId,
 export function getActivityGroupGrade(data, activity, group, offeringId) {
   let weightedScore = 0;
   let totalWeight = 0;
-  for (const evidence of activity.evidences) {
+  for (const evidence of getEvaluationItems(activity)) {
     const score = getActivityGroupEvidenceScore(data, activity, group, offeringId, evidence.id);
     const weight = getEvidenceActivityWeight(evidence);
     if (score !== null) {
@@ -134,7 +136,7 @@ export function getCompetencyGrade(data, studentId, competencyId) {
     for (const offering of getRelevantOfferings(data, activity.id, studentId)) {
       if (isStudentExemptFromActivity(data, studentId, activity.id) ||
         isStudentExemptFromSubject(data, studentId, offering.subjectId)) continue;
-      for (const evidence of activity.evidences) {
+      for (const evidence of getEvaluationItems(activity)) {
         const score = getEvidenceScore(data, activity, studentId, offering.id, evidence.id);
         const contribution = Number(evidence.contributions[competencyId] || 0);
         if (contribution > 0 && score !== null) {
@@ -156,7 +158,7 @@ export function getActivityGrade(data, studentId, activity, subjectId = null, of
   if (offerings.length !== 1) return null;
   let weightedScore = 0;
   let totalWeight = 0;
-  for (const evidence of activity.evidences) {
+  for (const evidence of getEvaluationItems(activity)) {
     const score = getEvidenceScore(data, activity, studentId, offerings[0].id, evidence.id);
     const weight = getEvidenceActivityWeight(evidence);
     if (score !== null) {
@@ -176,7 +178,7 @@ export function getActivityCompetencyGrade(data, studentId, activity, competency
   if (offerings.length !== 1) return null;
   let weightedScore = 0;
   let totalWeight = 0;
-  for (const evidence of activity.evidences) {
+  for (const evidence of getEvaluationItems(activity)) {
     const score = getEvidenceScore(data, activity, studentId, offerings[0].id, evidence.id);
     const contribution = Number(evidence.contributions[competencyId] || 0);
     if (contribution > 0 && score !== null) {
@@ -214,7 +216,7 @@ export function getLevelCompetencyAssessmentProgress(data, level, studentId, com
     if (!activity || isStudentExemptFromActivity(data, studentId, item.activityId)) continue;
     const offerings = getRelevantOfferings(data, activity.id, studentId, subjectId);
     if (!offerings.length) continue;
-    for (const evidence of activity.evidences) {
+    for (const evidence of getEvaluationItems(activity)) {
       const weight = Number(evidence.contributions[competencyId] || 0) * Number(item.hours);
       if (weight <= 0) continue;
       totalWeight += weight;

@@ -7,6 +7,7 @@ import {
   isStudentExemptFromSubjectForActivity
 } from "./grades.js";
 import { escapeHtml, formatDate, formatGradeWithCode, gradeColorClass } from "./formatting.js";
+import { getEvaluationConfig, getEvaluationItems } from "./assessment.js";
 
 export const RECOVERY_EXPLANATION = `Aquesta activitat s'ha qualificat com a recuperada. Per això la nota de cada evidència, i per tant la nota final de l'activitat, no pot superar ${formatGradeWithCode(RECOVERED_MAX_SCORE)}. Les evidències amb una nota inferior es mantenen sense canvis.`;
 
@@ -29,19 +30,21 @@ function evidenceContributionLabel(evidence) {
 }
 
 export function getStudentReportData(activity, student, subjectId, offeringId = null) {
+  const config = getEvaluationConfig(activity);
+  const items = getEvaluationItems(activity);
   const assessment = getAssessment(data, student.id, activity.id, offeringId);
   const activityExempt = isStudentExemptFromActivity(data, student.id, activity.id);
   const subjectExempt = isStudentExemptFromSubjectForActivity(data, student.id, activity.id, subjectId);
   const exempt = activityExempt || subjectExempt;
   const grade = getActivityGrade(data, student.id, activity, subjectId, offeringId);
-  const evaluatedEvidenceCount = activity.evidences.filter(evidence => {
+  const evaluatedEvidenceCount = items.filter(evidence => {
     const level = assessment?.levels[evidence.id];
     return Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
   }).length;
   const gradeLabel = exempt
     ? subjectExempt ? "Exempt/a de l’assignatura" : "Exempt/a de l’activitat"
     : grade === null ? "Pendent d’avaluar" : formatGradeWithCode(grade);
-  const evidences = activity.evidences.map(evidence => {
+  const evidences = items.map(evidence => {
     const level = assessment?.levels[evidence.id];
     const hasGrade = Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
     const result = exempt
@@ -49,7 +52,9 @@ export function getStudentReportData(activity, student, subjectId, offeringId = 
       : hasGrade
         ? `${level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : LEVEL_LABELS[level]} · ${formatGradeWithCode(SCORE_BY_LEVEL[level])}`
         : "Pendent d’avaluar";
-    const descriptor = hasGrade ? evidence.descriptors?.[level] : "";
+    const descriptor = hasGrade && level !== NOT_SUBMITTED_LEVEL
+      ? activity.type === "Prova" ? evidence.answerKey : evidence.descriptors?.[level]
+      : "";
     return {
       name: evidence.name,
       contributions: evidenceContributionLabel(evidence),
@@ -62,13 +67,15 @@ export function getStudentReportData(activity, student, subjectId, offeringId = 
   return {
     grade, gradeLabel, exempt, recovered: Boolean(assessment?.recovered),
     evaluatedEvidenceCount, feedback: String(assessment?.feedback || ""), evidences,
+    itemLabel: config.itemLabel, itemLabelPlural: config.itemLabelPlural,
+    solutionLabel: activity.type === "Prova" ? "Solucionari" : "Criteri d'assoliment",
     studentName: studentName(student), studentGroup: studentGroup(student)
   };
 }
 
 function studentReport(activity, student, subjectId, offeringId = null, editableFeedback = false) {
   const report = getStudentReportData(activity, student, subjectId, offeringId);
-  const { grade, gradeLabel, exempt, recovered, evaluatedEvidenceCount, feedback } = report;
+  const { grade, gradeLabel, exempt, recovered, evaluatedEvidenceCount, feedback, itemLabel, itemLabelPlural, solutionLabel } = report;
   const gradeClass = grade === null ? "" : gradeColorClass(grade);
   const recoveredNote = recovered ? " (recuperada, màxim 5/AS)" : "";
   const evidenceRows = report.evidences.map(evidence => {
@@ -77,7 +84,7 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
     return `<tr>
       <td><strong>${escapeHtml(evidence.name)}</strong><small>${escapeHtml(evidence.contributions)}</small></td>
       <td>${evidence.weight}%</td>
-      <td>${escapeHtml(evidence.result)}${cappedNote}${evidence.descriptor ? `<small>${escapeHtml(evidence.descriptor).replaceAll("\n", "<br>")}</small>` : ""}</td>
+      <td>${escapeHtml(evidence.result)}${cappedNote}${evidence.descriptor ? `<small>${escapeHtml(solutionLabel)}: ${escapeHtml(evidence.descriptor).replaceAll("\n", "<br>")}</small>` : ""}</td>
     </tr>`;
   }).join("");
 
@@ -92,17 +99,17 @@ function studentReport(activity, student, subjectId, offeringId = null, editable
       <div><span>Data de l’activitat</span><strong>${escapeHtml(formatDate(activity.date))}</strong></div>
     </div>
     <section class="report-final-grade">
-      <div><span>Nota final de l’activitat</span><small>${exempt ? "Aquesta activitat no es compta en la qualificació de l’alumne/a." : `${evaluatedEvidenceCount} de ${activity.evidences.length} evidències avaluades`}</small></div>
+      <div><span>Nota final de l’element</span><small>${exempt ? "Aquest element no es compta en la qualificació de l’alumne/a." : `${evaluatedEvidenceCount} de ${report.evidences.length} ${itemLabelPlural} avaluades`}</small></div>
       <strong class="${gradeClass}">${escapeHtml(gradeLabel + (grade === null ? "" : recoveredNote))}</strong>
     </section>
     ${recovered && !exempt ? `<section class="report-recovery"><h2>Activitat recuperada</h2><p>${escapeHtml(RECOVERY_EXPLANATION)}</p></section>` : ""}
     <section class="report-evidence">
-      <h2>Progrés per evidència</h2>
-      <p>La nota de cada evidència es mostra sobre 10 amb la seva qualificació textual.</p>
-      <table><thead><tr><th>Evidència i competències</th><th>Pes</th><th>Resultat</th></tr></thead><tbody>${evidenceRows || '<tr><td colspan="3">Aquesta activitat encara no té evidències.</td></tr>'}</tbody></table>
+      <h2>Progrés per ${itemLabel}</h2>
+      <p>La nota de cada ${itemLabel} es mostra sobre 10 amb la seva qualificació textual.</p>
+      <table><thead><tr><th>${itemLabel} i competències</th><th>Pes</th><th>Resultat</th></tr></thead><tbody>${evidenceRows || `<tr><td colspan="3">Aquest element encara no té ${itemLabelPlural}.</td></tr>`}</tbody></table>
     </section>
     ${editableFeedback
-      ? `<section class="report-feedback"><label for="activity-student-feedback">Retroacció per a ${escapeHtml(studentName(student))}</label><p>Es desa amb l'avaluació d'aquest alumne per a l'activitat.</p><textarea id="activity-student-feedback" data-activity-feedback data-activity-id="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" data-offering-id="${escapeHtml(offeringId || "")}" maxlength="2000" rows="5" placeholder="Escriu una retroacció específica per a aquest alumne…">${escapeHtml(feedback)}</textarea><small>Fins a 2.000 caràcters</small></section>`
+      ? `<section class="report-feedback"><label for="activity-student-feedback">Retroacció per a ${escapeHtml(studentName(student))}</label><p>Es desa amb l'avaluació d'aquest alumne per a l'element.</p><textarea id="activity-student-feedback" data-activity-feedback data-activity-id="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" data-offering-id="${escapeHtml(offeringId || "")}" maxlength="2000" rows="5" placeholder="Escriu una retroacció específica per a aquest alumne…">${escapeHtml(feedback)}</textarea><small>Fins a 2.000 caràcters</small></section>`
       : feedback.trim() ? `<section class="report-feedback"><h2>Retroacció</h2><p>${escapeHtml(feedback)}</p></section>` : ""}
     <footer class="report-footer"><span>Avaluatró · Informe generat el ${new Intl.DateTimeFormat("ca-ES", { dateStyle: "long" }).format(new Date())}</span><span>NA: No assolit · AS: Assoliment satisfactori · AN: Assoliment notable · AE: Assoliment excel·lent</span></footer>
   </article>`;
@@ -219,8 +226,10 @@ export function openActivityReport(studentId = null) {
 }
 
 function activityGroupReport(activity, group, students, offeringId) {
+  const config = getEvaluationConfig(activity);
+  const items = getEvaluationItems(activity);
   const grade = getActivityGroupGrade(data, activity, group, offeringId);
-  const evidenceRows = activity.evidences.map(evidence => {
+  const evidenceRows = items.map(evidence => {
     const score = getActivityGroupEvidenceScore(data, activity, group, offeringId, evidence.id);
     return `<tr><td><strong>${escapeHtml(evidence.name)}</strong><small>${escapeHtml(evidenceContributionLabel(evidence))}</small></td>
       <td>${getEvidenceActivityWeight(evidence)}%</td><td>${score === null ? "Pendent d'avaluar" : formatGradeWithCode(score)}</td></tr>`;
@@ -232,8 +241,8 @@ function activityGroupReport(activity, group, students, offeringId) {
     <header class="report-header"><div><p class="report-eyebrow">Informe d’avaluació de l’agrupament</p><h1>${escapeHtml(activity.title)}</h1></div><span class="report-type">${escapeHtml(activity.type)}</span></header>
     <div class="report-student"><div><span>Agrupament</span><strong>${escapeHtml(group.name)}</strong></div><div><span>Membres</span><strong>${membersMarkup || "Sense membres"}</strong></div><div><span>Data de l’activitat</span><strong>${escapeHtml(formatDate(activity.date))}</strong></div></div>
     <section class="report-final-grade"><div><span>Nota mitjana de l'agrupament</span><small>Mitjana de les avaluacions individuals dels components, ponderada per evidència</small></div><strong class="${gradeClass}">${escapeHtml(gradeLabel)}</strong></section>
-    <section class="report-evidence"><h2>Progrés mitjà per evidència</h2><p>Mitjana de les avaluacions individuals dels membres que tenen nota per a cada evidència.</p>
-      <table><thead><tr><th>Evidència i competències</th><th>Pes</th><th>Mitjana</th></tr></thead><tbody>${evidenceRows || '<tr><td colspan="3">Aquesta activitat encara no té evidències.</td></tr>'}</tbody></table>
+    <section class="report-evidence"><h2>Progrés mitjà per ${config.itemLabel}</h2><p>Mitjana de les avaluacions individuals dels membres que tenen nota per a cada ${config.itemLabel}.</p>
+      <table><thead><tr><th>${config.itemLabel} i competències</th><th>Pes</th><th>Mitjana</th></tr></thead><tbody>${evidenceRows || `<tr><td colspan="3">Aquest element encara no té ${config.itemLabelPlural}.</td></tr>`}</tbody></table>
     </section>
     <footer class="report-footer"><span>Avaluatró · Informe generat el ${new Intl.DateTimeFormat("ca-ES", { dateStyle: "long" }).format(new Date())}</span><span>NA: No assolit · AS: Assoliment satisfactori · AN: Assoliment notable · AE: Assoliment excel·lent</span></footer>
   </article>`;
@@ -282,8 +291,10 @@ export function openGroupAssessmentForms(components) {
   const scaleHeaders = LEVEL_LABELS.slice(1).map((label, index) =>
     `<th>${escapeHtml(label)}<small>${formatGradeWithCode(SCORE_BY_LEVEL[index + 1])}</small></th>`
   ).join("");
-  const ratingRows = evidences => `<table class="worksheet-rating"><thead><tr><th>Evidència</th>${scaleHeaders}</tr></thead><tbody>${evidences.map(evidence =>
-    `<tr><th>${escapeHtml(evidence.name)}<small>${getEvidenceActivityWeight(evidence)}% de l'activitat</small></th>${LEVEL_LABELS.slice(1).map((_, index) => `<td><span class="worksheet-radio"></span>${evidence.descriptors?.[String(index + 1)] ? `<small class="worksheet-level-descriptor">${escapeHtml(evidence.descriptors[String(index + 1)])}</small>` : ""}</td>`).join("")}</tr>`
+  const config = getEvaluationConfig(activity);
+  const evaluationItems = getEvaluationItems(activity);
+  const ratingRows = items => `<table class="worksheet-rating"><thead><tr><th>${config.itemLabel}</th>${scaleHeaders}</tr></thead><tbody>${items.map(evidence =>
+    `<tr><th>${escapeHtml(evidence.name)}<small>${getEvidenceActivityWeight(evidence)}% de l'element</small></th>${LEVEL_LABELS.slice(1).map((_, index) => `<td><span class="worksheet-radio"></span>${activity.type !== "Prova" && evidence.descriptors?.[String(index + 1)] ? `<small class="worksheet-level-descriptor">${escapeHtml(evidence.descriptors[String(index + 1)])}</small>` : ""}</td>`).join("")}</tr>`
   ).join("")}</tbody></table>`;
   const overallRating = `<table class="worksheet-rating worksheet-overall"><thead><tr><th>Valoració global</th>${scaleHeaders}</tr></thead><tbody><tr><th>Com valores l'acompanyament del docent en aquesta activitat?</th>${LEVEL_LABELS.slice(1).map(() => `<td><span class="worksheet-radio"></span></td>`).join("")}</tr></tbody></table>`;
   const commentSpace = `<div class="worksheet-comment"><strong>Comentari</strong><div></div><div></div></div>`;
@@ -293,9 +304,9 @@ export function openGroupAssessmentForms(components) {
     title,
     description,
     target,
-    activity.evidences.length
-      ? ratingRows(activity.evidences)
-      : '<p class="worksheet-no-peers">Aquesta activitat encara no té evidències a la rúbrica.</p>',
+    evaluationItems.length
+      ? ratingRows(evaluationItems)
+      : `<p class="worksheet-no-peers">Aquest element encara no té ${config.itemLabelPlural}.</p>`,
     commentSpace
   );
   const worksheetPage = (student, group, title, description, target, body, comments = "") => `<article class="worksheet-page">

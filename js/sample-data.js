@@ -19,9 +19,9 @@ export const sampleData = {
       title: "Anàlisi de l'impacte d'un telèfon mòbil",
       type: "Prova",
       date: "2026-10-21",
-      evidences: [
-        { id: "cr-1", name: "Impacte del cicle de vida", contributions: { "co-1": 60 } },
-        { id: "cr-2", name: "Ús de dades i arguments", contributions: { "co-2": 40 } }
+      questions: [
+        { id: "cr-1", name: "Quin impacte té el cicle de vida del telèfon?", contributions: { "co-1": 60 }, answerKey: "Descriu l'extracció de materials, la fabricació, l'ús i el final de vida." },
+        { id: "cr-2", name: "Quines dades justifiquen la conclusió?", contributions: { "co-2": 40 }, answerKey: "Cita dades pertinents i explica com sostenen la conclusió." }
       ]
     },
     {

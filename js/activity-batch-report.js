@@ -48,7 +48,7 @@ function safeName(value) {
 function reportDefinition(activity, report) {
   const generatedDate = new Intl.DateTimeFormat("ca-ES", { dateStyle: "long" }).format(new Date());
   const rows = [
-    [{ text: "Evidència i competències", bold: true }, { text: "Pes", bold: true }, { text: "Resultat", bold: true }],
+    [{ text: `${report.itemLabel || "Evidència"} i competències`, bold: true }, { text: "Pes", bold: true }, { text: "Resultat", bold: true }],
     ...report.evidences.map(evidence => [
       { stack: [{ text: evidence.name, bold: true }, { text: evidence.contributions, style: "secondary" }] },
       `${evidence.weight}%`,
@@ -59,7 +59,7 @@ function reportDefinition(activity, report) {
       ] }
     ])
   ];
-  if (!report.evidences.length) rows.push([{ text: "Aquesta activitat encara no té evidències.", colSpan: 3 }, "", ""]);
+  if (!report.evidences.length) rows.push([{ text: `Aquest element encara no té ${report.itemLabelPlural || "evidències"}.`, colSpan: 3 }, "", ""]);
   const gradeText = report.gradeLabel + (report.grade !== null && report.recovered ? " (recuperada, màxim 5/AS)" : "");
   const content = [
     { text: "INFORME D'AVALUACIÓ", style: "eyebrow" },
@@ -70,16 +70,16 @@ function reportDefinition(activity, report) {
       { stack: [{ text: "Grup classe", style: "secondary" }, { text: report.studentGroup, bold: true }] },
       { stack: [{ text: "Data de l'activitat", style: "secondary" }, { text: formatDate(activity.date), bold: true }] }
     ], columnGap: 12, margin: [0, 0, 0, 18] },
-    { text: "Nota final de l'activitat", style: "heading" },
-    { text: report.exempt ? "Aquesta activitat no es compta en la qualificació de l'alumne/a." : `${report.evaluatedEvidenceCount} de ${report.evidences.length} evidències avaluades`, style: "secondary" },
+    { text: "Nota final de l'element", style: "heading" },
+    { text: report.exempt ? "Aquest element no es compta en la qualificació de l'alumne/a." : `${report.evaluatedEvidenceCount} de ${report.evidences.length} ${report.itemLabelPlural || "evidències"} avaluades`, style: "secondary" },
     { text: gradeText, bold: true, fontSize: 13, margin: [0, 5, 0, 16] }
   ];
   if (report.recovered && !report.exempt) {
     content.push({ text: "Activitat recuperada", style: "heading" }, { text: RECOVERY_EXPLANATION, margin: [0, 0, 0, 15] });
   }
   content.push(
-    { text: "Progrés per evidència", style: "heading" },
-    { text: "La nota de cada evidència es mostra sobre 10 amb la seva qualificació textual.", style: "secondary", margin: [0, 0, 0, 8] },
+    { text: `Progrés per ${report.itemLabel || "evidència"}`, style: "heading" },
+    { text: `La nota de cada ${report.itemLabel || "evidència"} es mostra sobre 10 amb la seva qualificació textual.`, style: "secondary", margin: [0, 0, 0, 8] },
     { table: { headerRows: 1, widths: ["*", 35, "*"], body: rows }, layout: "lightHorizontalLines" }
   );
   if (report.feedback.trim()) {
