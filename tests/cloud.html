@@ -8,8 +8,12 @@
   <dialog id="cloud-dialog">
     <span id="cloud-detail"></span><button id="cloud-close"></button>
     <form id="cloud-config-form">
-      <input id="cloud-email">
+      <input id="cloud-email" type="email"><input id="cloud-password" type="password">
+      <button id="cloud-reset" type="submit" name="action" value="reset" formnovalidate>Reset</button>
+      <button id="cloud-signup" type="submit" name="action" value="signup">Sign up</button>
+      <button id="cloud-signin" type="submit" name="action" value="signin">Sign in</button>
     </form>
+    <form id="cloud-recovery-form" hidden><input id="cloud-new-password" type="password"><button type="submit">Update</button></form>
     <button id="cloud-retry"></button><button id="cloud-use-remote"></button>
     <button id="cloud-use-local"></button><button id="cloud-disconnect"></button>
   </dialog>

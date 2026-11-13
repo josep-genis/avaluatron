@@ -34,6 +34,10 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
   const detail = document.querySelector("#cloud-detail");
   const form = document.querySelector("#cloud-config-form");
   const emailInput = document.querySelector("#cloud-email");
+  const passwordInput = document.querySelector("#cloud-password");
+  const signupButton = document.querySelector("#cloud-signup");
+  const recoveryForm = document.querySelector("#cloud-recovery-form");
+  const newPasswordInput = document.querySelector("#cloud-new-password");
   const retryButton = document.querySelector("#cloud-retry");
   const remoteButton = document.querySelector("#cloud-use-remote");
   const localButton = document.querySelector("#cloud-use-local");
@@ -48,10 +52,12 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
   let onboarding = false;
   let authRequired = false;
   let projectMismatch = false;
+  let recovering = new URLSearchParams(location.hash.slice(1)).get("type") === "recovery";
+  let authenticating = false;
 
   function display() {
     let text = "Mode local";
-    let description = "El mode local funciona sense compte. Introdueix el correu per iniciar sessió o crear un compte.";
+    let description = "El mode local funciona sense compte. Introdueix el correu i la contrasenya per entrar o crear un compte.";
     let indicator = "local";
     if (active) {
       indicator = connection === "connected" && !cache.pending && !cache.conflict && !stale ? "connected" : "warning";
@@ -71,15 +77,18 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
     } else if (info) {
       description = info;
     }
+    if (recovering) description = info || lastError || "Introdueix una contrasenya nova per al teu compte.";
     status.textContent = text;
     button.dataset.status = indicator;
     button.title = description;
     detail.textContent = description;
-    form.hidden = !client || projectMismatch || (Boolean(active) && !authRequired);
-    retryButton.hidden = !active || stale || projectMismatch;
-    remoteButton.hidden = !active || !cache.conflict || stale || projectMismatch;
-    localButton.hidden = !active || !cache.conflict || stale || projectMismatch;
-    disconnectButton.hidden = !active;
+    form.hidden = recovering || !client || projectMismatch || (Boolean(active) && !authRequired);
+    recoveryForm.hidden = !recovering;
+    signupButton.hidden = Boolean(active);
+    retryButton.hidden = !active || stale || projectMismatch || recovering;
+    remoteButton.hidden = !active || !cache.conflict || stale || projectMismatch || recovering;
+    localButton.hidden = !active || !cache.conflict || stale || projectMismatch || recovering;
+    disconnectButton.hidden = !active || recovering;
     privacy.textContent = projectMismatch
       ? "Aquesta còpia es desa només al dispositiu i no se sincronitzarà amb el projecte actual."
       : active
@@ -104,8 +113,27 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
     if (!config) return;
     client = globalThis.supabase.createClient(config.url, config.key);
     client.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION" && !session && recovering) {
+        recovering = false;
+        setTimeout(() => {
+          reportError(new Error("L'enllaç de recuperació ha caducat o no és vàlid. Demana'n un altre."));
+          if (!dialog.open) dialog.showModal();
+        }, 0);
+        return;
+      }
+      if (event === "PASSWORD_RECOVERY" && session?.user) {
+        recovering = true;
+        info = "";
+        lastError = "";
+        setTimeout(() => {
+          display();
+          if (!dialog.open) dialog.showModal();
+        }, 0);
+        return;
+      }
       if (event === "SIGNED_IN" && session?.user) {
         setTimeout(() => {
+          if (recovering) return;
           if (!active) {
             if (!localStorage.getItem(LOCAL_MODE_KEY)) activate(session.user).catch(reportError);
           } else if (projectMismatch) {
@@ -218,7 +246,7 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
   }
 
   async function sync() {
-    if (!active || busy || stale || cache.conflict || projectMismatch) return;
+    if (!active || busy || stale || cache.conflict || projectMismatch || recovering) return;
     busy = true;
     connection = "syncing";
     display();
@@ -259,7 +287,7 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
   }
 
   async function resolveConflict(useLocal) {
-    if (!active || busy || stale || projectMismatch) return;
+    if (!active || busy || stale || projectMismatch || recovering) return;
     const message = useLocal
       ? "Vols substituir la còpia del núvol per aquesta còpia del dispositiu? Els canvis remots es perdran. Exporta les dades que vulguis conservar."
       : "Vols substituir aquesta còpia del dispositiu per la del núvol? Els canvis locals pendents es perdran. Exporta'ls abans si els vols conservar.";
@@ -288,18 +316,79 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
   document.querySelector("#cloud-close").addEventListener("click", () => dialog.close());
   form.addEventListener("submit", async event => {
     event.preventDefault();
+    if (authenticating) return;
+    let previousLocalMode;
+    let changedLocalMode = false;
+    authenticating = true;
+    form.querySelectorAll("button").forEach(button => { button.disabled = true; });
     try {
       if (!client || projectMismatch) throw new Error("La sincronització no està disponible. Contacta amb l'administrador.");
+      const action = event.submitter?.value || "signin";
+      const email = emailInput.value.trim();
+      if (!email || !emailInput.checkValidity()) throw new Error("Introdueix un correu electrònic vàlid.");
       const redirectTo = location.origin + location.pathname;
+      if (action === "reset") {
+        const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
+        if (error) throw error;
+        lastError = "";
+        info = "Si el compte existeix, rebràs un correu per restablir la contrasenya.";
+        display();
+        notify(info);
+        return;
+      }
+      if (!passwordInput.value) throw new Error("Introdueix la contrasenya.");
+      previousLocalMode = localStorage.getItem(LOCAL_MODE_KEY);
       localStorage.removeItem(LOCAL_MODE_KEY);
-      const { error } = await client.auth.signInWithOtp({ email: emailInput.value.trim(), options: { emailRedirectTo: redirectTo } });
+      changedLocalMode = true;
+      const credentials = { email, password: passwordInput.value };
+      const { data: result, error } = action === "signup"
+        ? await client.auth.signUp({ ...credentials, options: { emailRedirectTo: redirectTo } })
+        : await client.auth.signInWithPassword(credentials);
       if (error) throw error;
+      passwordInput.value = "";
       lastError = "";
-      info = "Revisa el correu i obre l'enllaç en aquest mateix navegador.";
+      info = action === "signup" && !result.session
+        ? "Si el compte es pot crear, rebràs un correu de confirmació. Confirma'l i després inicia sessió."
+        : "";
       display();
-      notify(info);
+      if (info) notify(info);
+    } catch (error) {
+      if (changedLocalMode && previousLocalMode !== null) localStorage.setItem(LOCAL_MODE_KEY, previousLocalMode);
+      reportError(error);
+    } finally {
+      authenticating = false;
+      form.querySelectorAll("button").forEach(button => { button.disabled = false; });
+    }
+  });
+  recoveryForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (authenticating) return;
+    authenticating = true;
+    const submit = recoveryForm.querySelector("button");
+    submit.disabled = true;
+    try {
+      const { data: result, error } = await client.auth.updateUser({ password: newPasswordInput.value });
+      if (error) throw error;
+      newPasswordInput.value = "";
+      recovering = false;
+      localStorage.removeItem(LOCAL_MODE_KEY);
+      info = "";
+      lastError = "";
+      notify("Contrasenya actualitzada.");
+      if (!active && result.user) await activate(result.user);
+      else if (active && result.user?.id === active.userId) {
+        authRequired = false;
+        await sync();
+      } else if (active) {
+        authRequired = true;
+        throw new Error("Aquest espai pertany a un altre compte. Inicia sessió amb el compte original.");
+      }
+      display();
     } catch (error) {
       reportError(error);
+    } finally {
+      authenticating = false;
+      submit.disabled = false;
     }
   });
   retryButton.addEventListener("click", () => sync());
@@ -385,8 +474,8 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
         }
         initializeClient();
         display();
-        if (active) sync();
-        else if (client) client.auth.getSession().then(({ data: result, error }) => {
+        if (active && !recovering) sync();
+        else if (client && !recovering) client.auth.getSession().then(({ data: result, error }) => {
           if (error) throw error;
           if (result.session?.user && !localStorage.getItem(LOCAL_MODE_KEY)) return activate(result.session.user);
         }).catch(reportError);

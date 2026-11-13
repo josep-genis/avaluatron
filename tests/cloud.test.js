@@ -3,11 +3,20 @@ import { createCloud } from "../js/cloud.js";
 const results = document.querySelector("#results");
 const storage = new Map();
 const mismatchTest = new URLSearchParams(location.search).has("mismatch");
+const recoveryTest = new URLSearchParams(location.search).has("recovery");
+const immediateSignupTest = new URLSearchParams(location.search).has("signup");
+const reauthTest = new URLSearchParams(location.search).has("reauth");
 if (mismatchTest) {
   const url = "https://old-project.supabase.co";
   storage.set("avaluatro.cloud.active.v1", JSON.stringify({ url, userId: "teacher" }));
   storage.set(`avaluatro.cloud.workspace.v1:${encodeURIComponent(url)}:teacher`,
     JSON.stringify({ payload: { value: "old pending edit" }, revision: 1, pending: true, conflict: false }));
+}
+if (reauthTest) {
+  const url = "https://example.supabase.co";
+  storage.set("avaluatro.cloud.active.v1", JSON.stringify({ url, userId: "teacher" }));
+  storage.set(`avaluatro.cloud.workspace.v1:${encodeURIComponent(url)}:teacher`,
+    JSON.stringify({ payload: { value: "pending offline" }, revision: 1, pending: true, conflict: false }));
 }
 Object.defineProperty(window, "localStorage", {
   value: {
@@ -19,9 +28,12 @@ Object.defineProperty(window, "localStorage", {
 window.confirm = () => true;
 let session = null;
 let callback;
-let remote = null;
+let remote = reauthTest ? { revision: 1, payload: { value: "previous remote" } } : null;
 let offline = false;
 let holdSave = null;
+let resetEmail;
+let signupConfirmation = true;
+let updatedPassword;
 const clone = value => structuredClone(value);
 const failure = () => offline ? { message: "Servidor inaccessible" } : null;
 window.supabase = {
@@ -31,10 +43,29 @@ window.supabase = {
       auth: {
         onAuthStateChange(fn) { callback = fn; },
         async getSession() { return { data: { session }, error: null }; },
-        async signInWithOtp() {
+        async signInWithPassword({ email, password }) {
+          if (email !== "teacher@example.com" || password !== "correct-password") {
+            return { data: { session: null }, error: { message: "Invalid login credentials" } };
+          }
           session = { user: { id: "teacher" } };
           callback("SIGNED_IN", session);
+          return { data: { session }, error: null };
+        },
+        async signUp({ email, password, options }) {
+          if (email !== "teacher@example.com" || password !== "correct-password" || options.emailRedirectTo !== location.origin + location.pathname) throw new Error("Incorrect signup parameters");
+          if (signupConfirmation) return { data: { session: null }, error: null };
+          session = { user: { id: "teacher" } };
+          callback("SIGNED_IN", session);
+          return { data: { session }, error: null };
+        },
+        async resetPasswordForEmail(email, { redirectTo }) {
+          if (redirectTo !== location.origin + location.pathname) throw new Error("Incorrect recovery redirect");
+          resetEmail = email;
           return { error: null };
+        },
+        async updateUser({ password }) {
+          updatedPassword = password;
+          return { data: { user: session.user }, error: null };
         },
         async signOut() { session = null; return { error: failure() }; }
       },
@@ -78,6 +109,30 @@ const click = selector => document.querySelector(selector).click();
 
 async function run() {
   cloud.start();
+  if (reauthTest) {
+    await waitFor(() => !document.querySelector("#cloud-config-form").hidden, "Expired session prompts for sign-in");
+    assert(visible.value === "pending offline", "Pending data remains available");
+    assert(document.querySelector("#cloud-signup").hidden, "Existing workspace requires original account");
+    document.querySelector("#cloud-email").value = "teacher@example.com";
+    document.querySelector("#cloud-password").value = "correct-password";
+    click("#cloud-signin");
+    await waitFor(() => remote.payload.value === "pending offline" && status() === "Núvol sincronitzat", "Reauthentication syncs pending data");
+    results.textContent = "PASS: expired session reauthentication and pending sync";
+    return;
+  }
+  if (recoveryTest) {
+    session = { user: { id: "teacher" } };
+    callback("PASSWORD_RECOVERY", session);
+    await waitFor(() => !document.querySelector("#cloud-recovery-form").hidden, "Recovery form opens");
+    assert(document.querySelector("#cloud-config-form").hidden, "Sign-in form hidden during recovery");
+    document.querySelector("#cloud-new-password").value = "new-password";
+    document.querySelector("#cloud-recovery-form").requestSubmit();
+    await waitFor(() => remote?.revision === 1 && status() === "Núvol sincronitzat", "Recovery activates cloud after update");
+    assert(updatedPassword === "new-password", "New password passed to Supabase");
+    assert(document.querySelector("#cloud-new-password").value === "", "New password cleared after update");
+    results.textContent = "PASS: password recovery and account activation";
+    return;
+  }
   if (mismatchTest) {
     assert(cloud.isActive() && visible.value === "old pending edit", "Previous project copy remains available");
     assert(status() === "Còpia d'un altre projecte", "Project change is clearly indicated");
@@ -95,9 +150,29 @@ async function run() {
   }
   assert(!cloud.isActive() && status() === "Mode local", "Starts in local mode");
   click("#cloud-button");
-  assert(document.querySelectorAll("#cloud-config-form input").length === 1, "Sign-in requires only email");
   document.querySelector("#cloud-email").value = "teacher@example.com";
-  document.querySelector("#cloud-config-form").dispatchEvent(new Event("submit", { cancelable: true }));
+  if (immediateSignupTest) {
+    signupConfirmation = false;
+    document.querySelector("#cloud-password").value = "correct-password";
+    click("#cloud-signup");
+    await waitFor(() => remote?.revision === 1 && status() === "Núvol sincronitzat", "Immediate signup activates cloud");
+    assert(document.querySelector("#cloud-password").value === "", "Password cleared after signup");
+    results.textContent = "PASS: signup without email confirmation";
+    return;
+  }
+  document.querySelector("#cloud-password").value = "wrong-password";
+  click("#cloud-signin");
+  await waitFor(() => status() === "Error del núvol", "Invalid password is reported");
+  assert(!cloud.isActive() && remote === null, "Invalid password keeps local mode");
+  click("#cloud-reset");
+  await waitFor(() => resetEmail === "teacher@example.com", "Password reset requested");
+  assert(!cloud.isActive(), "Password reset keeps local mode");
+  document.querySelector("#cloud-password").value = "correct-password";
+  click("#cloud-signup");
+  await waitFor(() => document.querySelector("#cloud-detail").textContent.includes("confirmació"), "Signup confirmation instructions");
+  assert(!cloud.isActive() && remote === null, "Unconfirmed signup does not sync");
+  document.querySelector("#cloud-password").value = "correct-password";
+  click("#cloud-signin");
   await waitFor(() => remote?.revision === 1 && status() === "Núvol sincronitzat", "Initial upload");
   assert(visible.value === "local" && remote.payload.value === "local", "Confirmed local copy is uploaded");
 

@@ -62,8 +62,17 @@
         <form id="cloud-config-form">
           <div class="form-grid">
             <div class="field full"><label for="cloud-email">Correu electrònic</label><input id="cloud-email" type="email" required autocomplete="email"></div>
+            <div class="field full"><label for="cloud-password">Contrasenya</label><input id="cloud-password" type="password" required autocomplete="current-password"></div>
           </div>
-          <div class="form-actions"><span></span><button class="button button-primary" type="submit">Envia l'enllaç d'accés</button></div>
+          <div class="form-actions cloud-actions">
+            <button class="button" type="submit" name="action" value="reset" formnovalidate>He oblidat la contrasenya</button>
+            <button class="button" id="cloud-signup" type="submit" name="action" value="signup">Crea un compte</button>
+            <button class="button button-primary" type="submit" name="action" value="signin">Entra</button>
+          </div>
+        </form>
+        <form id="cloud-recovery-form" hidden>
+          <div class="field full"><label for="cloud-new-password">Contrasenya nova</label><input id="cloud-new-password" type="password" required autocomplete="new-password"></div>
+          <div class="form-actions"><span></span><button class="button button-primary" type="submit">Desa la contrasenya</button></div>
         </form>
         <div class="form-actions cloud-actions">
           <button class="button" id="cloud-retry" type="button">Torna a sincronitzar</button>
