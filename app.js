@@ -24,6 +24,7 @@ import { openActivityReport, openActivityGroupReports, openGroupAssessmentForms 
 import { exportActivityReportsBatch } from "./js/activity-batch-report.js";
 import { convertEvaluationItems, getEvaluationConfig, getEvaluationItems } from "./js/assessment.js";
 import { initializeNavigation, syncNavigation } from "./js/navigation.js";
+import { createCloud } from "./js/cloud.js";
 import {
   exportActivityTable, exportActivityGroupsTable, exportActivityRubricTable,
   openActivityRubricReport
@@ -46,6 +47,7 @@ const dialogForm = document.querySelector("#dialog-form");
 const dialogContent = document.querySelector("#dialog-content");
 const toast = document.querySelector("#toast");
 let toastTimer;
+let cloud;
 
 function loadData() {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -78,7 +80,9 @@ function validateData(value) {
 function saveData() {
   try {
     data.savedAt = new Date().toISOString();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(withoutUnmodifiedBank(data)));
+    const payload = clone(withoutUnmodifiedBank(data));
+    if (cloud?.isActive()) cloud.save(payload);
+    else localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     setSaveStatus("Desat al dispositiu");
     return true;
   } catch (error) {
@@ -141,7 +145,7 @@ function openDialog(title, subtitle, body, submitLabel) {
 
 function openTeacherProfileDialog() {
   const profile = data.teacherProfile;
-  openDialog("Edita el perfil docent", "Aquestes dades es desen al dispositiu i s'inclouen a les còpies de les teves dades.", `<div class="form-grid">
+  openDialog("Edita el perfil docent", "Aquestes dades es desen al dispositiu, s'inclouen a les còpies i se sincronitzen si actives el núvol.", `<div class="form-grid">
     <div class="field full"><label for="teacher-profile-name">Nom i cognoms</label><input id="teacher-profile-name" name="name" type="text" maxlength="120" autocomplete="name" value="${escapeHtml(profile.name)}"></div>
     <div class="field full"><label for="teacher-profile-role">Funció professional</label><input id="teacher-profile-role" name="role" type="text" maxlength="120" placeholder="Ex.: Professor/a de tecnologia" value="${escapeHtml(profile.role)}"></div>
     <div class="field full"><label for="teacher-profile-institution">Centre educatiu</label><input id="teacher-profile-institution" name="institution" type="text" maxlength="120" autocomplete="organization" value="${escapeHtml(profile.institution)}"></div>
@@ -693,7 +697,7 @@ function importData(file) {
       } else if (!Number.isNaN(currentTime) && importedTime < currentTime) {
         warning = `⚠️ Estàs important una versió MÉS ANTIGA de les dades.\nFitxer: ${formatDate(importedTime)}\nDades actuals: ${formatDate(currentTime)}\nSe sobreescriuran els canvis posteriors.\n\n`;
       }
-      if (!globalThis.confirm(`${warning}La importació substituirà totes les dades actuals d'aquest dispositiu. Vols continuar?`)) return;
+      if (!globalThis.confirm(`${warning}La importació substituirà les dades de l'espai actual${cloud?.isActive() ? " i se sincronitzarà amb el núvol" : " d'aquest dispositiu"}. Vols continuar?`)) return;
       const previous = data;
       setData(imported);
       if (!saveData()) {
@@ -1062,8 +1066,13 @@ document.addEventListener("click", event => {
     const activity = data.activities.find(item => item.id === state.selectedActivityId);
     const mode = gradingModeButton.dataset.setGradingMode === "group" ? "group" : "individual";
     if (activity && activity.groupGrading !== mode) {
+      const previousData = clone(data);
       activity.groupGrading = mode;
-      saveData();
+      if (!saveData()) {
+        setData(previousData);
+        renderActivityDetail();
+        return;
+      }
       renderActivityDetail();
       showToast(mode === "group" ? "Qualificació en grup activada." : "Qualificació individual activada.");
     }
@@ -1083,8 +1092,13 @@ document.addEventListener("click", event => {
     const activity = data.activities.find(item => item.id === state.selectedActivityId);
     const group = activity?.groups.find(item => item.id === deleteActivityGroupButton.dataset.deleteActivityGroup);
     if (group && globalThis.confirm(`Vols eliminar l'agrupament «${group.name}»? Les notes dels alumnes es conserven.`)) {
+      const previousData = clone(data);
       activity.groups = activity.groups.filter(item => item !== group);
-      saveData();
+      if (!saveData()) {
+        setData(previousData);
+        renderActivityDetail();
+        return;
+      }
       renderActivityDetail();
       showToast("Agrupament eliminat.");
     }
@@ -2237,6 +2251,7 @@ content.addEventListener("change", event => {
     renderActivityDetail();
     return;
   }
+  const previousData = clone(data);
   let assessment = data.assessments.find(item =>
     item.studentId === studentId && item.activityId === activity.id && item.offeringId === offering.id
   );
@@ -2246,7 +2261,11 @@ content.addEventListener("change", event => {
   }
   if (!offering.studentIds.includes(studentId)) offering.studentIds.push(studentId);
   assessment.levels[evidenceId] = Number(select.value);
-  saveData();
+  if (!saveData()) {
+    setData(previousData);
+    renderActivityDetail();
+    return;
+  }
   const selectedLevel = Number(select.value);
   select.className = `grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}`;
   const activityGrade = calculateActivityGrade(data, studentId, activity, offering.subjectId, offering.id);
@@ -2260,3 +2279,16 @@ for (const eventType of ["click", "submit", "change", "input"]) {
 }
 initializeNavigation(render, dialog, showToast);
 startIconDecorator();
+cloud = createCloud({
+  readLocal: loadData,
+  validate: value => validateData(clone(value)),
+  serialize: value => clone(withoutUnmodifiedBank(value)),
+  applyData: value => {
+    if (dialog.open) dialog.close();
+    setData(value);
+    setView("overview");
+    syncNavigation();
+  },
+  notify: showToast
+});
+cloud.start();

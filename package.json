@@ -1,6 +1,7 @@
 {
   "private": true,
   "dependencies": {
+    "@supabase/supabase-js": "2.119.0",
     "fflate": "0.8.2",
     "pdfmake": "0.2.20"
   }

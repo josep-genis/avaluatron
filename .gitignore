@@ -82,6 +82,7 @@ Thumbs.db
 # ignore log files and databases
 *.log
 *.sql
+!supabase/schema.sql
 *.sqlite
 
 # ignore compiled files

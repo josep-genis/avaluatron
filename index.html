@@ -7,6 +7,7 @@
     <title>Avaluatró — Avaluació per competències</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/iconoir-icons/iconoir@7.12.1/css/iconoir.css">
     <link rel="stylesheet" href="styles.css">
+    <script src="third-party/supabase/supabase.js"></script>
     <script type="module" src="app.js"></script>
   </head>
   <body>
@@ -38,6 +39,7 @@
           <nav class="breadcrumbs" aria-label="Fil d'Ariadna"><strong id="current-section" aria-current="page">Espai docent</strong></nav>
           <div class="top-actions">
             <span class="save-indicator"><span class="save-dot"></span><span id="save-status">Desat al dispositiu</span></span>
+            <button class="button button-quiet cloud-indicator" id="cloud-button" type="button" aria-label="Compte i estat del núvol"><span class="cloud-dot"></span><span id="cloud-status">Mode local</span></button>
             <button class="button button-quiet" id="import-button" type="button" aria-label="Importa dades"><i class="iconoir-upload" aria-hidden="true"></i><span class="action-button-label"> Importa</span></button>
             <button class="button button-quiet" id="export-button" type="button" aria-label="Exporta dades JSON"><i class="iconoir-download" aria-hidden="true"></i><span class="action-button-label"> Exporta JSON</span></button>
             <input id="student-csv-file" type="file" accept=".csv,text/csv,text/plain" hidden>
@@ -46,13 +48,30 @@
           </div>
         </header>
         <section id="app-content" class="content" aria-live="polite"></section>
-        <footer class="privacy-note"><i class="iconoir-shield-check" aria-hidden="true"></i> Les dades es desen al dispositiu.</footer>
+        <footer class="privacy-note"><i class="iconoir-shield-check" aria-hidden="true"></i> <span id="privacy-status">Les dades es desen al dispositiu.</span></footer>
       </main>
     </div>
     <dialog id="app-dialog" class="app-dialog">
       <form id="dialog-form" method="dialog">
         <div id="dialog-content"></div>
       </form>
+    </dialog>
+    <dialog id="cloud-dialog" class="app-dialog">
+      <div id="cloud-dialog-content">
+        <div class="dialog-heading"><div><h2>Compte i núvol</h2><p id="cloud-detail">El mode local funciona sense compte.</p></div><button class="icon-button" id="cloud-close" type="button" aria-label="Tanca">×</button></div>
+        <form id="cloud-config-form">
+          <div class="form-grid">
+            <div class="field full"><label for="cloud-email">Correu electrònic</label><input id="cloud-email" type="email" required autocomplete="email"></div>
+          </div>
+          <div class="form-actions"><span></span><button class="button button-primary" type="submit">Envia l'enllaç d'accés</button></div>
+        </form>
+        <div class="form-actions cloud-actions">
+          <button class="button" id="cloud-retry" type="button">Torna a sincronitzar</button>
+          <button class="button" id="cloud-use-remote" type="button">Carrega la còpia del núvol</button>
+          <button class="button button-danger" id="cloud-use-local" type="button">Substitueix la còpia del núvol</button>
+          <button class="button" id="cloud-disconnect" type="button">Torna al mode local</button>
+        </div>
+      </div>
     </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </body>

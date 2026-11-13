@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Cloud synchronization tests</title></head>
+<body>
+  <pre id="results">Running…</pre>
+  <button id="cloud-button"><span id="cloud-status"></span></button>
+  <span id="privacy-status"></span>
+  <dialog id="cloud-dialog">
+    <span id="cloud-detail"></span><button id="cloud-close"></button>
+    <form id="cloud-config-form">
+      <input id="cloud-email">
+    </form>
+    <button id="cloud-retry"></button><button id="cloud-use-remote"></button>
+    <button id="cloud-use-local"></button><button id="cloud-disconnect"></button>
+  </dialog>
+  <script type="module" src="cloud.test.js"></script>
+</body>
+</html>

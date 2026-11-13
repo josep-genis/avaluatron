@@ -109,6 +109,13 @@ button { cursor: pointer; }
 .save-indicator { display: inline-flex; align-items: center; gap: 7px; margin-right: 8px; color: var(--text-2); font-size: 10px; }
 .save-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
 .save-indicator.error .save-dot { background: var(--red); }
+.cloud-indicator { white-space: nowrap; }
+.cloud-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--muted); }
+.cloud-indicator[data-status="connected"] .cloud-dot { background: var(--green); }
+.cloud-indicator[data-status="warning"] .cloud-dot { background: var(--red); }
+.cloud-actions { flex-wrap: wrap; gap: 8px; }
+#cloud-dialog-content { max-height: min(88vh, 760px); overflow: auto; padding: 23px; }
+#cloud-dialog [hidden] { display: none; }
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--text-2); font-size: 10px; font-weight: 600; transition: .16s; }
 .button:hover { border-color: var(--line-strong); background: var(--accent-soft); color: var(--green-dark); }
 .button-primary { border-color: var(--green); background: var(--green); color: var(--on-accent); }
