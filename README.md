@@ -18,6 +18,7 @@ L'exportació dels informes en lot fa servir pdfmake 0.2.20 i fflate 0.8.2, incl
 
 ## Funcionalitats
 
+- El fil d'Ariadna permet tornar als nivells superiors de cada vista. Els botons Enrere i Endavant del navegador recuperen les vistes visitades i el seu context durant la sessió, també després de recarregar la pàgina.
 - Crea cursos acadèmics i grups classe anuals amb desdoblaments opcionals. Les matrícules de l'alumnat es conserven per curs; cada alumne també pot pertànyer a diversos grups addicionals.
 - Crea assignatures, nivells i seqüències programatives sense assignar-hi cap grup d'alumnes. Les situacions d'aprenentatge contenen activitats i proves amb temporització en hores. Les activitats s'organitzen amb evidències i criteris d'assoliment; les proves, amb preguntes, contribucions per competència i un solucionari per pregunta. Tots dos tipus comparteixen el càlcul de notes i contribucions ponderades per les hores.
 - Crea ofertes docents per connectar un nivell programatiu amb grups classe o addicionals d'un curs acadèmic. Només les ofertes del curs vigent presenten alumnat per avaluar; les ofertes i qualificacions d'altres cursos es conserven com a historial. Si canvia una matrícula, les notes ja registrades continuen vinculades a l'oferta on es van obtenir.

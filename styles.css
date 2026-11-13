@@ -99,8 +99,11 @@ button { cursor: pointer; }
 
 .main-area { min-height: 100vh; margin-left: 244px; }
 .topbar { position: sticky; top: 0; z-index: 2; display: flex; min-height: 66px; align-items: center; justify-content: space-between; gap: 18px; padding: 0 43px; border-bottom: 1px solid var(--line); background: var(--topbar-bg); backdrop-filter: blur(12px); }
-.breadcrumbs { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11px; }
+.breadcrumbs { display: flex; min-width: 0; align-items: center; gap: 10px; overflow-x: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .breadcrumbs strong { color: var(--ink); font-weight: 600; }
+.breadcrumbs button { padding: 4px 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.breadcrumbs button:hover { color: var(--green-dark); text-decoration: underline; }
+.breadcrumbs button:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
 .crumb-separator { color: var(--muted); }
 .top-actions { display: flex; align-items: center; gap: 9px; }
 .save-indicator { display: inline-flex; align-items: center; gap: 7px; margin-right: 8px; color: var(--text-2); font-size: 10px; }
@@ -626,8 +629,8 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
   .nav-link { width: auto; flex: 0 0 auto; gap: 7px; padding: 9px; font-size: 10px; white-space: nowrap; }
   .nav-icon { width: auto; font-size: 14px; }
   .main-area { margin-left: 0; }
-  .topbar { position: static; min-height: 55px; padding: 0 15px; }
-  .breadcrumbs { display: none; }
+  .topbar { position: static; min-height: 55px; flex-wrap: wrap; gap: 0; padding: 8px 15px; }
+  .breadcrumbs { width: 100%; padding: 5px 0; }
   .top-actions { width: 100%; justify-content: flex-end; gap: 6px; }
   .save-indicator { margin-right: auto; font-size: 9px; }
   .button-quiet { padding: 0 8px; font-size: 9px; }

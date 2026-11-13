@@ -23,6 +23,7 @@ import { withoutUnmodifiedBank, getBankCompetency, isBankCompetency } from "./js
 import { openActivityReport, openActivityGroupReports, openGroupAssessmentForms } from "./js/activity-report.js";
 import { exportActivityReportsBatch } from "./js/activity-batch-report.js";
 import { convertEvaluationItems, getEvaluationConfig, getEvaluationItems } from "./js/assessment.js";
+import { initializeNavigation, syncNavigation } from "./js/navigation.js";
 import {
   exportActivityTable, exportActivityGroupsTable, exportActivityRubricTable,
   openActivityRubricReport
@@ -699,10 +700,8 @@ function importData(file) {
         setData(previous);
         return;
       }
-      state.currentView = "overview";
-      state.selectedActivityId = null;
-      state.selectedStudentId = null;
-      render();
+      setView("overview");
+      syncNavigation();
       showToast("Dades importades correctament.");
     } catch (error) {
       showToast(`No s'ha pogut importar el JSON: ${error.message}`, true);
@@ -820,6 +819,10 @@ document.querySelector("#daily-csv-file").addEventListener("change", event => {
 });
 
 document.querySelectorAll(".nav-link").forEach(button => button.addEventListener("click", () => setView(button.dataset.view)));
+document.querySelector(".brand").addEventListener("click", event => {
+  event.preventDefault();
+  setView("overview");
+});
 document.querySelector("#export-button").addEventListener("click", exportData);
 document.querySelector("#teacher-profile-button").addEventListener("click", () => setView("teacher-profile"));
 document.querySelector("#import-button").addEventListener("click", () => document.querySelector("#import-file").click());
@@ -2252,5 +2255,8 @@ content.addEventListener("change", event => {
   showToast("Avaluació desada. Les notes competencials s'han actualitzat.");
 });
 
-render();
+for (const eventType of ["click", "submit", "change", "input"]) {
+  document.addEventListener(eventType, syncNavigation);
+}
+initializeNavigation(render, dialog, showToast);
 startIconDecorator();
