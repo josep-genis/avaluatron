@@ -19,6 +19,7 @@ export const state = {
   competencySubject: "",
   studentQuery: "",
   studentSort: "name",
+  studentAdaptationFilter: "",
   selectedClassGroupId: "",
   selectedSubgroupId: "",
   selectedAdditionalGroupId: "",

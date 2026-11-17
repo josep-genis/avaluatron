@@ -10,6 +10,11 @@ export const DAILY_FOLLOWUP_CRITERIA = [
   { id: "collaboration", name: "Col·laboració" }
 ];
 
+export const STUDENT_ADAPTATIONS = {
+  methodological: "Adaptació metodològica",
+  curricular: "Adaptació curricular"
+};
+
 export function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -225,6 +230,7 @@ export function validateData(value, makeId) {
     student.classGroupId ||= "";
     student.subgroupId ||= "";
     student.additionalGroupIds ||= [];
+    student.adaptation ??= "";
     delete student.group;
   }
   for (const classGroup of value.classGroups) classGroup.subgroups ||= [];
@@ -272,6 +278,10 @@ export function validateData(value, makeId) {
     for (const student of value.students) {
       if (typeof student.firstName !== "string" || !student.firstName.trim() || typeof student.lastName !== "string") {
         throw new Error("cada alumne ha de tenir noms i cognoms vàlids.");
+      }
+      if (typeof student.adaptation !== "string" ||
+        student.adaptation && !Object.hasOwn(STUDENT_ADAPTATIONS, student.adaptation)) {
+        throw new Error("hi ha una adaptació d'alumne no vàlida.");
       }
     }
   }
@@ -401,6 +411,24 @@ export function validateData(value, makeId) {
       }
       delete item.weight;
       ids.add(item.id);
+    }
+    if (activity.adaptedDescriptors !== undefined) {
+      const currentItemIds = new Set(getEvaluationItems(activity).map(item => item.id));
+      if (!activity.adaptedDescriptors || typeof activity.adaptedDescriptors !== "object" ||
+        Array.isArray(activity.adaptedDescriptors) ||
+        Object.entries(activity.adaptedDescriptors).some(([adaptation, items]) =>
+          !Object.hasOwn(STUDENT_ADAPTATIONS, adaptation) ||
+          !items || typeof items !== "object" || Array.isArray(items) ||
+          Object.entries(items).some(([itemId, descriptors]) =>
+            !currentItemIds.has(itemId) || !descriptors || typeof descriptors !== "object" ||
+            Array.isArray(descriptors) || Object.entries(descriptors).some(([level, descriptor]) =>
+              !["1", "2", "3", "4"].includes(level) ||
+              typeof descriptor !== "string" || descriptor.length > 500
+            )
+          )
+        )) {
+        throw new Error("hi ha descriptors adaptats invàlids a la rúbrica.");
+      }
     }
     if (activity.conversionData !== undefined) {
       const currentItemIds = new Set(getEvaluationItems(activity).map(item => item.id));

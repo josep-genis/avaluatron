@@ -1,12 +1,12 @@
 import {
   clone, DAILY_FOLLOWUP_CRITERIA, getActivityOffers, getLevelOffers,
   getOfferingStudents, getSequenceActivities, getSequenceItems, getStudentEnrollment,
-  validateData as validateStoredData
+  STUDENT_ADAPTATIONS, validateData as validateStoredData
 } from "./js/data.js";
 import { data, state, setData } from "./js/state.js";
 import {
   setView, render, getClassGroup, classGroupOptions, subgroupOptions,
-  renderClassGroups, renderSubjectDetail, renderLevelDetail, renderLevelSequence, renderActivityDetail, renderActivityStudentReport, renderActivityRubric, renderStudentDetail, renderStudentSubjectReport, activityRubricEvidenceRowMarkup, activityRubricCompetencyMarkup, studentDisplayName,
+  renderClassGroups, renderSubjectDetail, renderLevelDetail, renderLevelSequence, renderActivityDetail, renderActivityStudentReport, renderActivityRubric, renderStudentDetail, renderStudentSubjectReport, activityRubricEvidenceRowMarkup, activityRubricAdaptedDescriptorRowMarkup, activityRubricCompetencyMarkup, studentDisplayName,
   updateActivityAssessmentRow, refreshActivityGroups, competencyOutcomeMarkup, competencyCriterionMarkup, competencyTagChip
 } from "./js/views.js";
 import {
@@ -25,6 +25,7 @@ import { exportActivityReportsBatch } from "./js/activity-batch-report.js";
 import { convertEvaluationItems, getEvaluationConfig, getEvaluationItems } from "./js/assessment.js";
 import { initializeNavigation, syncNavigation } from "./js/navigation.js";
 import { createCloud } from "./js/cloud.js";
+import { enableReordering } from "./js/reorder.js";
 import {
   exportActivityTable, exportActivityGroupsTable, exportActivityRubricTable,
   openActivityRubricReport
@@ -172,6 +173,7 @@ function openStudentDialogFor(studentId = null) {
   openDialog(editing ? "Edita el perfil de l'alumne" : "Afegeix un alumne", editing ? "Actualitza el grup classe, el desdoblament i els grups addicionals de l'alumne." : "Crea un perfil i assigna'l al seu grup classe i, si cal, a diversos grups addicionals.", `<div class="form-grid">
     <div class="field"><label for="student-first-name">Noms</label><input id="student-first-name" name="firstName" required maxlength="60" placeholder="Ex.: Júlia Maria"></div>
     <div class="field"><label for="student-last-name">Cognoms</label><input id="student-last-name" name="lastName" required maxlength="80" placeholder="Ex.: Martí Soler"></div>
+    <div class="field"><label for="student-adaptation">Adaptació de l'alumne</label><select id="student-adaptation" name="adaptation"><option value="">Cap adaptació</option>${Object.entries(STUDENT_ADAPTATIONS).map(([key, label]) => `<option value="${key}" ${student?.adaptation === key ? "selected" : ""}>${label}</option>`).join("")}</select></div>
     <div class="field"><label for="student-class-group">Grup classe</label><select id="student-class-group" name="classGroupId">${classGroupOptions(classGroupId)}</select></div>
     <div class="field"><label for="student-subgroup">Desdoblament</label><select id="student-subgroup" name="subgroupId" ${classGroupId ? "" : "disabled"}>${subgroupOptions(classGroupId, enrollment?.subgroupId || "")}</select></div>
     ${additionalGroupFields}
@@ -179,6 +181,7 @@ function openStudentDialogFor(studentId = null) {
   if (student) {
     dialogContent.querySelector("#student-first-name").value = student.firstName;
     dialogContent.querySelector("#student-last-name").value = student.lastName;
+    dialogContent.querySelector("#student-adaptation").value = student.adaptation || "";
   }
   dialogForm.dataset.formType = editing ? "edit-student" : "student";
   dialogForm.dataset.recordId = student?.id || "";
@@ -371,14 +374,14 @@ function educationalLevelOptions(selectedLevel = "") {
 
 function subjectSequenceItem(index, item = null, kind = item?.kind === "lecture" ? "lecture" : "activity") {
   if (kind === "lecture") {
-    return `<article class="subject-sequence-item" data-sequence-kind="lecture"><div class="subject-sequence-heading"><strong>Element ${index + 1} · Classe</strong><div><button class="text-button" type="button" data-move-sequence="-1" aria-label="Mou amunt">${icon("nav-arrow-up")}</button><button class="text-button" type="button" data-move-sequence="1" aria-label="Mou avall">${icon("nav-arrow-down")}</button><button class="text-button danger-text" type="button" data-remove-sequence-item>${icon("trash")} Elimina</button></div></div>
+    return `<article class="subject-sequence-item" data-reorder-item data-sequence-kind="lecture"><div class="subject-sequence-heading"><strong><span class="reorder-handle" data-reorder-handle aria-hidden="true" title="Arrossega per reordenar">⠿</span> <span data-sequence-label>Element ${index + 1} · Classe</span></strong><div><button class="text-button" type="button" data-move-sequence="-1" aria-label="Mou amunt">${icon("nav-arrow-up")}</button><button class="text-button" type="button" data-move-sequence="1" aria-label="Mou avall">${icon("nav-arrow-down")}</button><button class="text-button danger-text" type="button" data-remove-sequence-item>${icon("trash")} Elimina</button></div></div>
     <input type="hidden" name="sequenceItemId" value="${escapeHtml(item?.id || "")}">
     <div class="form-grid"><div class="field"><label>Títol de la classe</label><input name="sequenceTitle" type="text" maxlength="140" required placeholder="Ex.: Introducció al cicle de vida" value="${escapeHtml(item?.title || "")}"></div>
       <div class="field"><label>Temporització (hores)</label><input name="sequenceHours" type="number" min="0.25" max="1000" step="0.25" value="${item ? Number(item.hours) : 1}" required></div></div></article>`;
   }
   const selectedActivityId = item?.activityId || data.activities[0]?.id || "";
   const activities = data.activities.map(activity => `<option value="${escapeHtml(activity.id)}" ${selectedActivityId === activity.id ? "selected" : ""}>${escapeHtml(activity.title)} · ${escapeHtml(activity.type)}</option>`).join("");
-  return `<article class="subject-sequence-item" data-sequence-kind="activity"><div class="subject-sequence-heading"><strong>Element ${index + 1} · Activitat</strong><div><button class="text-button" type="button" data-move-sequence="-1" aria-label="Mou amunt">${icon("nav-arrow-up")}</button><button class="text-button" type="button" data-move-sequence="1" aria-label="Mou avall">${icon("nav-arrow-down")}</button><button class="text-button danger-text" type="button" data-remove-sequence-item>${icon("trash")} Elimina</button></div></div>
+  return `<article class="subject-sequence-item" data-reorder-item data-sequence-kind="activity"><div class="subject-sequence-heading"><strong><span class="reorder-handle" data-reorder-handle aria-hidden="true" title="Arrossega per reordenar">⠿</span> <span data-sequence-label>Element ${index + 1} · Activitat</span></strong><div><button class="text-button" type="button" data-move-sequence="-1" aria-label="Mou amunt">${icon("nav-arrow-up")}</button><button class="text-button" type="button" data-move-sequence="1" aria-label="Mou avall">${icon("nav-arrow-down")}</button><button class="text-button danger-text" type="button" data-remove-sequence-item>${icon("trash")} Elimina</button></div></div>
     <input type="hidden" name="sequenceItemId" value="${escapeHtml(item?.id || "")}">
     <div class="form-grid"><div class="field"><label>Activitat o examen</label><select name="sequenceActivityId" required ${data.activities.length ? "" : "disabled"}>${activities || '<option value="">Crea primer una activitat</option>'}</select></div>
       <div class="field"><label>Temporització (hores)</label><input name="sequenceHours" type="number" min="0.25" max="1000" step="0.25" value="${item ? Number(item.hours) : 1}" required></div></div></article>`;
@@ -386,8 +389,8 @@ function subjectSequenceItem(index, item = null, kind = item?.kind === "lecture"
 
 function subjectSequenceSituation(index, situation = null) {
   const activities = situation?.activities || [];
-  return `<section class="subject-sequence-situation">
-    <div class="subject-sequence-situation-heading"><strong>Situació d'aprenentatge ${index + 1}</strong><div>
+  return `<section class="subject-sequence-situation" data-reorder-item>
+    <div class="subject-sequence-situation-heading"><strong><span class="reorder-handle" data-reorder-handle aria-hidden="true" title="Arrossega per reordenar">⠿</span> <span data-situation-label>Situació d'aprenentatge ${index + 1}</span></strong><div>
       <button class="text-button" type="button" data-move-situation="-1" aria-label="Mou situació amunt">${icon("nav-arrow-up")}</button>
       <button class="text-button" type="button" data-move-situation="1" aria-label="Mou situació avall">${icon("nav-arrow-down")}</button>
       <button class="text-button danger-text" type="button" data-remove-situation>${icon("trash")} Elimina situació</button>
@@ -432,7 +435,7 @@ function openLevelDialog(levelId = null) {
     <div class="field full"><label for="level-name">Nivell educatiu</label><select id="level-name" name="name" required>${educationalLevelOptions(level?.name || "").replace('<option value="">Sense nivell</option>', '<option value="">Tria un nivell</option>')}</select></div>
     <div class="field full"><label>Competències avaluades en aquest nivell</label><div id="level-competencies">${competencyFields}</div><span class="field-hint">Les contribucions del nivell es calculen a partir de les evidències de cada activitat.</span></div>
   </div>
-  <div class="panel-heading subject-form-heading"><div><h3 class="section-title">Seqüència per situacions d'aprenentatge</h3><span class="section-caption">Cada situació conté les seves activitats. Les hores en ponderen automàticament les contribucions.</span></div></div>
+  <div class="panel-heading subject-form-heading"><div><h3 class="section-title">Seqüència per situacions d'aprenentatge</h3><span class="section-caption">Arrossega les nanses o fes servir les fletxes per ordenar les situacions i els seus elements. Les hores en ponderen les contribucions.</span></div></div>
   <div id="subject-sequence-list" class="subject-sequence-list">${situations.map((situation, index) => subjectSequenceSituation(index, situation)).join("")}</div>
   <button class="button" type="button" data-add-sequence-situation>${icon("plus")} Afegeix situació d'aprenentatge</button>
   ${!data.activities.length ? '<p class="field-hint">Crea primer activitats o exàmens a «Activitats i proves».</p>' : ""}`, level ? "Desa els canvis" : "Afegeix nivell");
@@ -1324,16 +1327,13 @@ document.addEventListener("click", event => {
     const direction = Number(moveSituationButton.dataset.moveSituation);
     if (direction < 0 && situation.previousElementSibling) listMoveBefore(situation, situation.previousElementSibling);
     if (direction > 0 && situation.nextElementSibling) listMoveBefore(situation.nextElementSibling, situation);
-    dialogContent.querySelectorAll(".subject-sequence-situation").forEach((item, index) => {
-      item.querySelector(".subject-sequence-situation-heading > strong").textContent = `Situació d'aprenentatge ${index + 1}`;
-    });
+    updateReorderLabels(situation.parentElement);
+    moveSituationButton.focus();
   }
   const removeSituationButton = event.target.closest("[data-remove-situation]");
   if (removeSituationButton) {
     removeSituationButton.closest(".subject-sequence-situation").remove();
-    dialogContent.querySelectorAll(".subject-sequence-situation").forEach((item, index) => {
-      item.querySelector(".subject-sequence-situation-heading > strong").textContent = `Situació d'aprenentatge ${index + 1}`;
-    });
+    updateReorderLabels(dialogContent.querySelector("#subject-sequence-list"));
   }
   const moveSequenceButton = event.target.closest("[data-move-sequence]");
   if (moveSequenceButton) {
@@ -1342,18 +1342,15 @@ document.addEventListener("click", event => {
     const direction = Number(moveSequenceButton.dataset.moveSequence);
     if (direction < 0 && item.previousElementSibling) listMoveBefore(item, item.previousElementSibling);
     if (direction > 0 && item.nextElementSibling) listMoveBefore(item.nextElementSibling, item);
-    list.querySelectorAll(".subject-sequence-item > .subject-sequence-heading > strong").forEach((label, index) => {
-      label.textContent = `Element ${index + 1} · ${label.closest(".subject-sequence-item").dataset.sequenceKind === "lecture" ? "Classe" : "Activitat"}`;
-    });
+    updateReorderLabels(list);
+    moveSequenceButton.focus();
   }
   const removeSequenceItemButton = event.target.closest("[data-remove-sequence-item]");
   if (removeSequenceItemButton) {
     const item = removeSequenceItemButton.closest(".subject-sequence-item");
     const list = item.parentElement;
     item.remove();
-    list.querySelectorAll(".subject-sequence-item > .subject-sequence-heading > strong").forEach((label, index) => {
-      label.textContent = `Element ${index + 1} · ${label.closest(".subject-sequence-item").dataset.sequenceKind === "lecture" ? "Classe" : "Activitat"}`;
-    });
+    updateReorderLabels(list);
   }
   if (event.target.closest("[data-add-rubric-evidence]")) {
     const body = document.querySelector("#activity-rubric-form tbody");
@@ -1361,18 +1358,51 @@ document.addEventListener("click", event => {
     const isTest = form.dataset.itemType === "Prova";
     body.querySelector(".rubric-empty-row")?.remove();
     const index = body.querySelectorAll("[data-rubric-evidence-row]").length;
+    const evidenceId = makeId("ev");
     body.insertAdjacentHTML("beforeend", activityRubricEvidenceRowMarkup(index, null, makeId("row"), isTest));
+    body.lastElementChild.querySelector('[name="rubricEvidenceId"]').value = evidenceId;
+    if (!isTest) {
+      for (const adaptation of Object.keys(STUDENT_ADAPTATIONS)) {
+        const adaptedBody = form.querySelector(`[data-adapted-descriptor-body="${adaptation}"]`);
+        adaptedBody.querySelector(".rubric-empty-row")?.remove();
+        adaptedBody.insertAdjacentHTML("beforeend", activityRubricAdaptedDescriptorRowMarkup({
+          id: evidenceId,
+          name: "",
+          descriptors: {}
+        }, adaptation, index));
+      }
+    }
+    updateReorderLabels(body);
     body.lastElementChild.querySelector('[name="rubricEvidenceName"]').focus();
+  }
+  const moveRubricEvidenceButton = event.target.closest("[data-move-rubric-evidence]");
+  if (moveRubricEvidenceButton) {
+    const row = moveRubricEvidenceButton.closest("[data-rubric-evidence-row]");
+    const direction = Number(moveRubricEvidenceButton.dataset.moveRubricEvidence);
+    if (direction < 0 && row.previousElementSibling) listMoveBefore(row, row.previousElementSibling);
+    if (direction > 0 && row.nextElementSibling) listMoveBefore(row.nextElementSibling, row);
+    updateReorderLabels(row.parentElement);
+    moveRubricEvidenceButton.focus();
   }
   const removeRubricEvidenceButton = event.target.closest("[data-remove-rubric-evidence]");
   if (removeRubricEvidenceButton) {
     const body = removeRubricEvidenceButton.closest("tbody");
-    removeRubricEvidenceButton.closest("[data-rubric-evidence-row]").remove();
+    const evidenceRow = removeRubricEvidenceButton.closest("[data-rubric-evidence-row]");
+    const evidenceId = evidenceRow.querySelector('[name="rubricEvidenceId"]').value;
+    evidenceRow.remove();
+    document.querySelectorAll(`[data-rubric-adapted-row][data-evidence-id="${CSS.escape(evidenceId)}"]`)
+      .forEach(row => row.remove());
     if (!body.querySelector("[data-rubric-evidence-row]")) {
       const isTest = document.querySelector("#activity-rubric-form").dataset.itemType === "Prova";
       const config = getEvaluationConfig({ type: isTest ? "Prova" : "Activitat" });
       body.innerHTML = `<tr class="rubric-empty-row"><td colspan="${isTest ? 3 : 6}">Encara no hi ha ${config.itemLabelPlural}. Afegeix-ne una per començar el ${config.editorLabel}.</td></tr>`;
+      if (!isTest) {
+        document.querySelectorAll("[data-adapted-descriptor-body]").forEach(adaptedBody => {
+          adaptedBody.innerHTML = '<tr class="rubric-empty-row"><td colspan="5">Afegeix evidències a la rúbrica comuna per definir-ne criteris adaptats.</td></tr>';
+        });
+      }
     }
+    updateReorderLabels(body);
     return;
   }
   const addRubricCompetencyButton = event.target.closest("[data-add-rubric-competency]");
@@ -1403,6 +1433,15 @@ document.addEventListener("click", event => {
   }
 });
 
+document.addEventListener("input", event => {
+  const nameInput = event.target.closest('#activity-rubric-form [name="rubricEvidenceName"]');
+  if (!nameInput) return;
+  const evidenceId = nameInput.closest("[data-rubric-evidence-row]").querySelector('[name="rubricEvidenceId"]').value;
+  const adaptedName = nameInput.value.trim() || "Evidència sense nom";
+  document.querySelectorAll(`[data-rubric-adapted-row][data-evidence-id="${CSS.escape(evidenceId)}"] [data-adapted-evidence-name]`)
+    .forEach(element => { element.textContent = adaptedName; });
+});
+
 document.addEventListener("keydown", event => {
   if ((event.key === "Enter" || event.key === " ") && event.target.matches(".subject-record-card, .level-record-card, .activity-card")) {
     event.preventDefault();
@@ -1413,6 +1452,25 @@ document.addEventListener("keydown", event => {
 function listMoveBefore(item, reference) {
   reference.parentNode.insertBefore(item, reference);
 }
+
+function updateReorderLabels(list) {
+  const isTest = list.closest("#activity-rubric-form")?.dataset.itemType === "Prova";
+  [...list.children].forEach((item, index) => {
+    if (item.matches(".subject-sequence-situation")) {
+      item.querySelector("[data-situation-label]").textContent = `Situació d'aprenentatge ${index + 1}`;
+    } else if (item.matches(".subject-sequence-item")) {
+      item.querySelector("[data-sequence-label]").textContent = `Element ${index + 1} · ${item.dataset.sequenceKind === "lecture" ? "Classe" : "Activitat"}`;
+    } else if (item.matches("[data-rubric-evidence-row]")) {
+      item.querySelector("[data-rubric-name-label]").textContent = `${isTest ? "Pregunta" : "Evidència"} ${index + 1}`;
+      item.querySelector("[data-rubric-competency-select]").setAttribute("aria-label", `Afegeix una competència a ${isTest ? "la pregunta" : "l'evidència"} ${index + 1}`);
+    }
+  });
+}
+
+enableReordering(document, list => {
+  updateReorderLabels(list);
+  showToast("Ordre modificat. Desa els canvis per conservar-lo.");
+});
 
 dialogContent.addEventListener("change", event => {
   if (event.target.id === "teaching-offer-year") {
@@ -1563,8 +1621,13 @@ dialogForm.addEventListener("submit", event => {
     }
     const firstName = String(formData.get("firstName")).trim();
     const lastName = String(formData.get("lastName")).trim();
+    const adaptation = String(formData.get("adaptation") || "");
     if (!firstName || !lastName) {
       showToast("Escriu els noms i els cognoms de l'alumne.", true);
+      return;
+    }
+    if (adaptation && !Object.hasOwn(STUDENT_ADAPTATIONS, adaptation)) {
+      showToast("Selecciona una adaptació de l'alumne vàlida.", true);
       return;
     }
     if (classGroupId && getClassGroup(classGroupId)?.academicYearId !== data.currentAcademicYearId) {
@@ -1579,9 +1642,10 @@ dialogForm.addEventListener("submit", event => {
       classGroupId,
       subgroupId,
       additionalGroupIds,
+      adaptation,
       enrollments: []
     };
-    Object.assign(updatedStudent, { firstName, lastName, academicYearId: data.currentAcademicYearId, classGroupId, subgroupId, additionalGroupIds });
+    Object.assign(updatedStudent, { firstName, lastName, academicYearId: data.currentAcademicYearId, classGroupId, subgroupId, additionalGroupIds, adaptation });
     const enrollment = updatedStudent.enrollments.find(item => item.academicYearId === data.currentAcademicYearId);
     const currentEnrollment = { academicYearId: data.currentAcademicYearId, classGroupId, subgroupId, additionalGroupIds };
     if (enrollment) Object.assign(enrollment, currentEnrollment);
@@ -1915,7 +1979,10 @@ content.addEventListener("submit", event => {
     const oldEvidenceIds = new Set(oldItems.map(evidence => evidence.id));
     const retainedEvidenceIds = new Set();
     const updatedItems = evidenceItems.map(evidence => {
-      const id = oldEvidenceIds.has(evidence.id) && !retainedEvidenceIds.has(evidence.id) ? evidence.id : makeId("ev");
+      const id = evidence.id && !retainedEvidenceIds.has(evidence.id) &&
+        (oldEvidenceIds.has(evidence.id) || evidence.id.startsWith("ev-"))
+        ? evidence.id
+        : makeId("ev");
       retainedEvidenceIds.add(id);
       const previousItem = oldItems.find(item => item.id === id);
       return {
@@ -1930,6 +1997,21 @@ content.addEventListener("submit", event => {
     } else {
       activity.evidences = updatedItems;
       delete activity.questions;
+      const adaptedDescriptors = {};
+      for (const adaptation of Object.keys(STUDENT_ADAPTATIONS)) {
+        const adaptedItems = {};
+        for (const row of rubricForm.querySelectorAll(`[data-rubric-adapted-row][data-adaptation="${adaptation}"]`)) {
+          const itemId = row.dataset.evidenceId;
+          if (!retainedEvidenceIds.has(itemId)) continue;
+          const descriptors = Object.fromEntries([...row.querySelectorAll("[data-adapted-descriptor-level]")]
+            .map(input => [input.dataset.adaptedDescriptorLevel, input.value.trim()])
+            .filter(([, descriptor]) => descriptor));
+          if (Object.keys(descriptors).length) adaptedItems[itemId] = descriptors;
+        }
+        if (Object.keys(adaptedItems).length) adaptedDescriptors[adaptation] = adaptedItems;
+      }
+      if (Object.keys(adaptedDescriptors).length) activity.adaptedDescriptors = adaptedDescriptors;
+      else delete activity.adaptedDescriptors;
     }
     for (const snapshots of Object.values(activity.conversionData || {})) {
       if (!snapshots || typeof snapshots !== "object") continue;

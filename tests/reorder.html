@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ca">
+<head><meta charset="utf-8"><title>Proves de reordenació</title>
+  <style>
+    [data-reorder-item] { height: 50px; border: 1px solid; }
+    [data-reorder-handle] { display: inline-block; padding: 5px; }
+  </style>
+</head>
+<body>
+  <pre id="results">Executant...</pre>
+  <div id="list-a">
+    <div data-reorder-item id="a"><span data-reorder-handle>A</span><input value="Original"></div>
+    <div data-reorder-item id="b"><span data-reorder-handle>B</span></div>
+    <div data-reorder-item id="c"><span data-reorder-handle>C</span></div>
+  </div>
+  <div id="list-b"><div data-reorder-item id="d"><span data-reorder-handle>D</span></div></div>
+  <script type="module" src="reorder.test.js"></script>
+</body>
+</html>

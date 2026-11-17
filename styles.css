@@ -225,6 +225,8 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .student-list-identity { display: grid; min-width: 0; gap: 4px; }
 .student-list-identity strong { overflow: hidden; color: var(--ink); font: 700 12px "Manrope", sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .student-list-identity span { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.student-adaptation-badge { display: inline-flex; width: fit-content; padding: 3px 7px; border: 1px solid var(--green-line); border-radius: 999px; background: var(--green-soft); color: var(--green-dark); font-size: 9px; font-weight: 700; line-height: 1.3; }
+.assessment-student-name + .assessment-student-group + .student-adaptation-badge { margin-top: 4px; }
 .student-list-grade { display: flex; align-items: center; gap: 12px; }
 .student-list-grade-label { color: var(--muted); font-size: 9px; white-space: nowrap; }
 .student-list-edit { flex: 0 0 auto; }
@@ -571,6 +573,13 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .subject-sequence-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; color: var(--text-2); font-size: 10px; }
 .subject-sequence-heading > div { display: flex; align-items: center; gap: 5px; }
 .subject-sequence-heading .text-button { margin: 0; }
+.reorder-handle { display: inline-flex; min-width: 28px; min-height: 28px; align-items: center; justify-content: center; border-radius: 5px; color: var(--text-2); cursor: grab; font-size: 20px; line-height: 1; touch-action: none; user-select: none; vertical-align: middle; }
+.reorder-handle:active { cursor: grabbing; }
+.reorder-dragging { opacity: .5; }
+.reorder-before { box-shadow: inset 0 3px 0 var(--green); }
+.reorder-after { box-shadow: inset 0 -3px 0 var(--green); }
+.activity-rubric-table tr.reorder-before > td { box-shadow: inset 0 3px 0 var(--green); }
+.activity-rubric-table tr.reorder-after > td { box-shadow: inset 0 -3px 0 var(--green); }
 .subject-contributions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .contribution-field { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text-2); font-size: 9px; }
 .contribution-field > span:first-child { overflow: hidden; text-overflow: ellipsis; }
@@ -596,6 +605,8 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .activity-rubric-table thead th small { display: block; margin-top: 4px; color: var(--muted); font-size: 8px; font-weight: 400; text-transform: none; }
 .activity-rubric-table .rubric-evidence-name-cell input { width: 100%; min-height: 36px; padding: 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; }
 .activity-rubric-table .rubric-evidence-name-cell .text-button { margin-top: 7px; }
+.rubric-reorder-controls { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+.activity-rubric-table .rubric-reorder-controls .text-button { margin: 0; }
 .rubric-page-competency-list { display: grid; gap: 6px; }
 .rubric-page-competency { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 5px; font-size: 9px; }
 .rubric-page-competency > span { min-width: 0; overflow-wrap: anywhere; }
@@ -607,6 +618,15 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .activity-rubric-table .evidence-competency-add select { min-height: 32px; font-size: 9px; }
 .activity-rubric-table .evidence-competency-add .icon-button { width: 32px; height: 32px; }
 .rubric-descriptor-cell textarea { width: 100%; min-height: 112px; padding: 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; font-size: 10px; line-height: 1.5; resize: vertical; }
+.activity-rubric-adaptation { margin-top: 14px; }
+.activity-rubric-adaptation > summary { cursor: pointer; list-style: none; }
+.activity-rubric-adaptation > summary::-webkit-details-marker { display: none; }
+.activity-rubric-adaptation > summary span { display: grid; gap: 4px; }
+.activity-rubric-adaptation > summary strong { font: 700 14px "Manrope", sans-serif; }
+.activity-rubric-adaptation > summary small { color: var(--muted); font-size: 10px; }
+.activity-rubric-adaptation > .section-caption { display: block; margin: 11px 0; }
+.adapted-descriptor-table th:first-child, .adapted-descriptor-table td:first-child { width: 205px; }
+.adapted-descriptor-table th:nth-child(n + 2), .adapted-descriptor-table td:nth-child(n + 2) { width: 190px; }
 .rubric-empty-row td { color: var(--muted); text-align: center; }
 .activity-rubric-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 13px; }
 .evidence-rubric-descriptors { margin-top: 7px; color: var(--text-2); font-size: 9px; }

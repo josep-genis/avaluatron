@@ -3,7 +3,7 @@ import { data, state } from "./state.js";
 import { EDUCATIONAL_LEVELS } from "./education.js";
 import { isBankCompetency, withoutUnmodifiedBank } from "./competency-bank.js";
 import {
-  DAILY_FOLLOWUP_CRITERIA, getActivityOffers,
+  DAILY_FOLLOWUP_CRITERIA, STUDENT_ADAPTATIONS, getActivityOffers,
   getCurrentAcademicYear, getLevelOffers, getOfferingStudents, getSequenceActivities, getSequenceItems, isLectureItem, getStudentEnrollment
 } from "./data.js";
 import {
@@ -23,6 +23,11 @@ import { getEvaluationConfig, getEvaluationItems, getEvaluationType } from "./as
 
 const content = document.querySelector("#app-content");
 let activityTableResizeObserver;
+
+function studentAdaptationBadge(student) {
+  const label = STUDENT_ADAPTATIONS[student.adaptation];
+  return label ? `<span class="student-adaptation-badge">${escapeHtml(label)}</span>` : "";
+}
 
 function getAssessment(studentId, activityId) {
   return calculateAssessment(data, studentId, activityId, state.selectedOfferingId);
@@ -434,7 +439,8 @@ function renderStudents() {
     const matchesClass = !state.selectedClassGroupId || student.classGroupId === state.selectedClassGroupId;
     const matchesSubgroup = !state.selectedSubgroupId || student.subgroupId === state.selectedSubgroupId;
     const matchesAdditionalGroup = !state.selectedAdditionalGroupId || student.additionalGroupIds.includes(state.selectedAdditionalGroupId);
-    return matchesQuery && matchesClass && matchesSubgroup && matchesAdditionalGroup;
+    const matchesAdaptation = !state.studentAdaptationFilter || student.adaptation === state.studentAdaptationFilter;
+    return matchesQuery && matchesClass && matchesSubgroup && matchesAdditionalGroup && matchesAdaptation;
   }).sort((a, b) => compareStudents(a, b));
   const subgroupFilter = state.selectedClassGroupId && getClassGroup(state.selectedClassGroupId)?.subgroups.length
     ? `<select class="search-input group-filter" id="subgroup-filter" aria-label="Filtra per desdoblament">${subgroupOptions(state.selectedClassGroupId, state.selectedSubgroupId)}</select>`
@@ -443,14 +449,15 @@ function renderStudents() {
     ? `<select class="search-input group-filter" id="additional-group-filter" aria-label="Filtra per grup addicional"><option value="">Tots els grups addicionals</option>${data.additionalGroups.map(group => `<option value="${escapeHtml(group.id)}" ${state.selectedAdditionalGroupId === group.id ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}</select>`
     : "";
     const action = `<button class="button" type="button" data-action="import-students-csv" title="Columnes: nom, cognom, grup classe, desdoblament (opcional)">${icon("upload")} Importa CSV</button><button class="button button-primary" type="button" data-action="create-student">${icon("plus")} Afegeix alumne</button>`;
-  const filters = `<div class="student-filters"><select class="search-input group-filter" id="class-group-filter" aria-label="Filtra per grup classe">${classGroupOptions(state.selectedClassGroupId)}</select>${subgroupFilter}${additionalGroupFilter}<select class="search-input group-filter" id="student-sort" aria-label="Ordena alumnat">${studentSortOptions(state.studentSort)}</select><input class="search-input" id="student-search" type="search" placeholder="Cerca un alumne…" value="${escapeHtml(state.studentQuery)}" aria-label="Cerca un alumne"></div>`;
+  const adaptationFilter = `<select class="search-input group-filter" id="student-adaptation-filter" aria-label="Filtra per adaptació"><option value="">Totes les adaptacions</option>${Object.entries(STUDENT_ADAPTATIONS).map(([key, label]) => `<option value="${key}" ${state.studentAdaptationFilter === key ? "selected" : ""}>${label}</option>`).join("")}</select>`;
+  const filters = `<div class="student-filters"><select class="search-input group-filter" id="class-group-filter" aria-label="Filtra per grup classe">${classGroupOptions(state.selectedClassGroupId)}</select>${subgroupFilter}${additionalGroupFilter}${adaptationFilter}<select class="search-input group-filter" id="student-sort" aria-label="Ordena alumnat">${studentSortOptions(state.studentSort)}</select><input class="search-input" id="student-search" type="search" placeholder="Cerca un alumne…" value="${escapeHtml(state.studentQuery)}" aria-label="Cerca un alumne"></div>`;
   content.innerHTML = `${pageHeading("GRUP I SEGUIMENT", "Alumnes", "Consulta els perfils i el progrés competencial del teu grup.", action)}
     ${filters}
     ${filtered.length ? `<ul class="student-list">${filtered.map(student => {
       const grades = data.competencies.map(competency => getCompetencyGrade(student.id, competency.id)).filter(grade => grade !== null);
       const average = grades.length ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length : null;
       const evidenceCount = getStudentActivityCount(student.id);
-      return `<li class="student-list-item"><button class="student-list-open" type="button" data-open-student="${student.id}"><span class="student-list-identity"><strong>${escapeHtml(studentDisplayName(student))}</strong><span>${escapeHtml(getStudentGroupLabel(student))} · ${evidenceCount} ${evidenceCount === 1 ? "activitat" : "activitats"}</span></span><span class="student-list-grade"><span class="student-list-grade-label">Mitjana competencial</span>${gradeBadge(average)}</span></button><button class="text-button student-list-edit" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button></li>`;
+      return `<li class="student-list-item"><button class="student-list-open" type="button" data-open-student="${student.id}"><span class="student-list-identity"><strong>${escapeHtml(studentDisplayName(student))}</strong><span>${escapeHtml(getStudentGroupLabel(student))} · ${evidenceCount} ${evidenceCount === 1 ? "activitat" : "activitats"}</span>${studentAdaptationBadge(student)}</span><span class="student-list-grade"><span class="student-list-grade-label">Mitjana competencial</span>${gradeBadge(average)}</span></button><button class="text-button student-list-edit" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button></li>`;
     }).join("")}</ul>` : emptyState(data.students.length ? "No hi ha coincidències" : "Encara no hi ha alumnes", data.students.length ? "Prova una altra cerca." : "Afegeix el teu primer alumne per començar.", "create-student", "Afegeix alumne")}`;
   document.querySelector("#class-group-filter")?.addEventListener("change", event => {
     state.selectedClassGroupId = event.target.value;
@@ -463,6 +470,10 @@ function renderStudents() {
   });
   document.querySelector("#additional-group-filter")?.addEventListener("change", event => {
     state.selectedAdditionalGroupId = event.target.value;
+    renderStudents();
+  });
+  document.querySelector("#student-adaptation-filter")?.addEventListener("change", event => {
+    state.studentAdaptationFilter = event.target.value;
     renderStudents();
   });
   document.querySelector("#student-sort")?.addEventListener("change", event => {
@@ -515,7 +526,7 @@ function renderStudentDetail() {
     </button>`;
   }).join("");
   content.innerHTML = `<button class="detail-back" type="button" data-back="students">${icon("arrow-left")} Torna als alumnes</button>
-    ${pageHeading("PERFIL D'ALUMNE", escapeHtml(studentDisplayName(student)), `${getStudentGroupLabel(student)} · Assignatures i nivells actuals`, `<button class="button" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button>`)}
+    ${pageHeading("PERFIL D'ALUMNE", escapeHtml(studentDisplayName(student)), `${getStudentGroupLabel(student)} · ${STUDENT_ADAPTATIONS[student.adaptation] || "Sense adaptació"} · Assignatures i nivells actuals`, `<button class="button" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button>`)}
     <section class="panel"><div class="panel-heading"><div><h2 class="section-title">Assignatures que cursa</h2><span class="section-caption">Obre un nivell per consultar el report de l'assignatura, les competències i les activitats.</span></div><span class="badge">${subjectLevels.length} ${subjectLevels.length === 1 ? "nivell" : "nivells"}</span></div>
       ${levelCards ? `<div class="student-subject-list">${levelCards}</div>` : emptyState("Cap nivell assignat", "Aquest alumne encara no té cap assignatura vinculada al seu grup classe.")}</section>`;
 }
@@ -827,8 +838,9 @@ function renderActivityDetail() {
     const exempt = activityExempt || subjectExempt;
     const selectors = evaluationItems.map(evidence => {
       const selectedLevel = assessment?.levels[evidence.id] ?? 0;
+      const adaptedDescriptors = activity.adaptedDescriptors?.[student.adaptation]?.[evidence.id];
       return `<td><select class="grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}" aria-label="${escapeHtml(studentDisplayName(student))}: ${escapeHtml(evidence.name)}" data-assess-student="${escapeHtml(student.id)}" data-evidence="${escapeHtml(evidence.id)}" ${exempt ? "disabled" : ""}>
-        ${LEVEL_LABELS.map((label, index) => `<option class="${gradeColorClass(index ? SCORE_BY_LEVEL[index] : null)}" title="${escapeHtml(isTest ? "" : evidence.descriptors?.[index] || "")}" value="${index}" ${selectedLevel === index ? "selected" : ""}>${index === 0 ? label : `${index} · ${label} (${formatGradeWithCode(SCORE_BY_LEVEL[index])})`}</option>`).join("")}
+        ${LEVEL_LABELS.map((label, index) => `<option class="${gradeColorClass(index ? SCORE_BY_LEVEL[index] : null)}" title="${escapeHtml(isTest ? "" : adaptedDescriptors?.[index] || evidence.descriptors?.[index] || "")}" value="${index}" ${selectedLevel === index ? "selected" : ""}>${index === 0 ? label : `${index} · ${label} (${formatGradeWithCode(SCORE_BY_LEVEL[index])})`}</option>`).join("")}
         <option class="${gradeColorClass(0)}" value="${NOT_SUBMITTED_LEVEL}" ${selectedLevel === NOT_SUBMITTED_LEVEL ? "selected" : ""}>${NOT_SUBMITTED_LABEL} (${formatGradeWithCode(0)})</option>
       </select></td>`;
     }).join("");
@@ -840,7 +852,7 @@ function renderActivityDetail() {
     ));
     const didNotPass = fullyAssessed && activityGrade !== null && activityGrade < 5;
     const exemptionLabel = subjectExempt ? "Exempt/a de l'assignatura" : "Exempt/a de l'activitat";
-    return `<tr data-assessment-row="${escapeHtml(student.id)}" data-student-surname="${escapeHtml(`${student.lastName} ${student.firstName}`.trim())}" data-student-name="${escapeHtml(studentDisplayName(student))}" data-student-group="${escapeHtml(getStudentGroupLabel(student))}" data-activity-group="${escapeHtml(getActivityGroupOf(activity, student.id)?.name || "")}" data-class-group="${escapeHtml(student.classGroupId)}" data-grade-value="${activityGrade ?? ""}" data-assessed="${fullyAssessed ? "true" : "false"}" data-exempt="${exempt ? "true" : "false"}" class="${didNotPass ? "assessment-row-warning" : ""}"><td><div class="assessment-student-name"><button class="student-activity-report-link" type="button" data-open-student-activity-report="${escapeHtml(student.id)}"><strong>${escapeHtml(studentDisplayName(student))}</strong></button><span class="assessment-warning" data-warning-for="${escapeHtml(student.id)}" role="img" aria-label="No assoleix l'activitat" title="No assoleix l'activitat" ${didNotPass ? "" : "hidden"}>${icon("warning-triangle")}</span></div><span class="assessment-student-group">${escapeHtml(getStudentGroupLabel(student))}${getActivityGroupOf(activity, student.id) ? ` · ${escapeHtml(getActivityGroupOf(activity, student.id).name)}` : ""}</span></td><td class="activity-grade-cell" data-grade-for="${escapeHtml(student.id)}"><span class="activity-grade-report-result">${exempt ? `<span class="badge exemption-badge">${exemptionLabel}</span>` : gradeBadge(activityGrade)}</span></td><td class="activity-exemption-cell"><label class="exemption-control"><input type="checkbox" data-activity-exemption="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" aria-label="Exempció d'activitat per a ${escapeHtml(studentDisplayName(student))}" ${activityExempt ? "checked" : ""}></label></td><td class="activity-exemption-cell"><label class="exemption-control"><input type="checkbox" data-activity-recovered data-student-id="${escapeHtml(student.id)}" aria-label="Activitat recuperada per a ${escapeHtml(studentDisplayName(student))}" ${assessment?.recovered ? "checked" : ""} ${exempt ? "disabled" : ""}></label></td>${selectors}<td class="activity-feedback-cell"><textarea data-activity-feedback data-activity-id="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" data-offering-id="${escapeHtml(selectedOffering?.id || "")}" maxlength="2000" rows="2" aria-label="Retroacció per a ${escapeHtml(studentDisplayName(student))}" placeholder="Comentaris sobre el resultat…">${escapeHtml(assessment?.feedback || "")}</textarea></td></tr>`;
+    return `<tr data-assessment-row="${escapeHtml(student.id)}" data-student-surname="${escapeHtml(`${student.lastName} ${student.firstName}`.trim())}" data-student-name="${escapeHtml(studentDisplayName(student))}" data-student-group="${escapeHtml(getStudentGroupLabel(student))}" data-activity-group="${escapeHtml(getActivityGroupOf(activity, student.id)?.name || "")}" data-class-group="${escapeHtml(student.classGroupId)}" data-grade-value="${activityGrade ?? ""}" data-assessed="${fullyAssessed ? "true" : "false"}" data-exempt="${exempt ? "true" : "false"}" class="${didNotPass ? "assessment-row-warning" : ""}"><td><div class="assessment-student-name"><button class="student-activity-report-link" type="button" data-open-student-activity-report="${escapeHtml(student.id)}"><strong>${escapeHtml(studentDisplayName(student))}</strong></button><span class="assessment-warning" data-warning-for="${escapeHtml(student.id)}" role="img" aria-label="No assoleix l'activitat" title="No assoleix l'activitat" ${didNotPass ? "" : "hidden"}>${icon("warning-triangle")}</span></div><span class="assessment-student-group">${escapeHtml(getStudentGroupLabel(student))}</span>${studentAdaptationBadge(student)}${getActivityGroupOf(activity, student.id) ? `<span class="assessment-student-group">Agrupament: ${escapeHtml(getActivityGroupOf(activity, student.id).name)}</span>` : ""}</td><td class="activity-grade-cell" data-grade-for="${escapeHtml(student.id)}"><span class="activity-grade-report-result">${exempt ? `<span class="badge exemption-badge">${exemptionLabel}</span>` : gradeBadge(activityGrade)}</span></td><td class="activity-exemption-cell"><label class="exemption-control"><input type="checkbox" data-activity-exemption="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" aria-label="Exempció d'activitat per a ${escapeHtml(studentDisplayName(student))}" ${activityExempt ? "checked" : ""}></label></td><td class="activity-exemption-cell"><label class="exemption-control"><input type="checkbox" data-activity-recovered data-student-id="${escapeHtml(student.id)}" aria-label="Activitat recuperada per a ${escapeHtml(studentDisplayName(student))}" ${assessment?.recovered ? "checked" : ""} ${exempt ? "disabled" : ""}></label></td>${selectors}<td class="activity-feedback-cell"><textarea data-activity-feedback data-activity-id="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" data-offering-id="${escapeHtml(selectedOffering?.id || "")}" maxlength="2000" rows="2" aria-label="Retroacció per a ${escapeHtml(studentDisplayName(student))}" placeholder="Comentaris sobre el resultat…">${escapeHtml(assessment?.feedback || "")}</textarea></td></tr>`;
   }).join("");
   const rubricRows = evaluationItems.map(evidence => {
     const contributions = Object.entries(evidence.contributions).map(([competencyId, weight]) => {
@@ -855,8 +867,21 @@ function renderActivityDetail() {
       : isTest && evidence.answerKey
         ? `<details class="evidence-rubric-descriptors"><summary>Solucionari</summary><p>${escapeHtml(evidence.answerKey).replaceAll("\n", "<br>")}</p></details>`
       : "";
+    const adaptedCriteria = Object.entries(activity.adaptedDescriptors || {})
+      .map(([adaptation, items]) => {
+      const descriptors = items[evidence.id];
+      const levels = descriptors && Object.entries(descriptors)
+        .map(([level, descriptor]) => `<li><strong>${["", "NA", "AS", "AN", "AE"][Number(level)]}</strong> ${escapeHtml(descriptor)}</li>`)
+        .join("");
+      return levels ? `<li><strong>${STUDENT_ADAPTATIONS[adaptation]}</strong><ul>${levels}</ul></li>` : "";
+      })
+      .filter(Boolean)
+      .join("");
+    const adaptedCriteriaDisclosure = adaptedCriteria
+      ? `<details class="evidence-rubric-descriptors"><summary>Criteris adaptats</summary><ul>${adaptedCriteria}</ul></details>`
+      : "";
     const summary = getEvidenceSummary(evidence, students, activity);
-    return `<tr><td><strong>${escapeHtml(evidence.name)}</strong><br><span class="section-caption">Pes derivat per a l'activitat: ${getEvidenceActivityWeight(evidence)}%</span>${criteriaDisclosure}</td><td>${contributions || '<span class="grade-empty">Sense competències vinculades</span>'}</td><td data-evidence-progress="${escapeHtml(evidence.id)}">${summary.progress}</td><td data-evidence-average="${escapeHtml(evidence.id)}">${gradeBadge(summary.average)}</td></tr>`;
+    return `<tr><td><strong>${escapeHtml(evidence.name)}</strong><br><span class="section-caption">Pes derivat per a l'activitat: ${getEvidenceActivityWeight(evidence)}%</span>${criteriaDisclosure}${adaptedCriteriaDisclosure}</td><td>${contributions || '<span class="grade-empty">Sense competències vinculades</span>'}</td><td data-evidence-progress="${escapeHtml(evidence.id)}">${summary.progress}</td><td data-evidence-average="${escapeHtml(evidence.id)}">${gradeBadge(summary.average)}</td></tr>`;
   }).join("");
   const totalEvidenceWeight = evaluationItems.reduce((total, evidence) => total + getEvidenceActivityWeight(evidence), 0);
   const evidenceWeightWarning = Math.abs(totalEvidenceWeight - 100) > 0.001
@@ -942,10 +967,24 @@ export function activityRubricEvidenceRowMarkup(index, evidence = null, rowKey =
   const achievementEditor = isTest
     ? `<td class="rubric-descriptor-cell"><label class="sr-only" for="rubric-${escapeHtml(rowKey)}-answer">Solucionari de ${escapeHtml(evidence?.name || `la pregunta ${index + 1}`)}</label><textarea id="rubric-${escapeHtml(rowKey)}-answer" name="rubricAnswerKey" maxlength="2000" required placeholder="Resposta o solució esperada">${escapeHtml(evidence?.answerKey || "")}</textarea></td>`
     : levelHeaders.map(([level, abbreviation, label]) => `<td class="rubric-descriptor-cell"><label class="sr-only" for="rubric-${escapeHtml(rowKey)}-level-${level}">${abbreviation}: criteri per a ${evidence?.name || `l'evidència ${index + 1}`}</label><textarea id="rubric-${escapeHtml(rowKey)}-level-${level}" name="rubricDescriptor${level}" maxlength="500" required placeholder="${abbreviation}: criteri observable" title="${label}">${escapeHtml(descriptors[level] || "")}</textarea></td>`).join("");
-  return `<tr data-rubric-evidence-row>
-    <td class="rubric-evidence-name-cell"><input type="hidden" name="rubricEvidenceId" value="${escapeHtml(evidence?.id || "")}"><label class="sr-only" for="rubric-evidence-${escapeHtml(rowKey)}">${isTest ? "Pregunta" : "Evidència"} ${index + 1}</label><input id="rubric-evidence-${escapeHtml(rowKey)}" name="rubricEvidenceName" required maxlength="100" value="${escapeHtml(evidence?.name || "")}" placeholder="${isTest ? "Escriu la pregunta" : "Descriu l'evidència"}"><button class="text-button danger-text" type="button" data-remove-rubric-evidence>${icon("trash")} Elimina</button></td>
+  return `<tr data-rubric-evidence-row data-reorder-item>
+    <td class="rubric-evidence-name-cell"><div class="rubric-reorder-controls"><span class="reorder-handle" data-reorder-handle aria-hidden="true" title="Arrossega per reordenar">⠿</span><button class="text-button" type="button" data-move-rubric-evidence="-1" aria-label="Mou ${isTest ? "la pregunta" : "l'evidència"} amunt">${icon("nav-arrow-up")}</button><button class="text-button" type="button" data-move-rubric-evidence="1" aria-label="Mou ${isTest ? "la pregunta" : "l'evidència"} avall">${icon("nav-arrow-down")}</button></div><input type="hidden" name="rubricEvidenceId" value="${escapeHtml(evidence?.id || "")}"><label class="sr-only" data-rubric-name-label for="rubric-evidence-${escapeHtml(rowKey)}">${isTest ? "Pregunta" : "Evidència"} ${index + 1}</label><input id="rubric-evidence-${escapeHtml(rowKey)}" name="rubricEvidenceName" required maxlength="100" value="${escapeHtml(evidence?.name || "")}" placeholder="${isTest ? "Escriu la pregunta" : "Descriu l'evidència"}"><button class="text-button danger-text" type="button" data-remove-rubric-evidence>${icon("trash")} Elimina</button></td>
     <td class="rubric-evidence-competencies"><div class="rubric-page-competency-list" data-rubric-competencies>${competencies.map(competency => activityRubricCompetencyMarkup(evidence, competency, evidence.contributions[competency.id])).join("")}</div><div class="evidence-competency-warning" role="status" ${competencies.length ? "hidden" : ""}>${icon("warning-triangle")} Afegeix almenys una competència.</div><div class="evidence-competency-add"><select data-rubric-competency-select aria-label="Afegeix una competència a ${isTest ? "la pregunta" : "l'evidència"} ${index + 1}" ${availableCompetencies.length ? "" : "disabled"}>${availableCompetencies.map(competency => `<option value="${escapeHtml(competency.id)}">${escapeHtml(competency.name)}</option>`).join("") || '<option value="">Totes les competències afegides</option>'}</select><button class="icon-button" type="button" data-add-rubric-competency aria-label="Afegeix competència" ${availableCompetencies.length ? "" : "disabled"}>${icon("plus")}</button></div></td>
     ${achievementEditor}
+  </tr>`;
+}
+
+export function activityRubricAdaptedDescriptorRowMarkup(evidence, adaptation, index) {
+  const descriptors = evidence?.descriptors || {};
+  const levels = [
+    ["1", "NA", "No assolit · 2,5/10"],
+    ["2", "AS", "Assoliment satisfactori · 5/10"],
+    ["3", "AN", "Assoliment notable · 7,5/10"],
+    ["4", "AE", "Assoliment excel·lent · 10/10"]
+  ];
+  return `<tr data-rubric-adapted-row data-adaptation="${adaptation}" data-evidence-id="${escapeHtml(evidence?.id || "")}">
+    <td><strong data-adapted-evidence-name>${escapeHtml(evidence?.name || `Evidència ${index + 1}`)}</strong></td>
+    ${levels.map(([level, abbreviation, label]) => `<td class="rubric-descriptor-cell"><label class="sr-only">${abbreviation}: criteri adaptat per a ${escapeHtml(evidence?.name || `l'evidència ${index + 1}`)}</label><textarea data-adapted-descriptor-level="${level}" maxlength="500" placeholder="En blanc: utilitza el criteri comú" title="${label}">${escapeHtml(descriptors[level] || "")}</textarea></td>`).join("")}
   </tr>`;
 }
 
@@ -961,6 +1000,19 @@ export function renderActivityRubric() {
   const config = getEvaluationConfig(activity);
   const items = getEvaluationItems(activity);
   const evidenceRows = items.map((evidence, index) => activityRubricEvidenceRowMarkup(index, evidence, evidence.id, isTest)).join("");
+  const adaptedDescriptorSections = !isTest
+    ? Object.entries(STUDENT_ADAPTATIONS).map(([adaptation, label]) => {
+      const rows = items.map((evidence, index) => activityRubricAdaptedDescriptorRowMarkup({
+        ...evidence,
+        descriptors: activity.adaptedDescriptors?.[adaptation]?.[evidence.id]
+      }, adaptation, index)).join("");
+      return `<details class="panel activity-rubric-adaptation">
+        <summary><span><strong>${label}</strong><small>Descriptors alternatius per a l'alumnat classificat amb aquesta adaptació.</small></span></summary>
+        <p class="section-caption">Deixa un nivell en blanc per reutilitzar el criteri comú. Les evidències i les competències es mantenen iguals.</p>
+        <div class="table-wrap activity-rubric-table-wrap"><table class="assessment-table activity-rubric-table adapted-descriptor-table"><thead><tr><th>Evidència</th>${levelHeaders.map(([abbreviation, label]) => `<th title="${label}">${abbreviation}<small>${label}</small></th>`).join("")}</tr></thead><tbody data-adapted-descriptor-body="${adaptation}">${rows || `<tr class="rubric-empty-row"><td colspan="5">Afegeix evidències a la rúbrica comuna per definir-ne criteris adaptats.</td></tr>`}</tbody></table></div>
+      </details>`;
+    }).join("")
+    : "";
   const levelHeaders = [
     ["NA", "No assolit · 2,5/10"],
     ["AS", "Assoliment satisfactori · 5/10"],
@@ -973,9 +1025,10 @@ export function renderActivityRubric() {
       : `Defineix les evidències, les competències vinculades i el criteri observable per assolir cada nivell de ${escapeHtml(activity.title)}.`)}
     <form id="activity-rubric-form" data-activity-id="${escapeHtml(activity.id)}" data-item-type="${escapeHtml(activity.type)}">
       <section class="panel activity-rubric-editor">
-        <div class="panel-heading"><div><h2 class="section-title">${isTest ? "Preguntes i solucionari" : "Evidències i criteris d'avaluació"}</h2><span class="section-caption">${isTest ? "Escriu la resposta esperada de cada pregunta i les competències que avalua." : "Escriu què ha de demostrar l'alumnat a cada nivell."}</span></div><button class="button" type="button" data-add-rubric-evidence>${icon("plus")} Afegeix ${isTest ? "pregunta" : "evidència"}</button></div>
+        <div class="panel-heading"><div><h2 class="section-title">${isTest ? "Preguntes i solucionari" : "Evidències i criteris d'avaluació"}</h2><span class="section-caption">${isTest ? "Escriu la resposta esperada de cada pregunta i les competències que avalua." : "Escriu què ha de demostrar l'alumnat a cada nivell."} Arrossega les nanses o fes servir les fletxes per ordenar-les.</span></div><button class="button" type="button" data-add-rubric-evidence>${icon("plus")} Afegeix ${isTest ? "pregunta" : "evidència"}</button></div>
         <div class="table-wrap activity-rubric-table-wrap"><table class="assessment-table activity-rubric-table"><thead><tr><th>${isTest ? "Preguntes" : "Evidències"}</th><th>Competències</th>${isTest ? "<th>Solucionari per pregunta</th>" : levelHeaders.map(([abbreviation, label]) => `<th title="${label}">${abbreviation}<small>${label}</small></th>`).join("")}</tr></thead><tbody>${evidenceRows || `<tr class="rubric-empty-row"><td colspan="${isTest ? 3 : 6}">Encara no hi ha ${config.itemLabelPlural}. Afegeix-ne una per començar el ${config.editorLabel}.</td></tr>`}</tbody></table></div>
       </section>
+      ${adaptedDescriptorSections}
       <div class="activity-rubric-actions"><button class="button" type="button" data-back="activity-detail">Cancel·la</button><button class="button button-primary" type="submit">${icon("check")} Desa el ${config.editorLabel}</button></div>
     </form>`;
 }
