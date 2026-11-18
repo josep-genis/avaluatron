@@ -295,20 +295,22 @@ export function openGroupAssessmentForms(components) {
   const evaluationItems = getEvaluationItems(activity);
   const ratingRows = (items, student) => `<table class="worksheet-rating"><thead><tr><th>${config.itemLabel}</th>${scaleHeaders}</tr></thead><tbody>${items.map(evidence =>
     `<tr><th>${escapeHtml(evidence.name)}<small>${getEvidenceActivityWeight(evidence)}% de l'element</small></th>${LEVEL_LABELS.slice(1).map((_, index) => {
-      const descriptor = getStudentEvaluationDescriptor(activity, student, evidence, index + 1);
+      const descriptor = activity.type === "Prova"
+        ? ""
+        : getStudentEvaluationDescriptor(activity, student, evidence, index + 1);
       return `<td><span class="worksheet-radio"></span>${descriptor ? `<small class="worksheet-level-descriptor">${escapeHtml(descriptor)}</small>` : ""}</td>`;
     }).join("")}</tr>`
   ).join("")}</tbody></table>`;
   const overallRating = `<table class="worksheet-rating worksheet-overall"><thead><tr><th>Valoració global</th>${scaleHeaders}</tr></thead><tbody><tr><th>Com valores l'acompanyament del docent en aquesta activitat?</th>${LEVEL_LABELS.slice(1).map(() => `<td><span class="worksheet-radio"></span></td>`).join("")}</tr></tbody></table>`;
   const commentSpace = `<div class="worksheet-comment"><strong>Comentari</strong><div></div><div></div></div>`;
-  const evidenceWorksheet = (student, group, title, description, target) => worksheetPage(
+  const evidenceWorksheet = (student, group, title, description, target, assessedStudent = student) => worksheetPage(
     student,
     group,
     title,
     description,
     target,
     evaluationItems.length
-      ? ratingRows(evaluationItems, student)
+      ? ratingRows(evaluationItems, assessedStudent)
       : `<p class="worksheet-no-peers">Aquest element encara no té ${config.itemLabelPlural}.</p>`,
     commentSpace
   );
@@ -331,7 +333,7 @@ export function openGroupAssessmentForms(components) {
       if (peers.length) {
         parts.push(peers.map(peer => evidenceWorksheet(
           student, group, "Coavaluació", "Valora l'aportació d'aquest company o companya per a cada evidència.",
-          { label: "Company/a avaluat/da", name: studentName(peer) }
+          { label: "Company/a avaluat/da", name: studentName(peer) }, peer
         )).join(""));
       } else {
         parts.push(worksheetPage(

@@ -189,9 +189,10 @@ function openStudentDialogFor(studentId = null) {
 
 function studentAdaptationFields(selectedAdaptations) {
   const selected = new Set(selectedAdaptations);
+  if (selected.has("curricular")) selected.add("methodological");
   return `<fieldset class="field full student-adaptation-options"><legend>Etiquetes d'adaptació</legend><div>${Object.entries(STUDENT_ADAPTATIONS).map(([key, label]) =>
-    `<label><input type="checkbox" name="adaptations" value="${key}" ${selected.has(key) ? "checked" : ""}> ${label}</label>`
-  ).join("")}</div><span class="field-hint">Pots seleccionar una o totes dues; s'utilitzaran per mostrar els criteris d'avaluació corresponents.</span></fieldset>`;
+    `<label class="student-adaptation-toggle"><input type="checkbox" role="switch" name="adaptations" value="${key}" ${selected.has(key) ? "checked" : ""}><span class="student-adaptation-switch" aria-hidden="true"></span><span>${label}</span></label>`
+  ).join("")}</div><span class="field-hint">L'adaptació curricular inclou automàticament la metodològica. Les etiquetes s'utilitzaran per mostrar els criteris d'avaluació corresponents.</span></fieldset>`;
 }
 
 function studentAdditionalGroupFields(selectedIds) {
@@ -1467,6 +1468,13 @@ enableReordering(document, list => {
 });
 
 dialogContent.addEventListener("change", event => {
+  if (event.target.name === "adaptations") {
+    const methodological = dialogContent.querySelector('[name="adaptations"][value="methodological"]');
+    const curricular = dialogContent.querySelector('[name="adaptations"][value="curricular"]');
+    if (event.target.value === "curricular" && event.target.checked) methodological.checked = true;
+    if (event.target.value === "methodological" && !event.target.checked) curricular.checked = false;
+    return;
+  }
   if (event.target.id === "teaching-offer-year") {
     const classGroupIds = [...dialogContent.querySelectorAll('[name="offerClassGroupIds"]:checked')].map(input => input.value);
     const additionalGroupIds = [...dialogContent.querySelectorAll('[name="offerAdditionalGroupIds"]:checked')].map(input => input.value);
@@ -1605,6 +1613,9 @@ dialogForm.addEventListener("submit", event => {
     const subgroupId = String(formData.get("subgroupId") || "");
     const additionalGroupIds = formData.getAll("additionalGroupIds").map(String);
     const adaptations = formData.getAll("adaptations").map(String);
+    if (adaptations.includes("curricular") && !adaptations.includes("methodological")) {
+      adaptations.unshift("methodological");
+    }
     if (classGroupId && !getClassGroup(classGroupId) || subgroupId && !getClassGroup(classGroupId)?.subgroups.some(item => item.id === subgroupId)) {
       showToast("Selecciona un grup classe i un desdoblament vàlids.", true);
       return;

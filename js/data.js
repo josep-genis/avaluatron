@@ -253,6 +253,11 @@ export function validateData(value, makeId) {
           ? [student.adaptation]
           : student.adaptation;
     }
+    if (Array.isArray(student.adaptations) &&
+      student.adaptations.includes("curricular") &&
+      !student.adaptations.includes("methodological")) {
+      student.adaptations.unshift("methodological");
+    }
     delete student.adaptation;
     delete student.group;
   }

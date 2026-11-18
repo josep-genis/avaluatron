@@ -1,4 +1,4 @@
-import { getActivityOffers, getOfferingStudents } from "./data.js";
+import { getActivityOffers, getOfferingStudents, STUDENT_ADAPTATIONS } from "./data.js";
 import { data, state } from "./state.js";
 import {
   SCORE_BY_LEVEL, LEVEL_LABELS, NOT_SUBMITTED_LEVEL, NOT_SUBMITTED_LABEL, getActivityGrade, getAssessment, areAllActivityEvidencesAssessed,
@@ -117,11 +117,18 @@ export function exportActivityRubricTable(format) {
   const items = getEvaluationItems(activity);
   const config = getEvaluationConfig(activity);
   if (!items.length) return { ok: false, message: `Aquest element no té ${config.itemLabelPlural} per exportar.` };
+  const adaptations = activity.type === "Prova" ? [] : Object.entries(STUDENT_ADAPTATIONS).filter(([adaptation]) =>
+    items.some(evidence => Object.keys(activity.adaptedDescriptors?.[adaptation]?.[evidence.id] || {}).length)
+  );
+  const adaptedHeaders = adaptations.flatMap(([, label]) =>
+    ["NA", "AS", "AN", "AE"].map(level => `${label} · ${level}`)
+  );
 
   const header = activity.type === "Prova"
     ? ["Pregunta", "Pes de la pregunta (%)", "Competències i pesos", "Solucionari"]
     : ["Evidència", "Pes en l'activitat (%)", "Competències i pesos",
-      ...LEVEL_LABELS.slice(1).map((_, index) => `${["NA", "AS", "AN", "AE"][index]} · ${formatNumber(SCORE_BY_LEVEL[index + 1])}/10`)];
+      ...LEVEL_LABELS.slice(1).map((_, index) => `${["NA", "AS", "AN", "AE"][index]} · ${formatNumber(SCORE_BY_LEVEL[index + 1])}/10`),
+      ...adaptedHeaders];
   const rows = items.map(evidence => {
     const contributions = Object.entries(evidence.contributions).map(([competencyId, weight]) => {
       const competency = data.competencies.find(item => item.id === competencyId);
@@ -130,7 +137,10 @@ export function exportActivityRubricTable(format) {
     return activity.type === "Prova"
       ? [evidence.name, getEvidenceActivityWeight(evidence), contributions, evidence.answerKey || ""]
       : [evidence.name, getEvidenceActivityWeight(evidence), contributions,
-        ...["1", "2", "3", "4"].map(level => evidence.descriptors?.[level] || "")];
+        ...["1", "2", "3", "4"].map(level => evidence.descriptors?.[level] || ""),
+        ...adaptations.flatMap(([adaptation]) =>
+          ["1", "2", "3", "4"].map(level => activity.adaptedDescriptors?.[adaptation]?.[evidence.id]?.[level] || "")
+        )];
   });
   downloadTable(format, `${slug(config.editorLabel)}-${slug(activity.title)}.${format}`, [header, ...rows]);
   return { ok: true, message: `${config.editorLabel[0].toLocaleUpperCase("ca")}${config.editorLabel.slice(1)} exportat com a ${format.toUpperCase()}.` };
@@ -141,6 +151,9 @@ export function openActivityRubricReport() {
   if (!activity) return false;
   const items = getEvaluationItems(activity);
   if (!items.length) return false;
+  const adaptations = activity.type === "Prova" ? [] : Object.entries(STUDENT_ADAPTATIONS).filter(([adaptation]) =>
+    items.some(evidence => Object.keys(activity.adaptedDescriptors?.[adaptation]?.[evidence.id] || {}).length)
+  );
 
   const evidenceRows = items.map(evidence => {
     const contributions = Object.entries(evidence.contributions).map(([competencyId, weight]) => {
@@ -157,6 +170,12 @@ export function openActivityRubricReport() {
   const achievementHeaders = activity.type === "Prova"
     ? "<th>Solucionari</th>"
     : `<th>NA · ${formatNumber(SCORE_BY_LEVEL[1])}</th><th>AS · ${formatNumber(SCORE_BY_LEVEL[2])}</th><th>AN · ${formatNumber(SCORE_BY_LEVEL[3])}</th><th>AE · ${formatNumber(SCORE_BY_LEVEL[4])}</th>`;
+  const adaptedSections = adaptations.map(([adaptation, label]) => {
+    const rows = items.map(evidence => `<tr><td><strong>${escapeHtml(evidence.name)}</strong></td>${["1", "2", "3", "4"].map(level =>
+      `<td>${escapeHtml(activity.adaptedDescriptors?.[adaptation]?.[evidence.id]?.[level] || "Criteri comú").replaceAll("\n", "<br>")}</td>`
+    ).join("")}</tr>`).join("");
+    return `<section class="report-evidence"><h2>${escapeHtml(label)}</h2><p>Els nivells sense descriptor específic reutilitzen el criteri comú.</p><table><thead><tr><th>Evidència</th><th>NA</th><th>AS</th><th>AN</th><th>AE</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  }).join("");
   const config = getEvaluationConfig(activity);
   const report = `<article class="report-page">
     <header class="report-header"><div><p class="report-eyebrow">${escapeHtml(config.editorLabel)} de ${activity.type === "Prova" ? "la prova" : "l’activitat"}</p><h1>${escapeHtml(activity.title)}</h1></div><span class="report-type">${escapeHtml(activity.type)}</span></header>
@@ -164,6 +183,7 @@ export function openActivityRubricReport() {
     <section class="report-evidence"><h2>${activity.type === "Prova" ? "Preguntes i solucionari" : "Evidències i criteris d'avaluació"}</h2><p>El pes de cada ${escapeHtml(config.itemLabel)} és la suma dels pesos assignats a les competències.</p>
       <table><thead><tr><th>${activity.type === "Prova" ? "Pregunta" : "Evidència"}</th><th>Pes</th><th>Competències</th>${achievementHeaders}</tr></thead><tbody>${evidenceRows}</tbody></table>
     </section>
+    ${adaptedSections}
     <footer class="report-footer"><span>Avaluatró · Document del ${escapeHtml(config.editorLabel)} generat el ${new Intl.DateTimeFormat("ca-ES", { dateStyle: "long" }).format(new Date())}</span></footer>
   </article>`;
   const reportWindow = window.open("", "_blank");
