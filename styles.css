@@ -204,6 +204,13 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .dashboard-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 16px; }
 .panel { min-width: 0; padding: 19px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
+.section-toggle { display: inline-flex; align-items: center; gap: 7px; margin: 0; padding: 0; border: 0; background: none; color: var(--ink); font: 700 15px "Manrope", sans-serif; text-align: left; cursor: pointer; }
+.section-toggle::after { width: 7px; height: 7px; flex: 0 0 auto; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); content: ""; transform: rotate(45deg) translateY(-2px); transition: transform .16s; }
+.section-toggle[aria-expanded="true"]::after { transform: rotate(225deg) translate(-1px, -1px); }
+.section-toggle:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 4px; border-radius: 3px; }
+.panel.section-collapsed, .daily-followup-panel.section-collapsed, .sequence-situation.section-collapsed { padding-bottom: 19px; }
+.panel.section-collapsed .panel-heading, .daily-followup-panel.section-collapsed .daily-followup-panel-heading, .sequence-situation.section-collapsed .sequence-situation-heading { margin-bottom: 0; }
+.panel.section-collapsed > :not(.panel-heading), .daily-followup-panel.section-collapsed > :not(.daily-followup-panel-heading), .sequence-situation.section-collapsed > :not(.sequence-situation-heading) { display: none; }
 .text-button { display: inline-flex; align-items: center; gap: 4px; padding: 4px; border: 0; background: none; color: var(--green); font-size: 10px; font-weight: 700; }
 .text-button:hover { color: var(--green-dark); text-decoration: underline; }
 .activity-row { display: flex; align-items: center; gap: 11px; padding: 11px 0; border-top: 1px solid var(--line); }

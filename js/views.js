@@ -23,6 +23,50 @@ import { getEvaluationConfig, getEvaluationItems, getEvaluationType } from "./as
 
 const content = document.querySelector("#app-content");
 let activityTableResizeObserver;
+const collapsedSections = new Set();
+
+function setupCollapsibleSections() {
+  content.querySelectorAll(".panel-heading, .daily-followup-panel-heading, .sequence-situation-heading").forEach((heading, index) => {
+    if (heading.dataset.collapsibleReady === "true") return;
+    heading.dataset.collapsibleReady = "true";
+
+    const title = heading.querySelector("h2");
+    if (!title) return;
+    const key = `${title.textContent.trim()}-${index}`;
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "section-toggle";
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.innerHTML = `<span>${title.innerHTML}</span>`;
+    title.replaceWith(toggle);
+
+    const section = heading.closest(".panel, .daily-followup-panel, .sequence-situation");
+    if (section) section.dataset.collapseKey = key;
+  });
+
+  content.querySelectorAll("[data-collapse-key]").forEach(section => {
+    const key = section.dataset.collapseKey;
+    const collapsed = collapsedSections.has(key);
+    section.classList.toggle("section-collapsed", collapsed);
+    const toggle = section.querySelector(".section-toggle");
+    if (toggle) toggle.setAttribute("aria-expanded", String(!collapsed));
+  });
+}
+
+content.addEventListener("click", event => {
+  const toggle = event.target.closest(".section-toggle");
+  if (!toggle) return;
+  const heading = toggle.closest(".panel-heading, .daily-followup-panel-heading, .sequence-situation-heading");
+  const section = heading?.closest(".panel, .daily-followup-panel, .sequence-situation");
+  if (!heading || !section) return;
+
+  const key = section.dataset.collapseKey;
+  const collapsed = section.classList.toggle("section-collapsed");
+  if (collapsed) collapsedSections.add(key);
+  else collapsedSections.delete(key);
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+});
 
 function studentAdaptationBadges(student) {
   return (student.adaptations || []).map(adaptation =>
@@ -123,6 +167,7 @@ function render() {
   if (state.currentView === "daily-followup") renderDailyFollowup();
   if (state.currentView === "competencies") renderCompetencies();
   if (state.currentView === "teacher-profile") renderTeacherProfile();
+  setupCollapsibleSections();
 }
 
 function renderTeacherProfile() {
