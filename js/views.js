@@ -26,23 +26,27 @@ let activityTableResizeObserver;
 const collapsedSections = new Set();
 
 function setupCollapsibleSections() {
-  content.querySelectorAll(".panel-heading, .daily-followup-panel-heading, .sequence-situation-heading").forEach((heading, index) => {
+  content.querySelectorAll(
+    ".panel-heading, .daily-followup-toolbar-heading, .daily-positive-negative-heading, .daily-followup-panel-heading, .sequence-situation-heading"
+  ).forEach((heading, index) => {
     if (heading.dataset.collapsibleReady === "true") return;
     heading.dataset.collapsibleReady = "true";
 
     const title = heading.querySelector("h2");
     if (!title) return;
-    const key = `${title.textContent.trim()}-${index}`;
+    const section = heading.closest(".panel, .sequence-situation");
+    if (!section) return;
+    const key = `${section.className}-${title.textContent.trim()}-${index}`;
 
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "section-toggle";
     toggle.setAttribute("aria-expanded", "true");
-    toggle.innerHTML = `<span>${title.innerHTML}</span>`;
-    title.replaceWith(toggle);
+    toggle.setAttribute("aria-label", `Mostra o amaga ${title.textContent.trim()}`);
+    toggle.innerHTML = `<i aria-hidden="true"></i>`;
+    heading.insertBefore(toggle, heading.firstChild);
 
-    const section = heading.closest(".panel, .daily-followup-panel, .sequence-situation");
-    if (section) section.dataset.collapseKey = key;
+    section.dataset.collapseKey = key;
   });
 
   content.querySelectorAll("[data-collapse-key]").forEach(section => {
@@ -57,8 +61,10 @@ function setupCollapsibleSections() {
 content.addEventListener("click", event => {
   const toggle = event.target.closest(".section-toggle");
   if (!toggle) return;
-  const heading = toggle.closest(".panel-heading, .daily-followup-panel-heading, .sequence-situation-heading");
-  const section = heading?.closest(".panel, .daily-followup-panel, .sequence-situation");
+  const heading = toggle.closest(
+    ".panel-heading, .daily-followup-toolbar-heading, .daily-positive-negative-heading, .daily-followup-panel-heading, .sequence-situation-heading"
+  );
+  const section = heading?.closest(".panel, .sequence-situation");
   if (!heading || !section) return;
 
   const key = section.dataset.collapseKey;
@@ -335,7 +341,7 @@ function renderDailyFollowup() {
   }).join("");
   const positiveNegativeRows = students.map(student => {
     const assessment = assessments.find(item => item.studentId === student.id);
-    const balance = assessment?.positiveNegativeBalance || 0;
+    const balance = student.positiveNegativeBalances?.[data.currentAcademicYearId] || 0;
     const initials = `${student.firstName[0] || ""}${student.lastName[0] || ""}`.toLocaleUpperCase("ca");
     const balanceLabel = balance > 0 ? `+${balance}` : String(balance);
     const negativeFill = Math.min(Math.abs(Math.min(balance, 0)), 10) * 5;
@@ -344,7 +350,7 @@ function renderDailyFollowup() {
     return `<div class="daily-positive-negative-row ${assessment?.absent ? "daily-row-absent" : ""}">
       <div class="daily-student"><span class="daily-student-avatar" aria-hidden="true">${escapeHtml(initials)}</span><span><strong>${escapeHtml(studentDisplayName(student))}</strong><small>${escapeHtml(getStudentGroupLabel(student))}</small></span></div>
       <div class="daily-positive-negative-controls" aria-label="Positius i negatius de ${escapeHtml(studentDisplayName(student))}">
-        <button type="button" class="daily-balance-button daily-balance-minus" data-daily-positive-negative="-1" data-student-id="${escapeHtml(student.id)}" aria-label="Afegeix un negatiu a ${escapeHtml(studentDisplayName(student))}" ${assessment?.absent ? "disabled" : ""}>−</button>
+        <button type="button" class="daily-balance-button daily-balance-minus" data-daily-positive-negative="-1" data-student-id="${escapeHtml(student.id)}" aria-label="Afegeix un negatiu a ${escapeHtml(studentDisplayName(student))}">−</button>
         <div class="daily-balance-track" role="progressbar" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="${ariaBalance}" aria-label="Saldo de ${escapeHtml(studentDisplayName(student))}">
           <span class="daily-balance-half daily-balance-negative"></span>
           <span class="daily-balance-half daily-balance-positive"></span>
@@ -353,7 +359,7 @@ function renderDailyFollowup() {
           <span class="daily-balance-zero" aria-hidden="true"></span>
           <output class="daily-balance-value ${balance > 0 ? "positive" : balance < 0 ? "negative" : "neutral"}" data-daily-balance data-student-id="${escapeHtml(student.id)}" aria-live="polite">${balanceLabel}</output>
         </div>
-        <button type="button" class="daily-balance-button daily-balance-plus" data-daily-positive-negative="1" data-student-id="${escapeHtml(student.id)}" aria-label="Afegeix un positiu a ${escapeHtml(studentDisplayName(student))}" ${assessment?.absent ? "disabled" : ""}>+</button>
+        <button type="button" class="daily-balance-button daily-balance-plus" data-daily-positive-negative="1" data-student-id="${escapeHtml(student.id)}" aria-label="Afegeix un positiu a ${escapeHtml(studentDisplayName(student))}">+</button>
       </div>
     </div>`;
   }).join("");

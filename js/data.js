@@ -330,6 +330,19 @@ export function validateData(value, makeId) {
   }
   for (const student of value.students) {
     student.academicYearId ||= value.currentAcademicYearId;
+    student.positiveNegativeBalances ??= {};
+    if (!student.positiveNegativeBalances || typeof student.positiveNegativeBalances !== "object" ||
+      Array.isArray(student.positiveNegativeBalances) ||
+      Object.entries(student.positiveNegativeBalances).some(([yearId, balance]) =>
+        !academicYearIds.has(yearId) || !Number.isInteger(balance))) {
+      throw new Error("hi ha un saldo de positius i negatius invàlid.");
+    }
+    if (!Object.keys(student.positiveNegativeBalances).length) {
+      const migratedBalance = (value.dailyAssessments || [])
+        .filter(assessment => assessment.studentId === student.id)
+        .reduce((total, assessment) => total + (Number.isInteger(assessment.positiveNegativeBalance) ? assessment.positiveNegativeBalance : 0), 0);
+      if (migratedBalance) student.positiveNegativeBalances[value.currentAcademicYearId] = migratedBalance;
+    }
     student.enrollments ??= [{
       academicYearId: student.academicYearId,
       classGroupId: student.classGroupId || "",
@@ -689,6 +702,9 @@ export function validateData(value, makeId) {
     if (!Number.isInteger(assessment.positiveNegativeBalance)) {
       throw new Error("hi ha un saldo de positius i negatius invàlid.");
     }
+    const legacyBalanceOnly = assessment.positiveNegativeBalance !== 0 &&
+      !Object.keys(assessment.levels).length && !assessment.note?.trim() && !assessment.absent;
+    delete assessment.positiveNegativeBalance;
     const [year, month, day] = assessment.date.split("-").map(Number);
     const parsedDate = new Date(Date.UTC(year, month - 1, day));
     if (parsedDate.getUTCFullYear() !== year || parsedDate.getUTCMonth() !== month - 1 || parsedDate.getUTCDate() !== day) {
@@ -700,10 +716,13 @@ export function validateData(value, makeId) {
     const levels = Object.entries(assessment.levels);
     if (levels.some(([criterionId, level]) => !dailyCriterionIds.has(criterionId) || !Number.isInteger(level) || level < 1 || level > 4) ||
       assessment.absent && levels.length ||
-      !levels.length && !assessment.note?.trim() && !assessment.absent && assessment.positiveNegativeBalance === 0) {
+      !levels.length && !assessment.note?.trim() && !assessment.absent && !legacyBalanceOnly) {
       throw new Error("hi ha un nivell o una observació invàlids en un seguiment diari.");
     }
   }
+  value.dailyAssessments = value.dailyAssessments.filter(assessment =>
+    Object.keys(assessment.levels || {}).length || assessment.note?.trim() || assessment.absent
+  );
   value.schemaVersion = 2;
   return value;
 }

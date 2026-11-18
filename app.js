@@ -852,35 +852,19 @@ document.addEventListener("click", event => {
   const dailyBalanceButton = event.target.closest("[data-daily-positive-negative]");
   if (dailyBalanceButton) {
     const studentId = dailyBalanceButton.dataset.studentId;
+    const student = data.students.find(item => item.id === studentId);
     if (isStudentExemptFromSubject(data, studentId, state.dailySelectedSubjectId)) {
       showToast("Aquest alumne està exempt de l'assignatura.", true);
       return;
     }
-    const previousDailyAssessments = clone(data.dailyAssessments);
-    let assessment = data.dailyAssessments.find(item =>
-      item.subjectId === state.dailySelectedSubjectId &&
-      item.studentId === studentId &&
-      item.date === state.dailySelectedDate
-    );
-    if (!assessment) {
-      assessment = {
-        subjectId: state.dailySelectedSubjectId,
-        studentId,
-        date: state.dailySelectedDate,
-        levels: {},
-        note: "",
-        positiveNegativeBalance: 0
-      };
-      data.dailyAssessments.push(assessment);
-    }
-    if (assessment.absent) return;
+    if (!student) return;
+    const previousData = clone(data);
     const delta = Number(dailyBalanceButton.dataset.dailyPositiveNegative);
-    assessment.positiveNegativeBalance = (assessment.positiveNegativeBalance || 0) + delta;
-    if (!Object.keys(assessment.levels).length && !assessment.note && !assessment.absent && assessment.positiveNegativeBalance === 0) {
-      data.dailyAssessments = data.dailyAssessments.filter(item => item !== assessment);
-    }
+    student.positiveNegativeBalances ??= {};
+    student.positiveNegativeBalances[data.currentAcademicYearId] =
+      (student.positiveNegativeBalances[data.currentAcademicYearId] || 0) + delta;
     if (!saveData()) {
-      data.dailyAssessments = previousDailyAssessments;
+      setData(previousData);
       render();
       return;
     }
