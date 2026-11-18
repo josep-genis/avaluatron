@@ -1,4 +1,4 @@
-import { getActivityOffers, getOfferingStudents } from "./data.js";
+import { getActivityOffers, getOfferingStudents, getStudentEvaluationDescriptor } from "./data.js";
 import { data, state } from "./state.js";
 import {
   SCORE_BY_LEVEL, LEVEL_LABELS, RECOVERED_MAX_SCORE, NOT_SUBMITTED_LEVEL, NOT_SUBMITTED_LABEL, getActivityGrade, getAssessment,
@@ -53,7 +53,7 @@ export function getStudentReportData(activity, student, subjectId, offeringId = 
         ? `${level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : LEVEL_LABELS[level]} · ${formatGradeWithCode(SCORE_BY_LEVEL[level])}`
         : "Pendent d’avaluar";
     const descriptor = hasGrade && level !== NOT_SUBMITTED_LEVEL
-      ? activity.type === "Prova" ? evidence.answerKey : evidence.descriptors?.[level]
+      ? getStudentEvaluationDescriptor(activity, student, evidence, level)
       : "";
     return {
       name: evidence.name,
@@ -293,8 +293,11 @@ export function openGroupAssessmentForms(components) {
   ).join("");
   const config = getEvaluationConfig(activity);
   const evaluationItems = getEvaluationItems(activity);
-  const ratingRows = items => `<table class="worksheet-rating"><thead><tr><th>${config.itemLabel}</th>${scaleHeaders}</tr></thead><tbody>${items.map(evidence =>
-    `<tr><th>${escapeHtml(evidence.name)}<small>${getEvidenceActivityWeight(evidence)}% de l'element</small></th>${LEVEL_LABELS.slice(1).map((_, index) => `<td><span class="worksheet-radio"></span>${activity.type !== "Prova" && evidence.descriptors?.[String(index + 1)] ? `<small class="worksheet-level-descriptor">${escapeHtml(evidence.descriptors[String(index + 1)])}</small>` : ""}</td>`).join("")}</tr>`
+  const ratingRows = (items, student) => `<table class="worksheet-rating"><thead><tr><th>${config.itemLabel}</th>${scaleHeaders}</tr></thead><tbody>${items.map(evidence =>
+    `<tr><th>${escapeHtml(evidence.name)}<small>${getEvidenceActivityWeight(evidence)}% de l'element</small></th>${LEVEL_LABELS.slice(1).map((_, index) => {
+      const descriptor = getStudentEvaluationDescriptor(activity, student, evidence, index + 1);
+      return `<td><span class="worksheet-radio"></span>${descriptor ? `<small class="worksheet-level-descriptor">${escapeHtml(descriptor)}</small>` : ""}</td>`;
+    }).join("")}</tr>`
   ).join("")}</tbody></table>`;
   const overallRating = `<table class="worksheet-rating worksheet-overall"><thead><tr><th>Valoració global</th>${scaleHeaders}</tr></thead><tbody><tr><th>Com valores l'acompanyament del docent en aquesta activitat?</th>${LEVEL_LABELS.slice(1).map(() => `<td><span class="worksheet-radio"></span></td>`).join("")}</tr></tbody></table>`;
   const commentSpace = `<div class="worksheet-comment"><strong>Comentari</strong><div></div><div></div></div>`;
@@ -305,7 +308,7 @@ export function openGroupAssessmentForms(components) {
     description,
     target,
     evaluationItems.length
-      ? ratingRows(evaluationItems)
+      ? ratingRows(evaluationItems, student)
       : `<p class="worksheet-no-peers">Aquest element encara no té ${config.itemLabelPlural}.</p>`,
     commentSpace
   );

@@ -48,6 +48,22 @@ export function getStudentEnrollment(student, academicYearId) {
       : null);
 }
 
+export function getStudentEvaluationDescriptor(activity, student, evidence, level) {
+  const commonDescriptor = activity.type === "Prova"
+    ? evidence.answerKey || ""
+    : evidence.descriptors?.[String(level)] || "";
+  if (activity.type === "Prova") return commonDescriptor;
+  const adaptations = student.adaptations || [];
+  const specificDescriptors = adaptations.map(adaptation =>
+    activity.adaptedDescriptors?.[adaptation]?.[evidence.id]?.[String(level)] || ""
+  );
+  if (!specificDescriptors.some(Boolean)) return commonDescriptor;
+  return adaptations.map((adaptation, index) => {
+    const descriptor = specificDescriptors[index] || commonDescriptor;
+    return descriptor ? `${STUDENT_ADAPTATIONS[adaptation]}: ${descriptor}` : "";
+  }).filter(Boolean).join("\n");
+}
+
 export function getOfferingStudents(data, offering) {
   const classGroupIds = new Set(offering.classGroupIds);
   const additionalGroupIds = new Set(offering.additionalGroupIds);
@@ -230,7 +246,14 @@ export function validateData(value, makeId) {
     student.classGroupId ||= "";
     student.subgroupId ||= "";
     student.additionalGroupIds ||= [];
-    student.adaptation ??= "";
+    if (student.adaptations === undefined) {
+      student.adaptations = student.adaptation === undefined || student.adaptation === ""
+        ? []
+        : Object.hasOwn(STUDENT_ADAPTATIONS, student.adaptation)
+          ? [student.adaptation]
+          : student.adaptation;
+    }
+    delete student.adaptation;
     delete student.group;
   }
   for (const classGroup of value.classGroups) classGroup.subgroups ||= [];
@@ -279,9 +302,10 @@ export function validateData(value, makeId) {
       if (typeof student.firstName !== "string" || !student.firstName.trim() || typeof student.lastName !== "string") {
         throw new Error("cada alumne ha de tenir noms i cognoms vàlids.");
       }
-      if (typeof student.adaptation !== "string" ||
-        student.adaptation && !Object.hasOwn(STUDENT_ADAPTATIONS, student.adaptation)) {
-        throw new Error("hi ha una adaptació d'alumne no vàlida.");
+      if (!Array.isArray(student.adaptations) ||
+        new Set(student.adaptations).size !== student.adaptations.length ||
+        student.adaptations.some(adaptation => !Object.hasOwn(STUDENT_ADAPTATIONS, adaptation))) {
+        throw new Error("hi ha etiquetes d'adaptació d'alumne no vàlides.");
       }
     }
   }

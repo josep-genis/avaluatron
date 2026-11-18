@@ -3,7 +3,7 @@ import { data, state } from "./state.js";
 import { EDUCATIONAL_LEVELS } from "./education.js";
 import { isBankCompetency, withoutUnmodifiedBank } from "./competency-bank.js";
 import {
-  DAILY_FOLLOWUP_CRITERIA, STUDENT_ADAPTATIONS, getActivityOffers,
+  DAILY_FOLLOWUP_CRITERIA, STUDENT_ADAPTATIONS, getActivityOffers, getStudentEvaluationDescriptor,
   getCurrentAcademicYear, getLevelOffers, getOfferingStudents, getSequenceActivities, getSequenceItems, isLectureItem, getStudentEnrollment
 } from "./data.js";
 import {
@@ -24,9 +24,10 @@ import { getEvaluationConfig, getEvaluationItems, getEvaluationType } from "./as
 const content = document.querySelector("#app-content");
 let activityTableResizeObserver;
 
-function studentAdaptationBadge(student) {
-  const label = STUDENT_ADAPTATIONS[student.adaptation];
-  return label ? `<span class="student-adaptation-badge">${escapeHtml(label)}</span>` : "";
+function studentAdaptationBadges(student) {
+  return (student.adaptations || []).map(adaptation =>
+    `<span class="student-adaptation-badge">${escapeHtml(STUDENT_ADAPTATIONS[adaptation])}</span>`
+  ).join("");
 }
 
 function getAssessment(studentId, activityId) {
@@ -439,7 +440,7 @@ function renderStudents() {
     const matchesClass = !state.selectedClassGroupId || student.classGroupId === state.selectedClassGroupId;
     const matchesSubgroup = !state.selectedSubgroupId || student.subgroupId === state.selectedSubgroupId;
     const matchesAdditionalGroup = !state.selectedAdditionalGroupId || student.additionalGroupIds.includes(state.selectedAdditionalGroupId);
-    const matchesAdaptation = !state.studentAdaptationFilter || student.adaptation === state.studentAdaptationFilter;
+    const matchesAdaptation = !state.studentAdaptationFilter || (student.adaptations || []).includes(state.studentAdaptationFilter);
     return matchesQuery && matchesClass && matchesSubgroup && matchesAdditionalGroup && matchesAdaptation;
   }).sort((a, b) => compareStudents(a, b));
   const subgroupFilter = state.selectedClassGroupId && getClassGroup(state.selectedClassGroupId)?.subgroups.length
@@ -448,8 +449,8 @@ function renderStudents() {
   const additionalGroupFilter = data.additionalGroups.length
     ? `<select class="search-input group-filter" id="additional-group-filter" aria-label="Filtra per grup addicional"><option value="">Tots els grups addicionals</option>${data.additionalGroups.map(group => `<option value="${escapeHtml(group.id)}" ${state.selectedAdditionalGroupId === group.id ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}</select>`
     : "";
-    const action = `<button class="button" type="button" data-action="import-students-csv" title="Columnes: nom, cognom, grup classe, desdoblament (opcional)">${icon("upload")} Importa CSV</button><button class="button button-primary" type="button" data-action="create-student">${icon("plus")} Afegeix alumne</button>`;
   const adaptationFilter = `<select class="search-input group-filter" id="student-adaptation-filter" aria-label="Filtra per adaptació"><option value="">Totes les adaptacions</option>${Object.entries(STUDENT_ADAPTATIONS).map(([key, label]) => `<option value="${key}" ${state.studentAdaptationFilter === key ? "selected" : ""}>${label}</option>`).join("")}</select>`;
+  const action = `<button class="button" type="button" data-action="import-students-csv" title="Columnes: nom, cognom, grup classe, desdoblament (opcional)">${icon("upload")} Importa CSV</button><button class="button button-primary" type="button" data-action="create-student">${icon("plus")} Afegeix alumne</button>`;
   const filters = `<div class="student-filters"><select class="search-input group-filter" id="class-group-filter" aria-label="Filtra per grup classe">${classGroupOptions(state.selectedClassGroupId)}</select>${subgroupFilter}${additionalGroupFilter}${adaptationFilter}<select class="search-input group-filter" id="student-sort" aria-label="Ordena alumnat">${studentSortOptions(state.studentSort)}</select><input class="search-input" id="student-search" type="search" placeholder="Cerca un alumne…" value="${escapeHtml(state.studentQuery)}" aria-label="Cerca un alumne"></div>`;
   content.innerHTML = `${pageHeading("GRUP I SEGUIMENT", "Alumnes", "Consulta els perfils i el progrés competencial del teu grup.", action)}
     ${filters}
@@ -457,7 +458,7 @@ function renderStudents() {
       const grades = data.competencies.map(competency => getCompetencyGrade(student.id, competency.id)).filter(grade => grade !== null);
       const average = grades.length ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length : null;
       const evidenceCount = getStudentActivityCount(student.id);
-      return `<li class="student-list-item"><button class="student-list-open" type="button" data-open-student="${student.id}"><span class="student-list-identity"><strong>${escapeHtml(studentDisplayName(student))}</strong><span>${escapeHtml(getStudentGroupLabel(student))} · ${evidenceCount} ${evidenceCount === 1 ? "activitat" : "activitats"}</span>${studentAdaptationBadge(student)}</span><span class="student-list-grade"><span class="student-list-grade-label">Mitjana competencial</span>${gradeBadge(average)}</span></button><button class="text-button student-list-edit" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button></li>`;
+      return `<li class="student-list-item"><button class="student-list-open" type="button" data-open-student="${student.id}"><span class="student-list-identity"><strong>${escapeHtml(studentDisplayName(student))}</strong><span>${escapeHtml(getStudentGroupLabel(student))} · ${evidenceCount} ${evidenceCount === 1 ? "activitat" : "activitats"}</span><span class="student-adaptation-badges">${studentAdaptationBadges(student)}</span></span><span class="student-list-grade"><span class="student-list-grade-label">Mitjana competencial</span>${gradeBadge(average)}</span></button><button class="text-button student-list-edit" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button></li>`;
     }).join("")}</ul>` : emptyState(data.students.length ? "No hi ha coincidències" : "Encara no hi ha alumnes", data.students.length ? "Prova una altra cerca." : "Afegeix el teu primer alumne per començar.", "create-student", "Afegeix alumne")}`;
   document.querySelector("#class-group-filter")?.addEventListener("change", event => {
     state.selectedClassGroupId = event.target.value;
@@ -526,7 +527,7 @@ function renderStudentDetail() {
     </button>`;
   }).join("");
   content.innerHTML = `<button class="detail-back" type="button" data-back="students">${icon("arrow-left")} Torna als alumnes</button>
-    ${pageHeading("PERFIL D'ALUMNE", escapeHtml(studentDisplayName(student)), `${getStudentGroupLabel(student)} · ${STUDENT_ADAPTATIONS[student.adaptation] || "Sense adaptació"} · Assignatures i nivells actuals`, `<button class="button" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button>`)}
+    ${pageHeading("PERFIL D'ALUMNE", escapeHtml(studentDisplayName(student)), `${getStudentGroupLabel(student)} · Assignatures i nivells actuals${student.adaptations?.length ? ` · ${student.adaptations.map(adaptation => STUDENT_ADAPTATIONS[adaptation]).join(", ")}` : ""}`, `<button class="button" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button>`)}
     <section class="panel"><div class="panel-heading"><div><h2 class="section-title">Assignatures que cursa</h2><span class="section-caption">Obre un nivell per consultar el report de l'assignatura, les competències i les activitats.</span></div><span class="badge">${subjectLevels.length} ${subjectLevels.length === 1 ? "nivell" : "nivells"}</span></div>
       ${levelCards ? `<div class="student-subject-list">${levelCards}</div>` : emptyState("Cap nivell assignat", "Aquest alumne encara no té cap assignatura vinculada al seu grup classe.")}</section>`;
 }
@@ -838,9 +839,11 @@ function renderActivityDetail() {
     const exempt = activityExempt || subjectExempt;
     const selectors = evaluationItems.map(evidence => {
       const selectedLevel = assessment?.levels[evidence.id] ?? 0;
-      const adaptedDescriptors = activity.adaptedDescriptors?.[student.adaptation]?.[evidence.id];
       return `<td><select class="grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}" aria-label="${escapeHtml(studentDisplayName(student))}: ${escapeHtml(evidence.name)}" data-assess-student="${escapeHtml(student.id)}" data-evidence="${escapeHtml(evidence.id)}" ${exempt ? "disabled" : ""}>
-        ${LEVEL_LABELS.map((label, index) => `<option class="${gradeColorClass(index ? SCORE_BY_LEVEL[index] : null)}" title="${escapeHtml(isTest ? "" : adaptedDescriptors?.[index] || evidence.descriptors?.[index] || "")}" value="${index}" ${selectedLevel === index ? "selected" : ""}>${index === 0 ? label : `${index} · ${label} (${formatGradeWithCode(SCORE_BY_LEVEL[index])})`}</option>`).join("")}
+        ${LEVEL_LABELS.map((label, index) => {
+          const descriptor = getStudentEvaluationDescriptor(activity, student, evidence, index);
+          return `<option class="${gradeColorClass(index ? SCORE_BY_LEVEL[index] : null)}" title="${escapeHtml(isTest ? "" : descriptor)}" value="${index}" ${selectedLevel === index ? "selected" : ""}>${index === 0 ? label : `${index} · ${label} (${formatGradeWithCode(SCORE_BY_LEVEL[index])})`}</option>`;
+        }).join("")}
         <option class="${gradeColorClass(0)}" value="${NOT_SUBMITTED_LEVEL}" ${selectedLevel === NOT_SUBMITTED_LEVEL ? "selected" : ""}>${NOT_SUBMITTED_LABEL} (${formatGradeWithCode(0)})</option>
       </select></td>`;
     }).join("");
@@ -852,7 +855,7 @@ function renderActivityDetail() {
     ));
     const didNotPass = fullyAssessed && activityGrade !== null && activityGrade < 5;
     const exemptionLabel = subjectExempt ? "Exempt/a de l'assignatura" : "Exempt/a de l'activitat";
-    return `<tr data-assessment-row="${escapeHtml(student.id)}" data-student-surname="${escapeHtml(`${student.lastName} ${student.firstName}`.trim())}" data-student-name="${escapeHtml(studentDisplayName(student))}" data-student-group="${escapeHtml(getStudentGroupLabel(student))}" data-activity-group="${escapeHtml(getActivityGroupOf(activity, student.id)?.name || "")}" data-class-group="${escapeHtml(student.classGroupId)}" data-grade-value="${activityGrade ?? ""}" data-assessed="${fullyAssessed ? "true" : "false"}" data-exempt="${exempt ? "true" : "false"}" class="${didNotPass ? "assessment-row-warning" : ""}"><td><div class="assessment-student-name"><button class="student-activity-report-link" type="button" data-open-student-activity-report="${escapeHtml(student.id)}"><strong>${escapeHtml(studentDisplayName(student))}</strong></button><span class="assessment-warning" data-warning-for="${escapeHtml(student.id)}" role="img" aria-label="No assoleix l'activitat" title="No assoleix l'activitat" ${didNotPass ? "" : "hidden"}>${icon("warning-triangle")}</span></div><span class="assessment-student-group">${escapeHtml(getStudentGroupLabel(student))}</span>${studentAdaptationBadge(student)}${getActivityGroupOf(activity, student.id) ? `<span class="assessment-student-group">Agrupament: ${escapeHtml(getActivityGroupOf(activity, student.id).name)}</span>` : ""}</td><td class="activity-grade-cell" data-grade-for="${escapeHtml(student.id)}"><span class="activity-grade-report-result">${exempt ? `<span class="badge exemption-badge">${exemptionLabel}</span>` : gradeBadge(activityGrade)}</span></td><td class="activity-exemption-cell"><label class="exemption-control"><input type="checkbox" data-activity-exemption="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" aria-label="Exempció d'activitat per a ${escapeHtml(studentDisplayName(student))}" ${activityExempt ? "checked" : ""}></label></td><td class="activity-exemption-cell"><label class="exemption-control"><input type="checkbox" data-activity-recovered data-student-id="${escapeHtml(student.id)}" aria-label="Activitat recuperada per a ${escapeHtml(studentDisplayName(student))}" ${assessment?.recovered ? "checked" : ""} ${exempt ? "disabled" : ""}></label></td>${selectors}<td class="activity-feedback-cell"><textarea data-activity-feedback data-activity-id="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" data-offering-id="${escapeHtml(selectedOffering?.id || "")}" maxlength="2000" rows="2" aria-label="Retroacció per a ${escapeHtml(studentDisplayName(student))}" placeholder="Comentaris sobre el resultat…">${escapeHtml(assessment?.feedback || "")}</textarea></td></tr>`;
+    return `<tr data-assessment-row="${escapeHtml(student.id)}" data-student-surname="${escapeHtml(`${student.lastName} ${student.firstName}`.trim())}" data-student-name="${escapeHtml(studentDisplayName(student))}" data-student-group="${escapeHtml(getStudentGroupLabel(student))}" data-activity-group="${escapeHtml(getActivityGroupOf(activity, student.id)?.name || "")}" data-class-group="${escapeHtml(student.classGroupId)}" data-grade-value="${activityGrade ?? ""}" data-assessed="${fullyAssessed ? "true" : "false"}" data-exempt="${exempt ? "true" : "false"}" class="${didNotPass ? "assessment-row-warning" : ""}"><td><div class="assessment-student-name"><button class="student-activity-report-link" type="button" data-open-student-activity-report="${escapeHtml(student.id)}"><strong>${escapeHtml(studentDisplayName(student))}</strong></button><span class="assessment-warning" data-warning-for="${escapeHtml(student.id)}" role="img" aria-label="No assoleix l'activitat" title="No assoleix l'activitat" ${didNotPass ? "" : "hidden"}>${icon("warning-triangle")}</span></div><span class="assessment-student-group">${escapeHtml(getStudentGroupLabel(student))}</span><span class="student-adaptation-badges">${studentAdaptationBadges(student)}</span>${getActivityGroupOf(activity, student.id) ? `<span class="assessment-student-group">Agrupament: ${escapeHtml(getActivityGroupOf(activity, student.id).name)}</span>` : ""}</td><td class="activity-grade-cell" data-grade-for="${escapeHtml(student.id)}"><span class="activity-grade-report-result">${exempt ? `<span class="badge exemption-badge">${exemptionLabel}</span>` : gradeBadge(activityGrade)}</span></td><td class="activity-exemption-cell"><label class="exemption-control"><input type="checkbox" data-activity-exemption="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" aria-label="Exempció d'activitat per a ${escapeHtml(studentDisplayName(student))}" ${activityExempt ? "checked" : ""}></label></td><td class="activity-exemption-cell"><label class="exemption-control"><input type="checkbox" data-activity-recovered data-student-id="${escapeHtml(student.id)}" aria-label="Activitat recuperada per a ${escapeHtml(studentDisplayName(student))}" ${assessment?.recovered ? "checked" : ""} ${exempt ? "disabled" : ""}></label></td>${selectors}<td class="activity-feedback-cell"><textarea data-activity-feedback data-activity-id="${escapeHtml(activity.id)}" data-student-id="${escapeHtml(student.id)}" data-offering-id="${escapeHtml(selectedOffering?.id || "")}" maxlength="2000" rows="2" aria-label="Retroacció per a ${escapeHtml(studentDisplayName(student))}" placeholder="Comentaris sobre el resultat…">${escapeHtml(assessment?.feedback || "")}</textarea></td></tr>`;
   }).join("");
   const rubricRows = evaluationItems.map(evidence => {
     const contributions = Object.entries(evidence.contributions).map(([competencyId, weight]) => {
@@ -867,16 +870,16 @@ function renderActivityDetail() {
       : isTest && evidence.answerKey
         ? `<details class="evidence-rubric-descriptors"><summary>Solucionari</summary><p>${escapeHtml(evidence.answerKey).replaceAll("\n", "<br>")}</p></details>`
       : "";
-    const adaptedCriteria = Object.entries(activity.adaptedDescriptors || {})
+    const adaptedCriteria = !isTest ? Object.entries(activity.adaptedDescriptors || {})
       .map(([adaptation, items]) => {
-      const descriptors = items[evidence.id];
-      const levels = descriptors && Object.entries(descriptors)
-        .map(([level, descriptor]) => `<li><strong>${["", "NA", "AS", "AN", "AE"][Number(level)]}</strong> ${escapeHtml(descriptor)}</li>`)
-        .join("");
-      return levels ? `<li><strong>${STUDENT_ADAPTATIONS[adaptation]}</strong><ul>${levels}</ul></li>` : "";
+        const descriptors = items[evidence.id];
+        const levels = descriptors ? Object.entries(descriptors)
+          .map(([level, descriptor]) => `<li><strong>${["", "NA", "AS", "AN", "AE"][Number(level)]}</strong> ${escapeHtml(descriptor)}</li>`)
+          .join("") : "";
+        return levels ? `<li><strong>${STUDENT_ADAPTATIONS[adaptation]}</strong><ul>${levels}</ul></li>` : "";
       })
       .filter(Boolean)
-      .join("");
+      .join("") : "";
     const adaptedCriteriaDisclosure = adaptedCriteria
       ? `<details class="evidence-rubric-descriptors"><summary>Criteris adaptats</summary><ul>${adaptedCriteria}</ul></details>`
       : "";
@@ -1000,6 +1003,12 @@ export function renderActivityRubric() {
   const config = getEvaluationConfig(activity);
   const items = getEvaluationItems(activity);
   const evidenceRows = items.map((evidence, index) => activityRubricEvidenceRowMarkup(index, evidence, evidence.id, isTest)).join("");
+  const levelHeaders = [
+    ["NA", "No assolit · 2,5/10"],
+    ["AS", "Assoliment satisfactori · 5/10"],
+    ["AN", "Assoliment notable · 7,5/10"],
+    ["AE", "Assoliment excel·lent · 10/10"]
+  ];
   const adaptedDescriptorSections = !isTest
     ? Object.entries(STUDENT_ADAPTATIONS).map(([adaptation, label]) => {
       const rows = items.map((evidence, index) => activityRubricAdaptedDescriptorRowMarkup({
@@ -1013,12 +1022,6 @@ export function renderActivityRubric() {
       </details>`;
     }).join("")
     : "";
-  const levelHeaders = [
-    ["NA", "No assolit · 2,5/10"],
-    ["AS", "Assoliment satisfactori · 5/10"],
-    ["AN", "Assoliment notable · 7,5/10"],
-    ["AE", "Assoliment excel·lent · 10/10"]
-  ];
   content.innerHTML = `<button class="detail-back" type="button" data-back="activity-detail">${icon("arrow-left")} Torna a ${escapeHtml(activity.title)}</button>
     ${pageHeading(isTest ? "PROVA" : "ACTIVITAT", `Edita el ${config.editorLabel}`, isTest
       ? `Defineix les preguntes, les competències que avalua cadascuna i la resposta esperada de ${escapeHtml(activity.title)}.`

@@ -35,6 +35,9 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
   const form = document.querySelector("#cloud-config-form");
   const emailInput = document.querySelector("#cloud-email");
   const passwordInput = document.querySelector("#cloud-password");
+  const termsInput = document.querySelector("#cloud-terms");
+  const privacyInput = document.querySelector("#cloud-privacy");
+  const consents = document.querySelector("#cloud-consents");
   const signupButton = document.querySelector("#cloud-signup");
   const recoveryForm = document.querySelector("#cloud-recovery-form");
   const newPasswordInput = document.querySelector("#cloud-new-password");
@@ -85,6 +88,7 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
     form.hidden = recovering || !client || projectMismatch || (Boolean(active) && !authRequired);
     recoveryForm.hidden = !recovering;
     signupButton.hidden = Boolean(active);
+    if (consents) consents.hidden = Boolean(active);
     retryButton.hidden = !active || stale || projectMismatch || recovering;
     remoteButton.hidden = !active || !cache.conflict || stale || projectMismatch || recovering;
     localButton.hidden = !active || !cache.conflict || stale || projectMismatch || recovering;
@@ -336,13 +340,29 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
         notify(info);
         return;
       }
+      if (action === "signup" && (termsInput || privacyInput)) {
+        if (!termsInput?.checked || !privacyInput?.checked) {
+          throw new Error("Cal acceptar els Termes d’ús i la Política de privacitat abans de crear el compte.");
+        }
+      }
       if (!passwordInput.value) throw new Error("Introdueix la contrasenya.");
       previousLocalMode = localStorage.getItem(LOCAL_MODE_KEY);
       localStorage.removeItem(LOCAL_MODE_KEY);
       changedLocalMode = true;
       const credentials = { email, password: passwordInput.value };
+      const signupOptions = action === "signup" && termsInput && privacyInput
+        ? {
+            emailRedirectTo: redirectTo,
+            data: {
+              terms_accepted: termsInput.checked,
+              privacy_accepted: privacyInput.checked,
+              legal_acceptance_at: new Date().toISOString(),
+              legal_documents_version: "2026-11-18"
+            }
+          }
+        : { emailRedirectTo: redirectTo };
       const { data: result, error } = action === "signup"
-        ? await client.auth.signUp({ ...credentials, options: { emailRedirectTo: redirectTo } })
+        ? await client.auth.signUp({ ...credentials, options: signupOptions })
         : await client.auth.signInWithPassword(credentials);
       if (error) throw error;
       passwordInput.value = "";

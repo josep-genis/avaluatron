@@ -155,6 +155,11 @@ async function run() {
     signupConfirmation = false;
     document.querySelector("#cloud-password").value = "correct-password";
     click("#cloud-signup");
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert(remote === null, "Signup is blocked until both legal consents are accepted");
+    document.querySelector("#cloud-terms").checked = true;
+    document.querySelector("#cloud-privacy").checked = true;
+    click("#cloud-signup");
     await waitFor(() => remote?.revision === 1 && status() === "Núvol sincronitzat", "Immediate signup activates cloud");
     assert(document.querySelector("#cloud-password").value === "", "Password cleared after signup");
     results.textContent = "PASS: signup without email confirmation";
@@ -168,6 +173,8 @@ async function run() {
   await waitFor(() => resetEmail === "teacher@example.com", "Password reset requested");
   assert(!cloud.isActive(), "Password reset keeps local mode");
   document.querySelector("#cloud-password").value = "correct-password";
+  document.querySelector("#cloud-terms").checked = true;
+  document.querySelector("#cloud-privacy").checked = true;
   click("#cloud-signup");
   await waitFor(() => document.querySelector("#cloud-detail").textContent.includes("confirmació"), "Signup confirmation instructions");
   assert(!cloud.isActive() && remote === null, "Unconfirmed signup does not sync");

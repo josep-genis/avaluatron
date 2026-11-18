@@ -64,6 +64,16 @@
             <div class="field full"><label for="cloud-email">Correu electrònic</label><input id="cloud-email" type="email" required autocomplete="email"></div>
             <div class="field full"><label for="cloud-password">Contrasenya</label><input id="cloud-password" type="password" required autocomplete="current-password"></div>
           </div>
+          <div class="consent-list" id="cloud-consents">
+            <label class="consent-option" for="cloud-terms">
+              <input id="cloud-terms" type="checkbox" required>
+              <span>He llegit i accepto els <a href="termes-us.html" target="_blank" rel="noopener">Termes d’ús</a>.</span>
+            </label>
+            <label class="consent-option" for="cloud-privacy">
+              <input id="cloud-privacy" type="checkbox" required>
+              <span>He llegit i accepto la <a href="privacitat.html" target="_blank" rel="noopener">Política de privacitat i protecció de dades</a>.</span>
+            </label>
+          </div>
           <div class="form-actions cloud-actions">
             <button class="button" type="submit" name="action" value="reset" formnovalidate>He oblidat la contrasenya</button>
             <button class="button" id="cloud-signup" type="submit" name="action" value="signup">Crea un compte</button>

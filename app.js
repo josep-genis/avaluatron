@@ -170,10 +170,11 @@ function openStudentDialogFor(studentId = null) {
   const enrollment = student ? getStudentEnrollment(student, data.currentAcademicYearId) : null;
   const classGroupId = enrollment?.classGroupId || "";
   const additionalGroupFields = studentAdditionalGroupFields(enrollment?.additionalGroupIds || []);
+  const adaptationFields = studentAdaptationFields(student?.adaptations || []);
   openDialog(editing ? "Edita el perfil de l'alumne" : "Afegeix un alumne", editing ? "Actualitza el grup classe, el desdoblament i els grups addicionals de l'alumne." : "Crea un perfil i assigna'l al seu grup classe i, si cal, a diversos grups addicionals.", `<div class="form-grid">
     <div class="field"><label for="student-first-name">Noms</label><input id="student-first-name" name="firstName" required maxlength="60" placeholder="Ex.: Júlia Maria"></div>
     <div class="field"><label for="student-last-name">Cognoms</label><input id="student-last-name" name="lastName" required maxlength="80" placeholder="Ex.: Martí Soler"></div>
-    <div class="field"><label for="student-adaptation">Adaptació de l'alumne</label><select id="student-adaptation" name="adaptation"><option value="">Cap adaptació</option>${Object.entries(STUDENT_ADAPTATIONS).map(([key, label]) => `<option value="${key}" ${student?.adaptation === key ? "selected" : ""}>${label}</option>`).join("")}</select></div>
+    ${adaptationFields}
     <div class="field"><label for="student-class-group">Grup classe</label><select id="student-class-group" name="classGroupId">${classGroupOptions(classGroupId)}</select></div>
     <div class="field"><label for="student-subgroup">Desdoblament</label><select id="student-subgroup" name="subgroupId" ${classGroupId ? "" : "disabled"}>${subgroupOptions(classGroupId, enrollment?.subgroupId || "")}</select></div>
     ${additionalGroupFields}
@@ -181,10 +182,16 @@ function openStudentDialogFor(studentId = null) {
   if (student) {
     dialogContent.querySelector("#student-first-name").value = student.firstName;
     dialogContent.querySelector("#student-last-name").value = student.lastName;
-    dialogContent.querySelector("#student-adaptation").value = student.adaptation || "";
   }
   dialogForm.dataset.formType = editing ? "edit-student" : "student";
   dialogForm.dataset.recordId = student?.id || "";
+}
+
+function studentAdaptationFields(selectedAdaptations) {
+  const selected = new Set(selectedAdaptations);
+  return `<fieldset class="field full student-adaptation-options"><legend>Etiquetes d'adaptació</legend><div>${Object.entries(STUDENT_ADAPTATIONS).map(([key, label]) =>
+    `<label><input type="checkbox" name="adaptations" value="${key}" ${selected.has(key) ? "checked" : ""}> ${label}</label>`
+  ).join("")}</div><span class="field-hint">Pots seleccionar una o totes dues; s'utilitzaran per mostrar els criteris d'avaluació corresponents.</span></fieldset>`;
 }
 
 function studentAdditionalGroupFields(selectedIds) {
@@ -734,6 +741,7 @@ function importStudentsCsv(file) {
         ...item,
         academicYearId: data.currentAcademicYearId,
         additionalGroupIds: [],
+        adaptations: [],
         enrollments: [{ academicYearId: data.currentAcademicYearId, classGroupId: item.classGroupId, subgroupId: item.subgroupId, additionalGroupIds: [] }]
       });
     }
@@ -1390,17 +1398,12 @@ document.addEventListener("click", event => {
     const evidenceRow = removeRubricEvidenceButton.closest("[data-rubric-evidence-row]");
     const evidenceId = evidenceRow.querySelector('[name="rubricEvidenceId"]').value;
     evidenceRow.remove();
-    document.querySelectorAll(`[data-rubric-adapted-row][data-evidence-id="${CSS.escape(evidenceId)}"]`)
-      .forEach(row => row.remove());
+    document.querySelectorAll("#activity-rubric-form [data-rubric-adapted-row]")
+      .forEach(row => { if (row.dataset.evidenceId === evidenceId) row.remove(); });
     if (!body.querySelector("[data-rubric-evidence-row]")) {
       const isTest = document.querySelector("#activity-rubric-form").dataset.itemType === "Prova";
       const config = getEvaluationConfig({ type: isTest ? "Prova" : "Activitat" });
       body.innerHTML = `<tr class="rubric-empty-row"><td colspan="${isTest ? 3 : 6}">Encara no hi ha ${config.itemLabelPlural}. Afegeix-ne una per començar el ${config.editorLabel}.</td></tr>`;
-      if (!isTest) {
-        document.querySelectorAll("[data-adapted-descriptor-body]").forEach(adaptedBody => {
-          adaptedBody.innerHTML = '<tr class="rubric-empty-row"><td colspan="5">Afegeix evidències a la rúbrica comuna per definir-ne criteris adaptats.</td></tr>';
-        });
-      }
     }
     updateReorderLabels(body);
     return;
@@ -1431,15 +1434,6 @@ document.addEventListener("click", event => {
     evidenceRow.querySelector("[data-add-rubric-competency]").disabled = !available.length;
     evidenceRow.querySelector(".evidence-competency-warning").hidden = selectedIds.size > 0;
   }
-});
-
-document.addEventListener("input", event => {
-  const nameInput = event.target.closest('#activity-rubric-form [name="rubricEvidenceName"]');
-  if (!nameInput) return;
-  const evidenceId = nameInput.closest("[data-rubric-evidence-row]").querySelector('[name="rubricEvidenceId"]').value;
-  const adaptedName = nameInput.value.trim() || "Evidència sense nom";
-  document.querySelectorAll(`[data-rubric-adapted-row][data-evidence-id="${CSS.escape(evidenceId)}"] [data-adapted-evidence-name]`)
-    .forEach(element => { element.textContent = adaptedName; });
 });
 
 document.addEventListener("keydown", event => {
@@ -1610,6 +1604,7 @@ dialogForm.addEventListener("submit", event => {
     const classGroupId = String(formData.get("classGroupId") || "");
     const subgroupId = String(formData.get("subgroupId") || "");
     const additionalGroupIds = formData.getAll("additionalGroupIds").map(String);
+    const adaptations = formData.getAll("adaptations").map(String);
     if (classGroupId && !getClassGroup(classGroupId) || subgroupId && !getClassGroup(classGroupId)?.subgroups.some(item => item.id === subgroupId)) {
       showToast("Selecciona un grup classe i un desdoblament vàlids.", true);
       return;
@@ -1619,15 +1614,15 @@ dialogForm.addEventListener("submit", event => {
       showToast("Selecciona grups addicionals vàlids.", true);
       return;
     }
-    const firstName = String(formData.get("firstName")).trim();
-    const lastName = String(formData.get("lastName")).trim();
-    const adaptation = String(formData.get("adaptation") || "");
-    if (!firstName || !lastName) {
-      showToast("Escriu els noms i els cognoms de l'alumne.", true);
+    if (new Set(adaptations).size !== adaptations.length ||
+      adaptations.some(adaptation => !Object.hasOwn(STUDENT_ADAPTATIONS, adaptation))) {
+      showToast("Selecciona etiquetes d'adaptació vàlides.", true);
       return;
     }
-    if (adaptation && !Object.hasOwn(STUDENT_ADAPTATIONS, adaptation)) {
-      showToast("Selecciona una adaptació de l'alumne vàlida.", true);
+    const firstName = String(formData.get("firstName")).trim();
+    const lastName = String(formData.get("lastName")).trim();
+    if (!firstName || !lastName) {
+      showToast("Escriu els noms i els cognoms de l'alumne.", true);
       return;
     }
     if (classGroupId && getClassGroup(classGroupId)?.academicYearId !== data.currentAcademicYearId) {
@@ -1642,10 +1637,10 @@ dialogForm.addEventListener("submit", event => {
       classGroupId,
       subgroupId,
       additionalGroupIds,
-      adaptation,
+      adaptations,
       enrollments: []
     };
-    Object.assign(updatedStudent, { firstName, lastName, academicYearId: data.currentAcademicYearId, classGroupId, subgroupId, additionalGroupIds, adaptation });
+    Object.assign(updatedStudent, { firstName, lastName, academicYearId: data.currentAcademicYearId, classGroupId, subgroupId, additionalGroupIds, adaptations });
     const enrollment = updatedStudent.enrollments.find(item => item.academicYearId === data.currentAcademicYearId);
     const currentEnrollment = { academicYearId: data.currentAcademicYearId, classGroupId, subgroupId, additionalGroupIds };
     if (enrollment) Object.assign(enrollment, currentEnrollment);
@@ -1994,6 +1989,13 @@ content.addEventListener("submit", event => {
     if (isTest) {
       activity.questions = updatedItems;
       delete activity.evidences;
+      for (const [adaptation, items] of Object.entries(activity.adaptedDescriptors || {})) {
+        for (const itemId of Object.keys(items)) {
+          if (!retainedEvidenceIds.has(itemId)) delete items[itemId];
+        }
+        if (!Object.keys(items).length) delete activity.adaptedDescriptors[adaptation];
+      }
+      if (!Object.keys(activity.adaptedDescriptors || {}).length) delete activity.adaptedDescriptors;
     } else {
       activity.evidences = updatedItems;
       delete activity.questions;
@@ -2057,6 +2059,18 @@ content.addEventListener("submit", event => {
   }
   render();
   showToast("Competència actualitzada.");
+});
+
+content.addEventListener("input", event => {
+  const nameInput = event.target.closest('#activity-rubric-form [name="rubricEvidenceName"]');
+  if (!nameInput) return;
+  const evidenceRow = nameInput.closest("[data-rubric-evidence-row]");
+  const evidenceId = evidenceRow.querySelector('[name="rubricEvidenceId"]').value;
+  const label = nameInput.value.trim() || `Evidència ${[...evidenceRow.parentElement.children].indexOf(evidenceRow) + 1}`;
+  document.querySelectorAll("#activity-rubric-form [data-rubric-adapted-row]")
+    .forEach(row => {
+      if (row.dataset.evidenceId === evidenceId) row.querySelector("[data-adapted-evidence-name]").textContent = label;
+    });
 });
 
 dialog.addEventListener("click", event => {
