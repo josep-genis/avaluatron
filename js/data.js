@@ -685,6 +685,10 @@ export function validateData(value, makeId) {
       assessment.note !== undefined && (typeof assessment.note !== "string" || assessment.note.length > 500)) {
       throw new Error("hi ha un seguiment diari sense dades vàlides.");
     }
+    assessment.positiveNegativeBalance ??= 0;
+    if (!Number.isInteger(assessment.positiveNegativeBalance)) {
+      throw new Error("hi ha un saldo de positius i negatius invàlid.");
+    }
     const [year, month, day] = assessment.date.split("-").map(Number);
     const parsedDate = new Date(Date.UTC(year, month - 1, day));
     if (parsedDate.getUTCFullYear() !== year || parsedDate.getUTCMonth() !== month - 1 || parsedDate.getUTCDate() !== day) {
@@ -696,7 +700,7 @@ export function validateData(value, makeId) {
     const levels = Object.entries(assessment.levels);
     if (levels.some(([criterionId, level]) => !dailyCriterionIds.has(criterionId) || !Number.isInteger(level) || level < 1 || level > 4) ||
       assessment.absent && levels.length ||
-      !levels.length && !assessment.note?.trim() && !assessment.absent) {
+      !levels.length && !assessment.note?.trim() && !assessment.absent && assessment.positiveNegativeBalance === 0) {
       throw new Error("hi ha un nivell o una observació invàlids en un seguiment diari.");
     }
   }

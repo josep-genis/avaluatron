@@ -849,6 +849,44 @@ document.querySelector("#import-file").addEventListener("change", event => {
 });
 
 document.addEventListener("click", event => {
+  const dailyBalanceButton = event.target.closest("[data-daily-positive-negative]");
+  if (dailyBalanceButton) {
+    const studentId = dailyBalanceButton.dataset.studentId;
+    if (isStudentExemptFromSubject(data, studentId, state.dailySelectedSubjectId)) {
+      showToast("Aquest alumne està exempt de l'assignatura.", true);
+      return;
+    }
+    const previousDailyAssessments = clone(data.dailyAssessments);
+    let assessment = data.dailyAssessments.find(item =>
+      item.subjectId === state.dailySelectedSubjectId &&
+      item.studentId === studentId &&
+      item.date === state.dailySelectedDate
+    );
+    if (!assessment) {
+      assessment = {
+        subjectId: state.dailySelectedSubjectId,
+        studentId,
+        date: state.dailySelectedDate,
+        levels: {},
+        note: "",
+        positiveNegativeBalance: 0
+      };
+      data.dailyAssessments.push(assessment);
+    }
+    if (assessment.absent) return;
+    const delta = Number(dailyBalanceButton.dataset.dailyPositiveNegative);
+    assessment.positiveNegativeBalance = (assessment.positiveNegativeBalance || 0) + delta;
+    if (!Object.keys(assessment.levels).length && !assessment.note && !assessment.absent && assessment.positiveNegativeBalance === 0) {
+      data.dailyAssessments = data.dailyAssessments.filter(item => item !== assessment);
+    }
+    if (!saveData()) {
+      data.dailyAssessments = previousDailyAssessments;
+      render();
+      return;
+    }
+    render();
+    return;
+  }
   if (event.target.closest("[data-import-daily-csv]")) {
     document.querySelector("#daily-csv-file").click();
     return;

@@ -288,6 +288,20 @@ function renderDailyFollowup() {
     const initials = `${student.firstName[0] || ""}${student.lastName[0] || ""}`.toLocaleUpperCase("ca");
     return `<tr class="${assessment?.absent ? "daily-row-absent" : ""}"><td data-label="Alumne"><div class="daily-student"><span class="daily-student-avatar" aria-hidden="true">${escapeHtml(initials)}</span><span><strong>${escapeHtml(studentDisplayName(student))}</strong><small>${escapeHtml(getStudentGroupLabel(student))}</small></span></div></td><td data-label="Absent"><label class="daily-absent-toggle"><input type="checkbox" data-daily-absent data-student-id="${escapeHtml(student.id)}" aria-label="${escapeHtml(studentDisplayName(student))} ha estat absent" ${assessment?.absent ? "checked" : ""}> Absent</label></td>${selectors}<td data-label="Observació"><input class="daily-followup-note" type="text" maxlength="500" aria-label="Observació de ${escapeHtml(studentDisplayName(student))}" placeholder="Afegeix una observació…" value="${escapeHtml(assessment?.note || "")}" data-daily-note data-student-id="${escapeHtml(student.id)}"></td></tr>`;
   }).join("");
+  const positiveNegativeRows = students.map(student => {
+    const assessment = assessments.find(item => item.studentId === student.id);
+    const balance = assessment?.positiveNegativeBalance || 0;
+    const initials = `${student.firstName[0] || ""}${student.lastName[0] || ""}`.toLocaleUpperCase("ca");
+    const balanceLabel = balance > 0 ? `+${balance}` : String(balance);
+    return `<div class="daily-positive-negative-row ${assessment?.absent ? "daily-row-absent" : ""}">
+      <div class="daily-student"><span class="daily-student-avatar" aria-hidden="true">${escapeHtml(initials)}</span><span><strong>${escapeHtml(studentDisplayName(student))}</strong><small>${escapeHtml(getStudentGroupLabel(student))}</small></span></div>
+      <div class="daily-positive-negative-bar" aria-label="Positius i negatius de ${escapeHtml(studentDisplayName(student))}">
+        <button type="button" class="daily-balance-button daily-balance-minus" data-daily-positive-negative="-1" data-student-id="${escapeHtml(student.id)}" aria-label="Un negatiu menys per a ${escapeHtml(studentDisplayName(student))}" ${assessment?.absent ? "disabled" : ""}>−</button>
+        <output class="daily-balance-value ${balance > 0 ? "positive" : balance < 0 ? "negative" : "neutral"}" data-daily-balance data-student-id="${escapeHtml(student.id)}" aria-live="polite">${balanceLabel}</output>
+        <button type="button" class="daily-balance-button daily-balance-plus" data-daily-positive-negative="1" data-student-id="${escapeHtml(student.id)}" aria-label="Un positiu més per a ${escapeHtml(studentDisplayName(student))}" ${assessment?.absent ? "disabled" : ""}>+</button>
+      </div>
+    </div>`;
+  }).join("");
   content.innerHTML = `<header class="daily-followup-header"><span class="daily-followup-header-icon">${icon("calendar")}</span><div><p class="eyebrow">SEGUIMENT FORMATIU</p><h1>Seguiment diari</h1><p class="page-subtitle">Observa el progrés de cada alumne sessió a sessió. Les dades es desen automàticament al dispositiu.</p></div></header>
     <section class="panel daily-followup-toolbar">
       <div class="daily-followup-toolbar-heading"><div><h2 class="section-title">Defineix la sessió</h2><span class="section-caption">Tria l'assignatura, la data i el grup que vols observar.</span></div>${icon("filter-list", "daily-followup-toolbar-icon")}</div>
@@ -305,6 +319,10 @@ function renderDailyFollowup() {
       <article class="daily-followup-stat"><span class="daily-followup-stat-icon daily-average-icon">${icon("stats-report")}</span><div><span class="daily-followup-stat-label">Mitjana dels indicadors</span><strong id="daily-average">${average === null ? "—" : `${average.toLocaleString("ca-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`}<small>${average === null ? "" : " / 4"}</small></strong></div></article>
       <article class="daily-followup-stat"><span class="daily-followup-stat-icon">${icon("calendar")}</span><div><span class="daily-followup-stat-label">Absències</span><strong id="daily-absent-count">${absentCount}</strong></div></article>
     </div>
+    ${students.length ? `<section class="panel daily-positive-negative-panel">
+      <div class="daily-positive-negative-heading"><div><p class="eyebrow">CONDUCTA</p><h2>Positius i negatius</h2><span class="section-caption">El − i el + es cancel·len entre si.</span></div></div>
+      <div class="daily-positive-negative-list">${positiveNegativeRows}</div>
+    </section>` : ""}
     <section class="panel daily-followup-panel">
       <div class="daily-followup-panel-heading"><div><p class="eyebrow">${escapeHtml(formatDate(state.dailySelectedDate))}</p><h2>${escapeHtml(subject.name)}</h2><span class="section-caption">${escapeHtml(selectedGroupLabel)} · ${students.length} ${students.length === 1 ? "alumne" : "alumnes"}</span></div>${students.length ? `<button type="button" class="button button-primary" data-open-swipe-daily>Mode targetes</button>` : ""}<span class="daily-followup-save-hint"><span class="daily-followup-save-dot"></span> Es desa automàticament</span></div>
       ${students.length ? `<div class="table-wrap daily-followup-table-wrap"><table class="assessment-table daily-followup-table"><thead><tr><th>Alumne</th><th>Assistència</th>${DAILY_FOLLOWUP_CRITERIA.map(criterion => `<th>${criterion.name}<small class="daily-followup-scale">1–4 · nivell</small></th>`).join("")}<th>Observació</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty-state"><strong>${eligibleStudents.length ? "No hi ha alumnes en aquesta selecció" : "L'assignatura no té grups assignats"}</strong>${eligibleStudents.length ? "Tria un altre grup classe o addicional per veure els alumnes." : "Edita l'assignatura i assigna-hi un grup classe o addicional."}</div>`}

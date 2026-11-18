@@ -474,6 +474,24 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .daily-followup-stat-label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 9px; }
 .daily-followup-stat strong { color: var(--ink); font: 700 20px "Manrope", sans-serif; }
 .daily-followup-stat strong small { color: var(--muted); font: 500 11px "DM Sans", sans-serif; }
+.daily-positive-negative-panel { margin-bottom: 14px; padding: 18px 20px; }
+.daily-positive-negative-heading { margin-bottom: 12px; }
+.daily-positive-negative-heading h2 { margin: 3px 0 4px; font: 700 16px "Manrope", sans-serif; }
+.daily-positive-negative-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.daily-positive-negative-row { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.daily-positive-negative-row .daily-student { min-width: 0; }
+.daily-positive-negative-row .daily-student > span:last-child { min-width: 0; }
+.daily-positive-negative-row .daily-student strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daily-positive-negative-row .daily-student small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daily-positive-negative-bar { display: grid; width: 112px; flex: 0 0 112px; grid-template-columns: 34px 44px 34px; align-items: center; border: 1px solid var(--line); border-radius: 18px; background: var(--surface-muted); }
+.daily-balance-button { display: grid; height: 32px; padding: 0; border: 0; background: transparent; place-items: center; font: 700 18px "Manrope", sans-serif; cursor: pointer; }
+.daily-balance-button:disabled { opacity: .45; cursor: default; }
+.daily-balance-minus { color: var(--danger); }
+.daily-balance-plus { color: var(--green); }
+.daily-balance-value { display: grid; height: 32px; border-right: 1px solid var(--line); border-left: 1px solid var(--line); background: var(--surface); place-items: center; font: 800 12px "Manrope", sans-serif; }
+.daily-balance-value.positive { color: var(--green); }
+.daily-balance-value.negative { color: var(--danger); }
+.daily-balance-value.neutral { color: var(--muted); }
 .daily-followup-panel { min-width: 0; padding: 20px; }
 .daily-followup-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .daily-followup-panel-heading .eyebrow { margin-bottom: 5px; font-size: 9px; }
@@ -665,6 +683,7 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
   .privacy-note { padding-right: 25px; padding-left: 25px; }
   .card-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .daily-followup-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .daily-positive-negative-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
   .sidebar { position: static; width: 100%; height: auto; padding: 12px 15px 0; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -728,6 +747,7 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
   .daily-followup-header .page-subtitle { max-width: 420px; }
   .daily-followup-toolbar { padding: 15px; }
   .daily-followup-filters { grid-template-columns: 1fr 1fr; gap: 11px; }
+  .daily-positive-negative-list { grid-template-columns: 1fr; }
   .daily-followup-stat-grid { gap: 9px; }
   .daily-followup-stat { min-height: 73px; gap: 9px; padding: 11px; }
   .daily-followup-stat-icon { width: 32px; height: 32px; font-size: 15px; }
