@@ -477,18 +477,28 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .daily-positive-negative-panel { margin-bottom: 14px; padding: 18px 20px; }
 .daily-positive-negative-heading { margin-bottom: 12px; }
 .daily-positive-negative-heading h2 { margin: 3px 0 4px; font: 700 16px "Manrope", sans-serif; }
-.daily-positive-negative-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.daily-positive-negative-row { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.daily-positive-negative-list { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.daily-positive-negative-row { display: grid; min-width: 0; grid-template-columns: minmax(190px, 235px) minmax(0, 1fr); align-items: center; gap: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
 .daily-positive-negative-row .daily-student { min-width: 0; }
 .daily-positive-negative-row .daily-student > span:last-child { min-width: 0; }
 .daily-positive-negative-row .daily-student strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .daily-positive-negative-row .daily-student small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.daily-positive-negative-bar { display: grid; width: 112px; flex: 0 0 112px; grid-template-columns: 34px 44px 34px; align-items: center; border: 1px solid var(--line); border-radius: 18px; background: var(--surface-muted); }
-.daily-balance-button { display: grid; height: 32px; padding: 0; border: 0; background: transparent; place-items: center; font: 700 18px "Manrope", sans-serif; cursor: pointer; }
+.daily-positive-negative-controls { display: grid; min-width: 0; grid-template-columns: 38px minmax(0, 1fr) 38px; align-items: center; gap: 9px; }
+.daily-balance-button { display: grid; width: 38px; height: 38px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); place-items: center; font: 700 20px "Manrope", sans-serif; cursor: pointer; }
 .daily-balance-button:disabled { opacity: .45; cursor: default; }
+.daily-balance-button:not(:disabled):hover { border-color: var(--line-strong); background: var(--surface-muted); }
 .daily-balance-minus { color: var(--danger); }
 .daily-balance-plus { color: var(--green); }
-.daily-balance-value { display: grid; height: 32px; border-right: 1px solid var(--line); border-left: 1px solid var(--line); background: var(--surface); place-items: center; font: 800 12px "Manrope", sans-serif; }
+.daily-balance-track { position: relative; display: grid; height: 38px; overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--surface-muted); place-items: center; isolation: isolate; }
+.daily-balance-half { position: absolute; top: 0; bottom: 0; width: 50%; }
+.daily-balance-negative { left: 0; background: var(--surface-muted); }
+.daily-balance-positive { right: 0; background: var(--surface-muted); }
+.daily-balance-negative-fill,
+.daily-balance-positive-fill { position: absolute; z-index: 1; top: 0; bottom: 0; }
+.daily-balance-negative-fill { right: 50%; background: linear-gradient(to right, #d94a3a 0%, #ef9a3d 48%, #f2c94c 100%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); }
+.daily-balance-positive-fill { left: 50%; background: linear-gradient(to right, #f2c94c 0%, #9caf49 48%, #36a269 100%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); }
+.daily-balance-zero { position: absolute; z-index: 2; left: 50%; top: 4px; bottom: 4px; width: 2px; border-radius: 2px; background: rgba(255, 255, 255, .9); box-shadow: 0 0 0 1px rgba(93, 82, 34, .14); transform: translateX(-50%); }
+.daily-balance-value { position: relative; z-index: 3; display: grid; min-width: 42px; height: 26px; border: 1px solid rgba(93, 82, 34, .12); border-radius: 13px; background: rgba(255, 255, 255, .92); place-items: center; font: 800 12px "Manrope", sans-serif; box-shadow: 0 1px 4px rgba(52, 49, 35, .12); }
 .daily-balance-value.positive { color: var(--green); }
 .daily-balance-value.negative { color: var(--danger); }
 .daily-balance-value.neutral { color: var(--muted); }
@@ -683,7 +693,7 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
   .privacy-note { padding-right: 25px; padding-left: 25px; }
   .card-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .daily-followup-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .daily-positive-negative-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .daily-positive-negative-list { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
   .sidebar { position: static; width: 100%; height: auto; padding: 12px 15px 0; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -747,6 +757,7 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
   .daily-followup-header .page-subtitle { max-width: 420px; }
   .daily-followup-toolbar { padding: 15px; }
   .daily-followup-filters { grid-template-columns: 1fr 1fr; gap: 11px; }
+  .daily-positive-negative-row { grid-template-columns: 1fr; gap: 8px; }
   .daily-positive-negative-list { grid-template-columns: 1fr; }
   .daily-followup-stat-grid { gap: 9px; }
   .daily-followup-stat { min-height: 73px; gap: 9px; padding: 11px; }

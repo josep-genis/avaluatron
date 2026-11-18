@@ -293,12 +293,22 @@ function renderDailyFollowup() {
     const balance = assessment?.positiveNegativeBalance || 0;
     const initials = `${student.firstName[0] || ""}${student.lastName[0] || ""}`.toLocaleUpperCase("ca");
     const balanceLabel = balance > 0 ? `+${balance}` : String(balance);
+    const negativeFill = Math.min(Math.abs(Math.min(balance, 0)), 10) * 5;
+    const positiveFill = Math.min(Math.max(balance, 0), 10) * 5;
+    const ariaBalance = Math.max(-10, Math.min(10, balance));
     return `<div class="daily-positive-negative-row ${assessment?.absent ? "daily-row-absent" : ""}">
       <div class="daily-student"><span class="daily-student-avatar" aria-hidden="true">${escapeHtml(initials)}</span><span><strong>${escapeHtml(studentDisplayName(student))}</strong><small>${escapeHtml(getStudentGroupLabel(student))}</small></span></div>
-      <div class="daily-positive-negative-bar" aria-label="Positius i negatius de ${escapeHtml(studentDisplayName(student))}">
-        <button type="button" class="daily-balance-button daily-balance-minus" data-daily-positive-negative="-1" data-student-id="${escapeHtml(student.id)}" aria-label="Un negatiu menys per a ${escapeHtml(studentDisplayName(student))}" ${assessment?.absent ? "disabled" : ""}>−</button>
-        <output class="daily-balance-value ${balance > 0 ? "positive" : balance < 0 ? "negative" : "neutral"}" data-daily-balance data-student-id="${escapeHtml(student.id)}" aria-live="polite">${balanceLabel}</output>
-        <button type="button" class="daily-balance-button daily-balance-plus" data-daily-positive-negative="1" data-student-id="${escapeHtml(student.id)}" aria-label="Un positiu més per a ${escapeHtml(studentDisplayName(student))}" ${assessment?.absent ? "disabled" : ""}>+</button>
+      <div class="daily-positive-negative-controls" aria-label="Positius i negatius de ${escapeHtml(studentDisplayName(student))}">
+        <button type="button" class="daily-balance-button daily-balance-minus" data-daily-positive-negative="-1" data-student-id="${escapeHtml(student.id)}" aria-label="Afegeix un negatiu a ${escapeHtml(studentDisplayName(student))}" ${assessment?.absent ? "disabled" : ""}>−</button>
+        <div class="daily-balance-track" role="progressbar" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="${ariaBalance}" aria-label="Saldo de ${escapeHtml(studentDisplayName(student))}">
+          <span class="daily-balance-half daily-balance-negative"></span>
+          <span class="daily-balance-half daily-balance-positive"></span>
+          <span class="daily-balance-negative-fill" style="width:${negativeFill}%"></span>
+          <span class="daily-balance-positive-fill" style="width:${positiveFill}%"></span>
+          <span class="daily-balance-zero" aria-hidden="true"></span>
+          <output class="daily-balance-value ${balance > 0 ? "positive" : balance < 0 ? "negative" : "neutral"}" data-daily-balance data-student-id="${escapeHtml(student.id)}" aria-live="polite">${balanceLabel}</output>
+        </div>
+        <button type="button" class="daily-balance-button daily-balance-plus" data-daily-positive-negative="1" data-student-id="${escapeHtml(student.id)}" aria-label="Afegeix un positiu a ${escapeHtml(studentDisplayName(student))}" ${assessment?.absent ? "disabled" : ""}>+</button>
       </div>
     </div>`;
   }).join("");
