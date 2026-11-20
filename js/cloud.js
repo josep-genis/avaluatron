@@ -1,4 +1,5 @@
 import { supabaseConfig } from "./supabase-config.js";
+import { mergeWorkspaces } from "./merge.js";
 
 const ACTIVE_KEY = "avaluatro.cloud.active.v1";
 const LOCAL_MODE_KEY = "avaluatro.cloud.local-mode.v1";
@@ -223,7 +224,7 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
         const payload = useLocal ? serialize(readLocal()) : remote.payload;
         const validated = validate(payload);
         active = target;
-        cache = { payload, revision: remote?.revision ?? null, pending: useLocal, conflict: false };
+        cache = { payload, base: useLocal ? remote?.payload ?? null : payload, revision: remote?.revision ?? null, pending: useLocal, conflict: false };
         rawCache = null;
         setCache(cache);
         localStorage.setItem(ACTIVE_KEY, JSON.stringify(active));
@@ -249,6 +250,17 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
     }
   }
 
+  function reconcile(remote) {
+    if (!remote) return false;
+    const result = mergeWorkspaces(cache.base, cache.payload, remote.payload);
+    if (result.conflict) return false;
+    const validated = validate(result.merged);
+    const changed = JSON.stringify(result.merged) !== JSON.stringify(cache.payload);
+    setCache({ payload: result.merged, base: remote.payload, revision: remote.revision, pending: JSON.stringify(result.merged) !== JSON.stringify(remote.payload), conflict: false });
+    if (changed) applyData(validated);
+    return true;
+  }
+
   async function sync() {
     if (!active || busy || stale || cache.conflict || projectMismatch || recovering) return;
     busy = true;
@@ -257,7 +269,7 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
     try {
       const remote = await fetchRemote();
       if (stale || !active) return;
-      if ((remote?.revision ?? null) !== cache.revision) {
+      if ((remote?.revision ?? null) !== cache.revision && !reconcile(remote)) {
         setCache({ ...cache, conflict: true });
         connection = "connected";
         lastError = "La còpia del núvol ha canviat. Tria quina còpia vols conservar; exporta abans la còpia actual si cal.";
@@ -273,12 +285,15 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
         if (error) throw error;
         if (stale || !active) return;
         if (!rows?.length) {
+          const latest = await fetchRemote();
+          if (stale || !active) return;
+          if (reconcile(latest)) continue;
           setCache({ ...cache, conflict: true });
           lastError = "La còpia del núvol ha canviat durant la sincronització. Tria quina còpia vols conservar.";
           notify(lastError, "warning");
           break;
         }
-        setCache({ ...cache, revision: rows[0].revision, pending: cache.payload !== payload });
+        setCache({ ...cache, base: payload, revision: rows[0].revision, pending: cache.payload !== payload });
       }
       connection = "connected";
       if (!cache.conflict) lastError = "";
@@ -303,7 +318,7 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
       if (!useLocal && !remote) throw new Error("No existeix cap còpia al núvol per carregar.");
       const payload = useLocal ? cache.payload : remote.payload;
       const validated = validate(payload);
-      setCache({ payload, revision: remote?.revision ?? null, pending: useLocal, conflict: false });
+      setCache({ payload, base: useLocal ? remote?.payload ?? null : payload, revision: remote?.revision ?? null, pending: useLocal, conflict: false });
       if (!useLocal) applyData(validated);
       connection = "connected";
       lastError = "";
