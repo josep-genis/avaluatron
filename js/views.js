@@ -115,11 +115,19 @@ function studentDisplayName(student) {
 
 function compareStudents(a, b, sort = state.studentSort) {
   const full = (student, surnameFirst) => (surnameFirst ? `${student.lastName} ${student.firstName}` : `${student.firstName} ${student.lastName}`).trim();
+  if (sort === "balance-desc") {
+    const difference = (b.positiveNegativeBalances?.[data.currentAcademicYearId] || 0) - (a.positiveNegativeBalances?.[data.currentAcademicYearId] || 0);
+    return difference || full(a, false).localeCompare(full(b, false), "ca");
+  }
+  if (sort === "balance-asc") {
+    const difference = (a.positiveNegativeBalances?.[data.currentAcademicYearId] || 0) - (b.positiveNegativeBalances?.[data.currentAcademicYearId] || 0);
+    return difference || full(a, false).localeCompare(full(b, false), "ca");
+  }
   return full(a, sort === "surname").localeCompare(full(b, sort === "surname"), "ca");
 }
 
 function studentSortOptions(selected) {
-  return [["name", "Nom A–Z"], ["surname", "Cognom A–Z"]]
+  return [["name", "Nom A–Z"], ["surname", "Cognom A–Z"], ["balance-desc", "Positius a negatius"], ["balance-asc", "Negatius a positius"]]
     .map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`).join("");
 }
 
@@ -363,7 +371,33 @@ function renderDailyFollowup() {
       </div>
     </div>`;
   }).join("");
+  const podiumStudents = [...students].sort((a, b) =>
+    (b.positiveNegativeBalances?.[data.currentAcademicYearId] || 0) -
+    (a.positiveNegativeBalances?.[data.currentAcademicYearId] || 0) ||
+    studentDisplayName(a).localeCompare(studentDisplayName(b), "ca")
+  ).slice(0, 3);
+  const podiumMarkup = students.length ? [0, 1, 2].map(index => {
+    const student = podiumStudents[index];
+    if (!student) {
+      return `<article class="daily-podium-card daily-podium-${index + 1} daily-podium-empty">
+        <span class="daily-podium-rank">${index + 1}</span>
+        <strong>Sense alumne</strong>
+        <span class="daily-podium-score neutral">—</span>
+        <small>${index === 0 ? "1r lloc" : index === 1 ? "2n lloc" : "3r lloc"}</small>
+      </article>`;
+    }
+    const balance = student.positiveNegativeBalances?.[data.currentAcademicYearId] || 0;
+    const initials = `${student.firstName[0] || ""}${student.lastName[0] || ""}`.toLocaleUpperCase("ca");
+    return `<article class="daily-podium-card daily-podium-${index + 1}">
+      <span class="daily-podium-rank">${index + 1}</span>
+      <span class="daily-podium-avatar" aria-hidden="true">${escapeHtml(initials)}</span>
+      <strong>${escapeHtml(studentDisplayName(student))}</strong>
+      <span class="daily-podium-score ${balance > 0 ? "positive" : balance < 0 ? "negative" : "neutral"}">${balance > 0 ? `+${balance}` : balance}</span>
+      <small>${index === 0 ? "1r lloc" : index === 1 ? "2n lloc" : "3r lloc"}</small>
+    </article>`;
+  }).join("") : "";
   content.innerHTML = `<header class="daily-followup-header"><span class="daily-followup-header-icon">${icon("calendar")}</span><div><p class="eyebrow">SEGUIMENT FORMATIU</p><h1>Seguiment diari</h1><p class="page-subtitle">Observa el progrés de cada alumne sessió a sessió. Les dades es desen automàticament al dispositiu.</p></div></header>
+    ${podiumMarkup ? `<section class="daily-podium" aria-label="Podi del grup seleccionat">${podiumMarkup}</section>` : ""}
     <section class="panel daily-followup-toolbar">
       <div class="daily-followup-toolbar-heading"><div><h2 class="section-title">Defineix la sessió</h2><span class="section-caption">Tria l'assignatura, la data i el grup que vols observar.</span></div>${icon("filter-list", "daily-followup-toolbar-icon")}</div>
       <div class="daily-followup-filters">

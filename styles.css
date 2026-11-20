@@ -499,6 +499,23 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .daily-followup-stat-label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 9px; }
 .daily-followup-stat strong { color: var(--ink); font: 700 20px "Manrope", sans-serif; }
 .daily-followup-stat strong small { color: var(--muted); font: 500 11px "DM Sans", sans-serif; }
+.daily-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.daily-podium-card { position: relative; display: grid; min-width: 0; grid-template-columns: 42px minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; gap: 2px 10px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.daily-podium-card strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daily-podium-card small { grid-column: 2; color: var(--muted); font-size: 9px; }
+.daily-podium-rank { position: absolute; top: 8px; right: 9px; display: grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; font: 800 10px "Manrope", sans-serif; }
+.daily-podium-avatar { grid-row: 1 / 3; display: grid; width: 42px; height: 42px; border-radius: 50%; background: var(--accent-soft); color: var(--green-dark); place-items: center; font: 800 12px "Manrope", sans-serif; }
+.daily-podium-score { grid-row: 1 / 3; grid-column: 3; min-width: 44px; text-align: right; font: 800 18px "Manrope", sans-serif; }
+.daily-podium-score.positive { color: var(--green); }
+.daily-podium-score.negative { color: var(--danger); }
+.daily-podium-score.neutral { color: var(--muted); }
+.daily-podium-1 { border-color: #dcc46a; background: linear-gradient(135deg, #fffaf0, var(--surface)); }
+.daily-podium-1 .daily-podium-rank { background: #f3cf55; color: #6d5610; }
+.daily-podium-2 { border-color: #c9c9c9; background: linear-gradient(135deg, #f8f8f8, var(--surface)); }
+.daily-podium-2 .daily-podium-rank { background: #d9dde1; color: #5e6871; }
+.daily-podium-3 { border-color: #d7b08a; background: linear-gradient(135deg, #fff7ef, var(--surface)); }
+.daily-podium-3 .daily-podium-rank { background: #dda36f; color: #70451f; }
+.daily-podium-empty strong { grid-column: 1 / 3; }
 .daily-positive-negative-panel { margin-bottom: 14px; padding: 18px 20px; }
 .daily-positive-negative-heading { margin-bottom: 12px; }
 .daily-positive-negative-heading h2 { margin: 3px 0 4px; font: 700 16px "Manrope", sans-serif; }
@@ -721,6 +738,7 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
   .daily-positive-negative-list { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
+  .daily-podium { grid-template-columns: 1fr; }
   .sidebar { position: static; width: 100%; height: auto; padding: 12px 15px 0; border-right: 0; border-bottom: 1px solid var(--line); }
   .brand { padding: 0 3px; }
   .brand-mark { width: 30px; height: 30px; font-size: 20px; }
