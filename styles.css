@@ -509,6 +509,7 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .daily-podium-score.positive { color: var(--green); }
 .daily-podium-score.negative { color: var(--danger); }
 .daily-podium-score.neutral { color: var(--muted); }
+.daily-podium-negative-count { grid-row: 2; grid-column: 3; margin-top: 18px; color: var(--danger); font-size: 9px; font-weight: 700; text-align: right; }
 .daily-podium-1 { border-color: #dcc46a; background: linear-gradient(135deg, #fffaf0, var(--surface)); }
 .daily-podium-1 .daily-podium-rank { background: #f3cf55; color: #6d5610; }
 .daily-podium-2 { border-color: #c9c9c9; background: linear-gradient(135deg, #f8f8f8, var(--surface)); }

@@ -863,6 +863,10 @@ document.addEventListener("click", event => {
     student.positiveNegativeBalances ??= {};
     student.positiveNegativeBalances[data.currentAcademicYearId] =
       (student.positiveNegativeBalances[data.currentAcademicYearId] || 0) + delta;
+    student.positiveNegativeCounts ??= {};
+    student.positiveNegativeCounts[data.currentAcademicYearId] ??= { positives: 0, negatives: 0 };
+    if (delta > 0) student.positiveNegativeCounts[data.currentAcademicYearId].positives++;
+    else student.positiveNegativeCounts[data.currentAcademicYearId].negatives++;
     if (!saveData()) {
       setData(previousData);
       render();

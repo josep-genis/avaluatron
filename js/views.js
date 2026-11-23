@@ -116,11 +116,15 @@ function studentDisplayName(student) {
 function compareStudents(a, b, sort = state.studentSort) {
   const full = (student, surnameFirst) => (surnameFirst ? `${student.lastName} ${student.firstName}` : `${student.firstName} ${student.lastName}`).trim();
   if (sort === "balance-desc") {
-    const difference = (b.positiveNegativeBalances?.[data.currentAcademicYearId] || 0) - (a.positiveNegativeBalances?.[data.currentAcademicYearId] || 0);
+    const aCounts = a.positiveNegativeCounts?.[data.currentAcademicYearId] || { positives: 0, negatives: 0 };
+    const bCounts = b.positiveNegativeCounts?.[data.currentAcademicYearId] || { positives: 0, negatives: 0 };
+    const difference = (bCounts.positives - aCounts.positives) || (aCounts.negatives - bCounts.negatives);
     return difference || full(a, false).localeCompare(full(b, false), "ca");
   }
   if (sort === "balance-asc") {
-    const difference = (a.positiveNegativeBalances?.[data.currentAcademicYearId] || 0) - (b.positiveNegativeBalances?.[data.currentAcademicYearId] || 0);
+    const aCounts = a.positiveNegativeCounts?.[data.currentAcademicYearId] || { positives: 0, negatives: 0 };
+    const bCounts = b.positiveNegativeCounts?.[data.currentAcademicYearId] || { positives: 0, negatives: 0 };
+    const difference = (bCounts.negatives - aCounts.negatives) || (aCounts.positives - bCounts.positives);
     return difference || full(a, false).localeCompare(full(b, false), "ca");
   }
   return full(a, sort === "surname").localeCompare(full(b, sort === "surname"), "ca");
@@ -371,11 +375,13 @@ function renderDailyFollowup() {
       </div>
     </div>`;
   }).join("");
-  const podiumStudents = [...students].sort((a, b) =>
-    (b.positiveNegativeBalances?.[data.currentAcademicYearId] || 0) -
-    (a.positiveNegativeBalances?.[data.currentAcademicYearId] || 0) ||
-    studentDisplayName(a).localeCompare(studentDisplayName(b), "ca")
-  ).slice(0, 3);
+  const podiumStudents = [...students].sort((a, b) => {
+    const aCounts = a.positiveNegativeCounts?.[data.currentAcademicYearId] || { positives: 0, negatives: 0 };
+    const bCounts = b.positiveNegativeCounts?.[data.currentAcademicYearId] || { positives: 0, negatives: 0 };
+    return (bCounts.positives - aCounts.positives) ||
+      (aCounts.negatives - bCounts.negatives) ||
+      studentDisplayName(a).localeCompare(studentDisplayName(b), "ca");
+  }).slice(0, 3);
   const podiumMarkup = students.length ? [0, 1, 2].map(index => {
     const student = podiumStudents[index];
     if (!student) {
@@ -386,13 +392,14 @@ function renderDailyFollowup() {
         <small>${index === 0 ? "1r lloc" : index === 1 ? "2n lloc" : "3r lloc"}</small>
       </article>`;
     }
-    const balance = student.positiveNegativeBalances?.[data.currentAcademicYearId] || 0;
+    const counts = student.positiveNegativeCounts?.[data.currentAcademicYearId] || { positives: 0, negatives: 0 };
     const initials = `${student.firstName[0] || ""}${student.lastName[0] || ""}`.toLocaleUpperCase("ca");
     return `<article class="daily-podium-card daily-podium-${index + 1}">
       <span class="daily-podium-rank">${index + 1}</span>
       <span class="daily-podium-avatar" aria-hidden="true">${escapeHtml(initials)}</span>
       <strong>${escapeHtml(studentDisplayName(student))}</strong>
-      <span class="daily-podium-score ${balance > 0 ? "positive" : balance < 0 ? "negative" : "neutral"}">${balance > 0 ? `+${balance}` : balance}</span>
+      <span class="daily-podium-score positive">+${counts.positives}</span>
+      ${counts.negatives ? `<span class="daily-podium-negative-count">−${counts.negatives}</span>` : ""}
       <small>${index === 0 ? "1r lloc" : index === 1 ? "2n lloc" : "3r lloc"}</small>
     </article>`;
   }).join("") : "";

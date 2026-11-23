@@ -1,4 +1,4 @@
-const COUNTER_KEYS = new Set(["positiveNegativeBalances"]);
+const COUNTER_KEYS = new Set(["positiveNegativeBalances", "positiveNegativeCounts"]);
 
 const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
 const isPrimitive = value => value === null || typeof value !== "object";

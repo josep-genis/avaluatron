@@ -331,17 +331,35 @@ export function validateData(value, makeId) {
   for (const student of value.students) {
     student.academicYearId ||= value.currentAcademicYearId;
     student.positiveNegativeBalances ??= {};
+    student.positiveNegativeCounts ??= {};
     if (!student.positiveNegativeBalances || typeof student.positiveNegativeBalances !== "object" ||
       Array.isArray(student.positiveNegativeBalances) ||
       Object.entries(student.positiveNegativeBalances).some(([yearId, balance]) =>
         !academicYearIds.has(yearId) || !Number.isInteger(balance))) {
       throw new Error("hi ha un saldo de positius i negatius invàlid.");
     }
+    if (!student.positiveNegativeCounts || typeof student.positiveNegativeCounts !== "object" ||
+      Array.isArray(student.positiveNegativeCounts)) {
+      throw new Error("hi ha un recompte de positius i negatius invàlid.");
+    }
     if (!Object.keys(student.positiveNegativeBalances).length) {
       const migratedBalance = (value.dailyAssessments || [])
         .filter(assessment => assessment.studentId === student.id)
         .reduce((total, assessment) => total + (Number.isInteger(assessment.positiveNegativeBalance) ? assessment.positiveNegativeBalance : 0), 0);
       if (migratedBalance) student.positiveNegativeBalances[value.currentAcademicYearId] = migratedBalance;
+    }
+    for (const [yearId, balance] of Object.entries(student.positiveNegativeBalances)) {
+      if (!student.positiveNegativeCounts[yearId]) {
+        student.positiveNegativeCounts[yearId] = {
+          positives: Math.max(balance, 0),
+          negatives: Math.max(-balance, 0)
+        };
+      }
+      const counts = student.positiveNegativeCounts[yearId];
+      if (!counts || !Number.isInteger(counts.positives) || !Number.isInteger(counts.negatives) ||
+        counts.positives < 0 || counts.negatives < 0) {
+        throw new Error("hi ha un recompte de positius i negatius invàlid.");
+      }
     }
     student.enrollments ??= [{
       academicYearId: student.academicYearId,
