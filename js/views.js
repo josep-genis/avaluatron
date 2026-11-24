@@ -4,7 +4,8 @@ import { EDUCATIONAL_LEVELS } from "./education.js";
 import { isBankCompetency, withoutUnmodifiedBank } from "./competency-bank.js";
 import {
   DAILY_FOLLOWUP_CRITERIA, STUDENT_ADAPTATIONS, getActivityOffers, getStudentEvaluationDescriptor,
-  getCurrentAcademicYear, getLevelOffers, getOfferingStudents, getSequenceActivities, getSequenceItems, isLectureItem, getStudentEnrollment
+  getCurrentAcademicYear, getLevelOffers, getOfferingStudents, getSequenceActivities, getSequenceItems, isLectureItem, getStudentEnrollment,
+  canTeacherEditSubjectRubric, canTeacherGradeEvidence
 } from "./data.js";
 import {
   SCORE_BY_LEVEL, LEVEL_LABELS, NOT_SUBMITTED_LEVEL, NOT_SUBMITTED_LABEL,
@@ -1142,17 +1143,26 @@ export function renderActivityRubric() {
       </details>`;
     }).join("")
     : "";
+  
+  const canEdit = canTeacherEditSubjectRubric(data, state.selectedSubjectId, data.teacherProfile?.name);
+  const isEditDisabled = !canEdit;
+  const disabledMessage = !canEdit ? '<p class="field-warning" style="margin-top: 1rem;">No tens permisos per editar la rúbrica d\'aquesta assignatura.</p>' : '';
+  
   content.innerHTML = `<button class="detail-back" type="button" data-back="activity-detail">${icon("arrow-left")} Torna a ${escapeHtml(activity.title)}</button>
     ${pageHeading(isTest ? "PROVA" : "ACTIVITAT", `Edita el ${config.editorLabel}`, isTest
       ? `Defineix les preguntes, les competències que avalua cadascuna i la resposta esperada de ${escapeHtml(activity.title)}.`
       : `Defineix les evidències, les competències vinculades i el criteri observable per assolir cada nivell de ${escapeHtml(activity.title)}.`)}
-    <form id="activity-rubric-form" data-activity-id="${escapeHtml(activity.id)}" data-item-type="${escapeHtml(activity.type)}">
+    <form id="activity-rubric-form" data-activity-id="${escapeHtml(activity.id)}" data-item-type="${escapeHtml(activity.type)}" ${isEditDisabled ? 'data-edit-disabled="true"' : ''}>
       <section class="panel activity-rubric-editor">
-        <div class="panel-heading"><div><h2 class="section-title">${isTest ? "Preguntes i solucionari" : "Evidències i criteris d'avaluació"}</h2><span class="section-caption">${isTest ? "Escriu la resposta esperada de cada pregunta i les competències que avalua." : "Escriu què ha de demostrar l'alumnat a cada nivell."} Arrossega les nanses o fes servir les fletxes per ordenar-les.</span></div><button class="button" type="button" data-add-rubric-evidence>${icon("plus")} Afegeix ${isTest ? "pregunta" : "evidència"}</button></div>
+        <div class="panel-heading"><div><h2 class="section-title">${isTest ? "Preguntes i solucionari" : "Evidències i criteris d'avaluació"}</h2><span class="section-caption">${isTest ? "Escriu la resposta esperada de cada pregunta i les competències que avalua." : "Escriu què ha de demostrar l'alumnat a cada nivell."} Arrossega les nanses o fes servir les fletxes per ordenar-les.</span></div><button class="button" type="button" data-add-rubric-evidence ${isEditDisabled ? 'disabled' : ''}>${icon("plus")} Afegeix ${isTest ? "pregunta" : "evidència"}</button></div>
         <div class="table-wrap activity-rubric-table-wrap"><table class="assessment-table activity-rubric-table"><thead><tr><th>${isTest ? "Preguntes" : "Evidències"}</th><th>Competències</th>${isTest ? "<th>Solucionari per pregunta</th>" : levelHeaders.map(([abbreviation, label]) => `<th title="${label}">${abbreviation}<small>${label}</small></th>`).join("")}</tr></thead><tbody>${evidenceRows || `<tr class="rubric-empty-row"><td colspan="${isTest ? 3 : 6}">Encara no hi ha ${config.itemLabelPlural}. Afegeix-ne una per començar el ${config.editorLabel}.</td></tr>`}</tbody></table></div>
       </section>
       ${adaptedDescriptorSections}
-      <div class="activity-rubric-actions"><button class="button" type="button" data-back="activity-detail">Cancel·la</button><button class="button button-primary" type="submit">${icon("check")} Desa el ${config.editorLabel}</button></div>
+      <div class="activity-rubric-actions">
+        ${disabledMessage}
+        <button class="button" type="button" data-back="activity-detail">Cancel·la</button>
+        <button class="button button-primary" type="submit" ${isEditDisabled ? 'disabled' : ''}>${icon("check")} Desa el ${config.editorLabel}</button>
+      </div>
     </form>`;
 }
 
@@ -1462,7 +1472,9 @@ function renderSubjects() {
   const action = `<button class="button button-primary" type="button" data-action="create-subject">${icon("plus")} Crea assignatura</button>`;
   content.innerHTML = `${pageHeading("PLANIFICACIÓ DOCENT", "Assignatures", "Organitza les assignatures i defineix per separat els nivells, grups, seqüències i progressos competencials.", action)}
     ${data.subjects.length ? `<div class="card-grid">${data.subjects.map(subject => {
+      const responsibleTeachers = (subject.responsibleTeachers || []).filter(Boolean);
       return `<article class="record-card subject-record-card" data-open-subject="${escapeHtml(subject.id)}" tabindex="0" role="link" aria-label="Obre l'assignatura ${escapeHtml(subject.name)}"><div class="record-card-top"><div><h3>${escapeHtml(subject.name)}</h3><p>${escapeHtml(subject.description || "Sense descripció")}</p></div><span class="badge">${subject.levels.length} ${subject.levels.length === 1 ? "nivell" : "nivells"}</span></div>
+        ${responsibleTeachers.length ? `<div class="record-footer"><span>Responsables: ${responsibleTeachers.map(name => escapeHtml(name)).join(", ")}</span></div>` : ""}
         <div class="record-footer"><span>${subject.levels.map(level => escapeHtml(level.name || "Sense nivell")).join(", ") || "Sense nivells definits"}</span></div>
         <div class="record-actions"><span class="text-button subject-open-label">Obre assignatura ${icon("arrow-right")}</span><button class="text-button" type="button" data-edit-subject="${escapeHtml(subject.id)}">${icon("edit-pencil")} Edita assignatura</button></div></article>`;
     }).join("")}</div>` : emptyState("Encara no hi ha assignatures", "Crea una assignatura, assigna-hi grups classe i defineix-ne la seqüència d'activitats.", "create-subject", "Crea assignatura")}`;
@@ -1494,8 +1506,13 @@ function renderSubjectDetail() {
       <div class="level-card-metrics"><span>${students.length} ${students.length === 1 ? "alumne" : "alumnes"}</span><span>${sequenceActivities.length} ${sequenceActivities.length === 1 ? "activitat" : "activitats"}</span><span>${situations} ${situations === 1 ? "situació" : "situacions"}</span><span>${hours.toLocaleString("ca-ES")} h</span></div>
       <div class="record-footer"><span>Progrés competencial</span>${gradeBadge(average)}</div><div class="record-actions"><span class="text-button subject-open-label">Obre seguiment ${icon("arrow-right")}</span><button class="text-button" type="button" data-open-level-sequence="${escapeHtml(level.id)}">Obre seqüència</button><button class="text-button" type="button" data-edit-level="${escapeHtml(level.id)}">${icon("edit-pencil")} Edita nivell</button></div></article>`;
   }).join("");
+  const responsibleTeachers = (subject.responsibleTeachers || []).filter(Boolean);
+  const subjectDescription = subject.description || "Nivells, grups, seqüències i seguiment competencial.";
+  const responsibleDescription = responsibleTeachers.length
+    ? `Responsables: ${responsibleTeachers.join(", ")}`
+    : subjectDescription;
   content.innerHTML = `<button class="detail-back" type="button" data-back="subjects">${icon("arrow-left")} Torna a les assignatures</button>
-    ${pageHeading("ASSIGNATURA", escapeHtml(subject.name), escapeHtml(subject.description || "Nivells, grups, seqüències i seguiment competencial."), `<button class="button" type="button" data-edit-subject="${escapeHtml(subject.id)}">${icon("edit-pencil")} Edita assignatura</button>${action}`)}
+    ${pageHeading("ASSIGNATURA", escapeHtml(subject.name), escapeHtml(responsibleTeachers.length ? `${subjectDescription} · ${responsibleDescription}` : subjectDescription), `<button class="button" type="button" data-edit-subject="${escapeHtml(subject.id)}">${icon("edit-pencil")} Edita assignatura</button>${action}`)}
     ${subject.levels.length ? `<div class="card-grid">${levelCards}</div>` : emptyState("Encara no hi ha nivells", "Afegeix un nivell per assignar-hi els grups classe o addicionals, la seqüència i el progrés competencial.", "create-level", "Afegeix nivell")}`;
 }
 

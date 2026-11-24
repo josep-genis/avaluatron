@@ -40,6 +40,7 @@ export const sampleData = {
       id: "as-1",
       name: "Tecnologia i sostenibilitat",
       description: "Analitzem l'impacte ambiental de les solucions tecnològiques.",
+      responsibleTeachers: ["Maria Puig", "Joan Martí"],
       levels: [
         {
           id: "niv-1",
@@ -73,5 +74,9 @@ export const sampleData = {
     { studentId: "al-3", activityId: "ac-1", levels: { "cr-1": 3, "cr-2": 4 } },
     { studentId: "al-1", activityId: "ac-2", levels: { "cr-3": 3, "cr-4": 4 } },
     { studentId: "al-2", activityId: "ac-2", levels: { "cr-3": 2, "cr-4": 3 } }
+  ],
+  subjectTeachers: [
+    { subjectId: "as-1", classGroupId: "gc-1", teacherName: "Maria Puig" },
+    { subjectId: "as-1", classGroupId: "gc-2", teacherName: "Joan Martí" }
   ]
 };

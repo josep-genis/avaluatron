@@ -1,7 +1,7 @@
 import {
   clone, DAILY_FOLLOWUP_CRITERIA, getActivityOffers, getLevelOffers,
   getOfferingStudents, getSequenceActivities, getSequenceItems, getStudentEnrollment,
-  STUDENT_ADAPTATIONS, validateData as validateStoredData
+  STUDENT_ADAPTATIONS, validateData as validateStoredData, canTeacherEditSubjectRubric, canTeacherGradeEvidence
 } from "./js/data.js";
 import { data, state, setData } from "./js/state.js";
 import {
@@ -420,6 +420,7 @@ function openSubjectDialog(subjectId = null) {
   openDialog(editing ? "Edita l'assignatura" : "Crea una assignatura", "Crea l'assignatura. Després hi podràs afegir targetes de nivell, cadascuna amb els seus grups, seqüència i progrés.", `<div class="form-grid">
     <div class="field full"><label for="subject-name">Nom de l'assignatura</label><input id="subject-name" name="name" required maxlength="100" placeholder="Ex.: Tecnologia i sostenibilitat" value="${escapeHtml(subject?.name || "")}"></div>
     <div class="field full"><label for="subject-description">Descripció (opcional)</label><textarea id="subject-description" name="description" maxlength="500" placeholder="Objectius o informació de l'assignatura">${escapeHtml(subject?.description || "")}</textarea></div>
+    <div class="field full"><label for="subject-responsible-teachers">Professors responsables (opcional)</label><textarea id="subject-responsible-teachers" name="responsibleTeachers" maxlength="2000" placeholder="Un nom per línia&#10;Maria Puig&#10;Joan Martí">${escapeHtml((subject?.responsibleTeachers || []).join("\n"))}</textarea><span class="field-hint">Els professors responsables poden editar la rúbrica, consultar qualificacions i qualificar les evidències en els grups assignats.</span></div>
   </div>`, editing ? "Desa els canvis" : "Crea assignatura");
   dialogForm.dataset.formType = editing ? "edit-subject" : "subject";
   dialogForm.dataset.recordId = subject?.id || "";
@@ -456,13 +457,23 @@ function teachingOfferGroupFields(academicYearId, classGroupIds = [], additional
   const selectedClassGroups = new Set(classGroupIds);
   const selectedAdditionalGroups = new Set(additionalGroupIds);
   const classGroups = data.classGroups.filter(group => group.academicYearId === academicYearId);
+  const allGroupIds = [...classGroupIds, ...additionalGroupIds];
   return `<fieldset class="teaching-offer-groups"><legend>Grups classe del curs</legend>
-    ${classGroups.length ? classGroups.map(group => `<label class="offer-group-option"><input type="checkbox" name="offerClassGroupIds" value="${escapeHtml(group.id)}" ${selectedClassGroups.has(group.id) ? "checked" : ""}><span>${escapeHtml(group.name)}</span></label>`).join("") : '<span class="field-hint">Encara no hi ha grups classe en aquest curs.</span>'}
+    ${classGroups.length ? classGroups.map(group => `<label class="offer-group-option"><input type="checkbox" name="offerClassGroupIds" value="${escapeHtml(group.id)}" ${selectedClassGroups.has(group.id) ? "checked" : ""}><span>${escapeHtml(group.name)}</span></label>`).join("") : '<span class="field-hint">Ancora no hi ha grups classe en aquest curs.</span>'}
   </fieldset>
   <fieldset class="teaching-offer-groups"><legend>Grups addicionals (opcional)</legend>
     ${data.additionalGroups.length ? data.additionalGroups.map(group => `<label class="offer-group-option"><input type="checkbox" name="offerAdditionalGroupIds" value="${escapeHtml(group.id)}" ${selectedAdditionalGroups.has(group.id) ? "checked" : ""}><span>${escapeHtml(group.name)}</span></label>`).join("") : '<span class="field-hint">No hi ha grups addicionals.</span>'}
-  </fieldset>`;
+  </fieldset>
+  ${allGroupIds.length ? `<fieldset class="teaching-offer-groups"><legend>Professors per grup (opcional)</legend>
+    <p class="field-hint">Indica quin professor és responsable de cadascun dels grups. Pot ser diferent per a cada grup. Deixa en blanc si un grup es comparteix entre tots els responsables de l'assignatura.</p>
+    ${allGroupIds.map(groupId => {
+      const group = data.classGroups.find(g => g.id === groupId) || data.additionalGroups.find(g => g.id === groupId);
+      const teacher = data.subjectTeachers?.find(t => t.subjectId === state.selectedSubjectId && t.classGroupId === groupId);
+      return `<div class="field"><label for="offer-teacher-${escapeHtml(groupId)}">${escapeHtml(group?.name || groupId)}</label><input id="offer-teacher-${escapeHtml(groupId)}" type="text" name="groupTeacher_${escapeHtml(groupId)}" maxlength="120" placeholder="Nom del professor" value="${escapeHtml(teacher?.teacherName || "")}"></div>`;
+    }).join("")}
+  </fieldset>` : ""}`
 }
+
 
 function openTeachingOfferDialog(offerId = null) {
   const subject = data.subjects.find(item => item.id === state.selectedSubjectId);
@@ -1776,10 +1787,15 @@ dialogForm.addEventListener("submit", event => {
       return;
     }
     const subjectId = subject?.id || makeId("as");
+    const responsibleTeachers = [...new Set(String(formData.get("responsibleTeachers") || "")
+      .split(/\r?\n/)
+      .map(name => name.trim())
+      .filter(Boolean))];
     const updatedSubject = {
       id: subjectId,
       name,
       description: String(formData.get("description") || "").trim(),
+      responsibleTeachers,
       levels: subject?.levels || []
     };
     if (subject) Object.assign(subject, updatedSubject);
@@ -1827,6 +1843,29 @@ dialogForm.addEventListener("submit", event => {
       status: "active"
     });
     if (!existing) data.teachingOffers.push(updatedOffer);
+
+    // Persist teacher assignments for each group
+    const allGroupIds = [...classGroupIds, ...additionalGroupIds];
+    for (const groupId of allGroupIds) {
+      const teacherName = String(formData.get(`groupTeacher_${groupId}`) || "").trim();
+      const existingAssignment = data.subjectTeachers?.find(
+        t => t.subjectId === subject.id && t.classGroupId === groupId
+      );
+      if (teacherName) {
+        if (existingAssignment) {
+          existingAssignment.teacherName = teacherName;
+        } else {
+          data.subjectTeachers.push({
+            subjectId: subject.id,
+            classGroupId: groupId,
+            teacherName
+          });
+        }
+      } else if (existingAssignment) {
+        const idx = data.subjectTeachers.indexOf(existingAssignment);
+        if (idx !== -1) data.subjectTeachers.splice(idx, 1);
+      }
+    }
   }
   if (formType === "level" || formType === "edit-level") {
     const subject = data.subjects.find(item => item.id === state.selectedSubjectId);
@@ -1965,6 +2004,10 @@ content.addEventListener("submit", event => {
     const activity = data.activities.find(item => item.id === rubricForm.dataset.activityId);
     if (!activity) {
       showToast("No s'ha trobat l'activitat que vols editar.", true);
+      return;
+    }
+    if (!canTeacherEditSubjectRubric(data, state.selectedSubjectId, data.teacherProfile?.name)) {
+      showToast("No tens permisos per editar la rúbrica d'aquesta assignatura.", true);
       return;
     }
     const isTest = activity.type === "Prova";
@@ -2401,6 +2444,10 @@ content.addEventListener("change", event => {
     !getOfferingStudents(data, offering).some(student => student.id === studentId)) {
     showToast("No es pot avaluar aquest alumne: l'activitat no està assignada a una oferta vigent o l'alumne no hi està matriculat.", true);
     renderActivityDetail();
+    return;
+  }
+  if (!canTeacherGradeEvidence(data, offering.subjectId, getStudentEnrollment(data.students.find(s => s.id === studentId), offering.academicYearId)?.classGroupId, data.teacherProfile?.name)) {
+    showToast("No tens permisos per qualificar les evidències d'aquesta assignatura en aquest grup.", true);
     return;
   }
   const previousData = clone(data);

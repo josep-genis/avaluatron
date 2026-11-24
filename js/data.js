@@ -48,6 +48,23 @@ export function getStudentEnrollment(student, academicYearId) {
       : null);
 }
 
+export function canTeacherEditSubjectRubric(data, subjectId, teacherName) {
+  if (!teacherName || !subjectId) return false;
+  const subject = data.subjects.find(item => item.id === subjectId);
+  return subject && (subject.responsibleTeachers || []).some(name =>
+    name.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
+  );
+}
+
+export function canTeacherGradeEvidence(data, subjectId, classGroupId, teacherName) {
+  if (!teacherName || !subjectId || !classGroupId) return false;
+  return (data.subjectTeachers || []).some(item =>
+    item.subjectId === subjectId &&
+    item.classGroupId === classGroupId &&
+    item.teacherName.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
+  );
+}
+
 export function getStudentEvaluationDescriptor(activity, student, evidence, level) {
   const commonDescriptor = activity.type === "Prova"
     ? evidence.answerKey || ""
@@ -185,6 +202,7 @@ export function validateData(value, makeId) {
   value.classGroups ??= [];
   value.additionalGroups ??= [];
   value.subjects ??= [];
+  value.subjectTeachers ??= [];
   value.dailyAssessments ??= [];
   value.subjectExemptions ??= [];
   value.activityExemptions ??= [];
@@ -193,6 +211,7 @@ export function validateData(value, makeId) {
   if (!Array.isArray(value.classGroups)) throw new Error("la llista de grups classe no és vàlida.");
   if (!Array.isArray(value.additionalGroups)) throw new Error("la llista de grups addicionals no és vàlida.");
   if (!Array.isArray(value.subjects)) throw new Error("la llista d'assignatures no és vàlida.");
+  if (!Array.isArray(value.subjectTeachers)) throw new Error("la llista de professors per assignatura no és vàlida.");
   if (!Array.isArray(value.dailyAssessments)) throw new Error("la llista de seguiments diaris no és vàlida.");
   if (!Array.isArray(value.subjectExemptions)) throw new Error("la llista d'exempcions d'assignatura no és vàlida.");
   if (!Array.isArray(value.activityExemptions)) throw new Error("la llista d'exempcions d'activitat no és vàlida.");
@@ -206,6 +225,15 @@ export function validateData(value, makeId) {
     throw new Error("l'aparença del perfil docent no és vàlida.");
   }
   for (const subject of value.subjects) {
+    if (!subject || typeof subject !== "object") continue;
+    if (!Array.isArray(subject.responsibleTeachers)) {
+      subject.responsibleTeachers = [];
+    } else {
+      subject.responsibleTeachers = [...new Set(subject.responsibleTeachers
+        .filter(name => typeof name === "string")
+        .map(name => name.trim())
+        .filter(Boolean))];
+    }
     const hasLegacyLevelData = subject && typeof subject === "object" &&
       ["level", "classGroupIds", "sequence"].some(key => Object.hasOwn(subject, key));
     if (subject && typeof subject === "object" && !Object.hasOwn(subject, "levels") && hasLegacyLevelData) {
