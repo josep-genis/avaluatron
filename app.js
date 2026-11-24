@@ -2115,6 +2115,25 @@ dialog.addEventListener("click", event => {
 });
 
 content.addEventListener("change", event => {
+  const subjectDashboardMode = event.target.closest("[data-subject-dashboard-mode]");
+  if (subjectDashboardMode) {
+    state.subjectDashboardMode = subjectDashboardMode.value;
+    if (state.subjectDashboardMode === "competency" &&
+      !state.subjectDashboardCompetencyId) {
+      const subject = data.subjects.find(item => item.id === state.selectedSubjectId);
+      const level = subject?.levels.find(item => item.id === state.selectedLevelId);
+      state.subjectDashboardCompetencyId =
+        data.competencies.find(competency => level?.competencyIds.includes(competency.id))?.id || null;
+    }
+    renderLevelDetail();
+    return;
+  }
+  const subjectDashboardCompetency = event.target.closest("[data-subject-dashboard-competency]");
+  if (subjectDashboardCompetency) {
+    state.subjectDashboardCompetencyId = subjectDashboardCompetency.value || null;
+    renderLevelDetail();
+    return;
+  }
   const activityFeedback = event.target.closest("[data-activity-feedback]");
   if (activityFeedback) {
     const activityId = activityFeedback.dataset.activityId;

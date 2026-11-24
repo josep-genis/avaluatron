@@ -12,6 +12,8 @@ export const state = {
   selectedLevelId: null,
   selectedSequence: false,
   activityReturnToSequence: false,
+  subjectDashboardMode: "total",
+  subjectDashboardCompetencyId: null,
   selectedCompetencyId: null,
   competencyQuery: "",
   competencySource: "",

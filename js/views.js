@@ -806,7 +806,7 @@ function getActivityDashboardMarkup(activity, students) {
     ${chart}`;
 }
 
-function buildActivityDistributionChart(grades, average, standardDeviation) {
+function buildActivityDistributionChart(grades, average, standardDeviation, context = "activity") {
   const width = 720;
   const height = 254;
   const left = 44;
@@ -823,7 +823,7 @@ function buildActivityDistributionChart(grades, average, standardDeviation) {
   if (!grades.length) {
     return `<div class="activity-distribution-chart-wrap"><svg class="activity-distribution-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Encara no hi ha notes d’activitat per representar">
       <line class="activity-distribution-axis" x1="${left}" y1="${baseline}" x2="${right}" y2="${baseline}"></line>${ticks}
-      <text class="activity-distribution-empty-label" x="${width / 2}" y="80" text-anchor="middle">Encara no hi ha notes d’activitat per representar</text>
+      <text class="activity-distribution-empty-label" x="${width / 2}" y="80" text-anchor="middle">Encara no hi ha notes ${context === "subject" ? "de l’assignatura" : "d’activitat"} per representar</text>
     </svg></div>
     <div class="activity-distribution-legend"><span><i class="activity-legend-bar"></i> Distribució real</span><span><i class="activity-legend-line"></i> Campana de Gauss de referència</span><span><i class="activity-legend-dot"></i> Cada punt és un alumne</span></div>
     <p class="activity-distribution-note">Les notes de l’alumnat apareixeran en aquesta distribució quan registris les primeres avaluacions.</p>`;
@@ -865,7 +865,7 @@ function buildActivityDistributionChart(grades, average, standardDeviation) {
   }).join("");
   return `<div class="activity-distribution-chart-wrap">
     <svg class="activity-distribution-chart" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="activity-distribution-title activity-distribution-description">
-      <title id="activity-distribution-title">Distribució de notes de l’activitat</title>
+      <title id="activity-distribution-title">Distribució de notes ${context === "subject" ? "de l’assignatura" : "de l’activitat"}</title>
       <desc id="activity-distribution-description">${grades.length} alumnes avaluats. Les barres mostren la distribució real, la línia mostra una campana de Gauss ajustada a la mitjana i la desviació estàndard, i cada punt representa un alumne.</desc>
       ${bars}<path class="activity-distribution-gaussian" d="${curve}"></path>
       <line class="activity-distribution-axis" x1="${left}" y1="${baseline}" x2="${right}" y2="${baseline}"></line>${ticks}
@@ -1499,6 +1499,70 @@ function renderSubjectDetail() {
     ${subject.levels.length ? `<div class="card-grid">${levelCards}</div>` : emptyState("Encara no hi ha nivells", "Afegeix un nivell per assignar-hi els grups classe o addicionals, la seqüència i el progrés competencial.", "create-level", "Afegeix nivell")}`;
 }
 
+function getSubjectDashboardMarkup(subject, level, students) {
+  const eligibleStudents = students.filter(student =>
+    !isStudentExemptFromSubject(data, student.id, subject.id)
+  );
+  const competencies = data.competencies.filter(competency => level.competencyIds.includes(competency.id));
+  if (state.subjectDashboardCompetencyId &&
+    !competencies.some(competency => competency.id === state.subjectDashboardCompetencyId)) {
+    state.subjectDashboardCompetencyId = competencies[0]?.id || null;
+  }
+  if (state.subjectDashboardMode !== "competency") state.subjectDashboardMode = "total";
+
+  const grades = eligibleStudents.map(student => {
+    const grade = state.subjectDashboardMode === "competency" && state.subjectDashboardCompetencyId
+      ? getLevelCompetencyGrade(level, student.id, state.subjectDashboardCompetencyId, subject.id)
+      : (() => {
+        const competencyGrades = competencies
+          .map(competency => getLevelCompetencyGrade(level, student.id, competency.id, subject.id))
+          .filter(grade => grade !== null);
+        return competencyGrades.length
+          ? competencyGrades.reduce((total, grade) => total + grade, 0) / competencyGrades.length
+          : null;
+      })();
+    return grade === null ? null : { student, grade };
+  }).filter(Boolean);
+
+  const values = grades.map(item => item.grade);
+  const count = values.length;
+  const average = count ? values.reduce((total, grade) => total + grade, 0) / count : null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const median = count
+    ? (sorted[Math.floor((count - 1) / 2)] + sorted[Math.floor(count / 2)]) / 2
+    : null;
+  const standardDeviation = count
+    ? Math.sqrt(values.reduce((total, grade) => total + (grade - average) ** 2, 0) / count)
+    : null;
+  const passCount = values.filter(grade => grade >= 5).length;
+  const passRate = count ? passCount / count * 100 : null;
+  const metric = (label, value, detail = "") => `<div class="activity-insight-metric"><span>${label}</span><strong>${value}</strong>${detail ? `<small>${detail}</small>` : ""}</div>`;
+  const chart = buildActivityDistributionChart(grades, average, standardDeviation, "subject");
+  const selectedCompetencyId = state.subjectDashboardMode === "competency"
+    ? state.subjectDashboardCompetencyId || competencies[0]?.id || ""
+    : "";
+  const competencyOptions = competencies.map(competency =>
+    `<option value="${escapeHtml(competency.id)}" ${competency.id === selectedCompetencyId ? "selected" : ""}>${escapeHtml(competency.name)}</option>`
+  ).join("");
+
+  return `<div class="subject-dashboard-controls">
+      <label for="subject-dashboard-mode">Campana de Gauss</label>
+      <select id="subject-dashboard-mode" data-subject-dashboard-mode aria-label="Tipus de qualificació mostrada">
+        <option value="total" ${state.subjectDashboardMode === "total" ? "selected" : ""}>Qualificació mitjana total</option>
+        <option value="competency" ${state.subjectDashboardMode === "competency" ? "selected" : ""}>Per competència</option>
+      </select>
+      ${state.subjectDashboardMode === "competency" ? `<select id="subject-dashboard-competency" data-subject-dashboard-competency aria-label="Selecciona la competència">${competencyOptions}</select>` : ""}
+    </div>
+    <div class="activity-insight-metrics">
+      ${metric("Mitjana", average === null ? "—" : formatGradeWithCode(average))}
+      ${metric("Mediana", median === null ? "—" : formatGradeWithCode(median))}
+      ${metric("Aprovats", passRate === null ? "—" : `${Math.round(passRate)}%`, count ? `${passCount} de ${count} avaluats` : "")}
+      ${metric("Avaluats", `${count}/${eligibleStudents.length}`, eligibleStudents.length ? `${Math.round(count / eligibleStudents.length * 100)}% de l'alumnat no exempt` : "")}
+    </div>
+    <div class="activity-distribution-heading"><div><h3>Distribució de les notes</h3><span class="section-caption">${state.subjectDashboardMode === "competency" ? "Qualificació per la competència seleccionada" : "Qualificació mitjana total de l'alumnat"}</span></div>${standardDeviation === null ? "" : `<span class="activity-distribution-spread">Desviació estàndard: ${formatGrade(standardDeviation)}</span>`}</div>
+    ${chart}`;
+}
+
 function renderLevelDetail() {
   const subject = data.subjects.find(item => item.id === state.selectedSubjectId);
   const level = subject?.levels.find(item => item.id === state.selectedLevelId);
@@ -1571,6 +1635,10 @@ function renderLevelDetail() {
       <div class="metric-card"><div class="metric-top"><span>Activitats i proves</span>${icon("list-select", "metric-icon")}</div><div class="metric-value">${sequenceActivities.filter(item => !isLectureItem(item)).length}</div></div>
       <div class="metric-card"><div class="metric-top"><span>Hores planificades</span>${icon("clock", "metric-icon")}</div><div class="metric-value">${totalHours.toLocaleString("ca-ES")}</div></div>
     </div>
+    <section class="panel activity-insights-panel" data-subject-dashboard style="margin-top:14px">
+      <div class="panel-heading"><div><h2 class="section-title">Resum de l’assignatura</h2><span class="section-caption">Indicadors i distribució de les qualificacions de tot l’alumnat</span></div></div>
+      <div data-subject-dashboard-content>${getSubjectDashboardMarkup(subject, level, students)}</div>
+    </section>
     <section class="panel"><div class="panel-heading"><div><h2 class="section-title">Ofertes docents</h2><span class="section-caption">L'enllaç entre aquesta planificació i les matrícules dels grups classe o addicionals.</span></div><button class="text-button" type="button" data-action="create-teaching-offer">${icon("plus")} Afegeix oferta</button></div>
       ${offeringRows ? `<div class="teaching-offer-list">${offeringRows}</div>` : "<div class=\"empty-state\">Aquest nivell encara no s'ha ofert a cap grup. La seqüència continua al banc de planificació, sense alumnat a avaluar.</div>"}</section>
     <section class="panel" style="margin-top:14px"><div class="panel-heading"><div><h2 class="section-title">Grups del curs vigent</h2><span class="section-caption">${escapeHtml(level.name)} · Matrícules incloses en l'avaluació</span></div></div>
