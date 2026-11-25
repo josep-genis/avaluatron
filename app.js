@@ -2483,7 +2483,13 @@ content.addEventListener("change", event => {
     renderActivityDetail();
     return;
   }
-  if (!canTeacherGradeEvidence(data, offering.subjectId, getStudentEnrollment(data.students.find(s => s.id === studentId), offering.academicYearId)?.classGroupId, data.teacherProfile?.name)) {
+  if (!canTeacherGradeEvidence(
+    data,
+    offering.subjectId,
+    getStudentEnrollment(data.students.find(s => s.id === studentId), offering.academicYearId)?.classGroupId,
+    cloud?.getAccountId?.(),
+    data.teacherProfile?.name
+  )) {
     showToast("No tens permisos per qualificar les evidències d'aquesta assignatura en aquest grup.", true);
     return;
   }

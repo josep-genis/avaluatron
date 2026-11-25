@@ -58,12 +58,37 @@ export function canTeacherEditSubjectRubric(data, subjectId, accountId) {
   return (subject.responsibleTeacherIds || []).includes(accountId);
 }
 
-export function canTeacherGradeEvidence(data, subjectId, classGroupId, teacherName) {
-  if (!teacherName || !subjectId || !classGroupId) return false;
-  return (data.subjectTeachers || []).some(item =>
-    item.subjectId === subjectId &&
-    item.classGroupId === classGroupId &&
-    item.teacherName?.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
+export function canTeacherGradeEvidence(data, subjectId, classGroupId, accountId, teacherName) {
+  if (!subjectId || !classGroupId) return false;
+  const subject = data.subjects.find(item => item.id === subjectId);
+  if (!subject) return false;
+
+  if (accountId) {
+    if (subject.ownerId === accountId) return true;
+    if ((subject.responsibleTeacherIds || []).includes(accountId)) return true;
+  }
+
+  const assignments = (data.subjectTeachers || []).filter(item =>
+    item.subjectId === subjectId && item.classGroupId === classGroupId
+  );
+  if (accountId) {
+    if (assignments.some(item => item.teacherAccountId === accountId)) return true;
+  }
+  if (!teacherName?.trim()) {
+    return assignments.length === 0 &&
+      (!subject.responsibleTeachers || subject.responsibleTeachers.length === 0);
+  }
+
+  if (assignments.length) {
+    return assignments.some(item =>
+      item.teacherName?.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
+    );
+  }
+  if (!subject.responsibleTeachers || subject.responsibleTeachers.length === 0) return true;
+
+  return (subject.responsibleTeachers || []).some(name =>
+    typeof name === "string" &&
+    name.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
   );
 }
 
