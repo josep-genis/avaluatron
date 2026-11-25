@@ -464,14 +464,15 @@ function teachingOfferGroupFields(academicYearId, classGroupIds = [], additional
   <fieldset class="teaching-offer-groups"><legend>Grups addicionals (opcional)</legend>
     ${data.additionalGroups.length ? data.additionalGroups.map(group => `<label class="offer-group-option"><input type="checkbox" name="offerAdditionalGroupIds" value="${escapeHtml(group.id)}" ${selectedAdditionalGroups.has(group.id) ? "checked" : ""}><span>${escapeHtml(group.name)}</span></label>`).join("") : '<span class="field-hint">No hi ha grups addicionals.</span>'}
   </fieldset>
-  ${allGroupIds.length ? `<fieldset class="teaching-offer-groups"><legend>Professors per grup (opcional)</legend>
+  <fieldset class="teaching-offer-groups" id="teaching-offer-teachers-section">
+    <legend>Professors per grup (opcional)</legend>
     <p class="field-hint">Indica quin professor és responsable de cadascun dels grups. Pot ser diferent per a cada grup. Deixa en blanc si un grup es comparteix entre tots els responsables de l'assignatura.</p>
     ${allGroupIds.map(groupId => {
       const group = data.classGroups.find(g => g.id === groupId) || data.additionalGroups.find(g => g.id === groupId);
       const teacher = data.subjectTeachers?.find(t => t.subjectId === state.selectedSubjectId && t.classGroupId === groupId);
       return `<div class="field"><label for="offer-teacher-${escapeHtml(groupId)}">${escapeHtml(group?.name || groupId)}</label><input id="offer-teacher-${escapeHtml(groupId)}" type="text" name="groupTeacher_${escapeHtml(groupId)}" maxlength="120" placeholder="Nom del professor" value="${escapeHtml(teacher?.teacherName || "")}"></div>`;
     }).join("")}
-  </fieldset>` : ""}`
+  </fieldset>`
 }
 
 
@@ -494,6 +495,29 @@ function openTeachingOfferDialog(offerId = null) {
   </div>`, offer ? "Desa l'oferta" : "Crea l'oferta");
   dialogForm.dataset.formType = "teaching-offer";
   dialogForm.dataset.recordId = offer?.id || "";
+  
+  // Update teacher fields when group checkboxes change
+  const updateTeacherFieldsDisplay = () => {
+    setTimeout(() => {
+      const selectedClassGroups = [...dialogContent.querySelectorAll('[name="offerClassGroupIds"]:checked')].map(input => input.value);
+      const selectedAdditionalGroups = [...dialogContent.querySelectorAll('[name="offerAdditionalGroupIds"]:checked')].map(input => input.value);
+      const teachersSection = dialogContent.querySelector('#teaching-offer-teachers-section');
+      if (teachersSection) {
+        teachersSection.innerHTML = `<legend>Professors per grup (opcional)</legend>
+    <p class="field-hint">Indica quin professor és responsable de cadascun dels grups. Pot ser diferent per a cada grup. Deixa en blanc si un grup es comparteix entre tots els responsables de l'assignatura.</p>
+    ${[...selectedClassGroups, ...selectedAdditionalGroups].map(groupId => {
+      const group = data.classGroups.find(g => g.id === groupId) || data.additionalGroups.find(g => g.id === groupId);
+      const teacher = data.subjectTeachers?.find(t => t.subjectId === state.selectedSubjectId && t.classGroupId === groupId);
+      return `<div class="field"><label for="offer-teacher-${escapeHtml(groupId)}">${escapeHtml(group?.name || groupId)}</label><input id="offer-teacher-${escapeHtml(groupId)}" type="text" name="groupTeacher_${escapeHtml(groupId)}" maxlength="120" placeholder="Nom del professor" value="${escapeHtml(teacher?.teacherName || "")}"></div>`;
+    }).join("")}`;
+      }
+    }, 0);
+  };
+  
+  // Attach change listeners to group checkboxes
+  dialogContent.querySelectorAll('[name="offerClassGroupIds"], [name="offerAdditionalGroupIds"]').forEach(checkbox => {
+    checkbox.addEventListener('change', updateTeacherFieldsDisplay);
+  });
 }
 
 function getSelectedSequenceLevel() {
