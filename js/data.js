@@ -56,18 +56,20 @@ export function canTeacherEditSubjectRubric(data, subjectId, teacherName) {
     typeof name === "string" && name.trim()
   );
   if (!responsibleTeachers.length) return true;
-  if (!teacherName) return false;
+  if (!teacherName?.trim()) return true;
   return responsibleTeachers.some(name =>
     name.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
   );
 }
 
 export function canTeacherGradeEvidence(data, subjectId, classGroupId, teacherName) {
-  if (!teacherName || !subjectId || !classGroupId) return false;
-  return (data.subjectTeachers || []).some(item =>
-    item.subjectId === subjectId &&
-    item.classGroupId === classGroupId &&
-    item.teacherName.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
+  if (!subjectId || !classGroupId) return false;
+  const assignments = (data.subjectTeachers || []).filter(item =>
+    item.subjectId === subjectId && item.classGroupId === classGroupId
+  );
+  if (!teacherName?.trim()) return assignments.length > 0;
+  return assignments.some(item =>
+    item.teacherName?.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
   );
 }
 
