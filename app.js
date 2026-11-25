@@ -416,6 +416,10 @@ function openSubjectDialog(subjectId = null) {
     showToast("No s'ha trobat l'assignatura que vols editar.", true);
     return;
   }
+  if (subject && !canTeacherEditSubjectRubric(data, subject.id, cloud?.getAccountId?.())) {
+    showToast("No tens permisos per editar aquesta assignatura.", true);
+    return;
+  }
   const editing = Boolean(subject);
   openDialog(editing ? "Edita l'assignatura" : "Crea una assignatura", "Crea l'assignatura. Després hi podràs afegir targetes de nivell, cadascuna amb els seus grups, seqüència i progrés.", `<div class="form-grid">
     <div class="field full"><label for="subject-name">Nom de l'assignatura</label><input id="subject-name" name="name" required maxlength="100" placeholder="Ex.: Tecnologia i sostenibilitat" value="${escapeHtml(subject?.name || "")}"></div>
@@ -428,6 +432,10 @@ function openSubjectDialog(subjectId = null) {
 
 function openLevelDialog(levelId = null) {
   const subject = data.subjects.find(item => item.id === state.selectedSubjectId);
+  if (subject && !canTeacherEditSubjectRubric(data, subject.id, cloud?.getAccountId?.())) {
+    showToast("No tens permisos per editar aquesta assignatura.", true);
+    return;
+  }
   if (!subject) {
     showToast("No s'ha trobat l'assignatura del nivell.", true);
     return;
@@ -1820,6 +1828,8 @@ dialogForm.addEventListener("submit", event => {
       name,
       description: String(formData.get("description") || "").trim(),
       responsibleTeachers,
+      ownerId: subject?.ownerId || (cloud?.isActive() ? cloud.getAccountId() : null),
+      responsibleTeacherIds: subject?.responsibleTeacherIds || [],
       levels: subject?.levels || []
     };
     if (subject) Object.assign(subject, updatedSubject);
@@ -2030,7 +2040,7 @@ content.addEventListener("submit", event => {
       showToast("No s'ha trobat l'activitat que vols editar.", true);
       return;
     }
-    if (!canTeacherEditSubjectRubric(data, state.selectedSubjectId, data.teacherProfile?.name)) {
+    if (!canTeacherEditSubjectRubric(data, state.selectedSubjectId, cloud?.getAccountId?.())) {
       showToast("No tens permisos per editar la rúbrica d'aquesta assignatura.", true);
       return;
     }
@@ -2511,6 +2521,7 @@ cloud = createCloud({
   serialize: value => clone(withoutUnmodifiedBank(value)),
   applyData: value => {
     if (dialog.open) dialog.close();
+    state.accountId = cloud?.getAccountId?.() || null;
     setData(value);
     setView("overview");
     syncNavigation();

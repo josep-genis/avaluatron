@@ -1156,7 +1156,7 @@ export function renderActivityRubric() {
     }).join("")
     : "";
   
-  const canEdit = canTeacherEditSubjectRubric(data, state.selectedSubjectId, data.teacherProfile?.name);
+  const canEdit = canTeacherEditSubjectRubric(data, state.selectedSubjectId, state.accountId);
   const isEditDisabled = !canEdit;
   const disabledMessage = !canEdit ? '<p class="field-warning" style="margin-top: 1rem;">No tens permisos per editar la rúbrica d\'aquesta assignatura.</p>' : '';
   
@@ -1485,10 +1485,13 @@ function renderSubjects() {
   content.innerHTML = `${pageHeading("PLANIFICACIÓ DOCENT", "Assignatures", "Organitza les assignatures i defineix per separat els nivells, grups, seqüències i progressos competencials.", action)}
     ${data.subjects.length ? `<div class="card-grid">${data.subjects.map(subject => {
       const responsibleTeachers = (subject.responsibleTeachers || []).filter(Boolean);
+      const editButton = canTeacherEditSubjectRubric(data, subject.id, state.accountId)
+        ? `<button class="text-button" type="button" data-edit-subject="${escapeHtml(subject.id)}">${icon("edit-pencil")} Edita assignatura</button>`
+        : "";
       return `<article class="record-card subject-record-card" data-open-subject="${escapeHtml(subject.id)}" tabindex="0" role="link" aria-label="Obre l'assignatura ${escapeHtml(subject.name)}"><div class="record-card-top"><div><h3>${escapeHtml(subject.name)}</h3><p>${escapeHtml(subject.description || "Sense descripció")}</p></div><span class="badge">${subject.levels.length} ${subject.levels.length === 1 ? "nivell" : "nivells"}</span></div>
         ${responsibleTeachers.length ? `<div class="record-footer"><span>Responsables: ${responsibleTeachers.map(name => escapeHtml(name)).join(", ")}</span></div>` : ""}
         <div class="record-footer"><span>${subject.levels.map(level => escapeHtml(level.name || "Sense nivell")).join(", ") || "Sense nivells definits"}</span></div>
-        <div class="record-actions"><span class="text-button subject-open-label">Obre assignatura ${icon("arrow-right")}</span><button class="text-button" type="button" data-edit-subject="${escapeHtml(subject.id)}">${icon("edit-pencil")} Edita assignatura</button></div></article>`;
+        <div class="record-actions"><span class="text-button subject-open-label">Obre assignatura ${icon("arrow-right")}</span>${editButton}</div></article>`;
     }).join("")}</div>` : emptyState("Encara no hi ha assignatures", "Crea una assignatura, assigna-hi grups classe i defineix-ne la seqüència d'activitats.", "create-subject", "Crea assignatura")}`;
 }
 
@@ -1499,7 +1502,10 @@ function renderSubjectDetail() {
     renderSubjects();
     return;
   }
-  const action = `<button class="button button-primary" type="button" data-action="create-level">${icon("plus")} Afegeix nivell</button>`;
+  const canEditSubject = canTeacherEditSubjectRubric(data, subject.id, state.accountId);
+  const action = canEditSubject
+    ? `<button class="button button-primary" type="button" data-action="create-level">${icon("plus")} Afegeix nivell</button>`
+    : "";
   const levelCards = subject.levels.map(level => {
     const offerings = getLevelOffers(data, level.id, subject.id);
     const groups = [
@@ -1514,17 +1520,23 @@ function renderSubjectDetail() {
     const grades = eligibleStudents.flatMap(student => competencies.map(competency => getLevelCompetencyGrade(level, student.id, competency.id, subject.id)).filter(grade => grade !== null));
     const average = grades.length ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length : null;
     const situations = level.situations.length;
+    const levelEditButton = canEditSubject
+      ? `<button class="text-button" type="button" data-edit-level="${escapeHtml(level.id)}">${icon("edit-pencil")} Edita nivell</button>`
+      : "";
     return `<article class="record-card level-record-card" data-open-level="${escapeHtml(level.id)}" tabindex="0" role="link" aria-label="Obre el seguiment de ${escapeHtml(level.name || "el nivell")} de ${escapeHtml(subject.name)}"><div class="record-card-top"><div><h3>${escapeHtml(level.name || "Sense nivell")}</h3><p>${groups.length ? escapeHtml(groups.map(group => `${group.name} (${group.type})`).join(", ")) : "Sense grups assignats"}</p></div><span class="badge">${groups.length} ${groups.length === 1 ? "grup" : "grups"}</span></div>
       <div class="level-card-metrics"><span>${students.length} ${students.length === 1 ? "alumne" : "alumnes"}</span><span>${sequenceActivities.length} ${sequenceActivities.length === 1 ? "activitat" : "activitats"}</span><span>${situations} ${situations === 1 ? "situació" : "situacions"}</span><span>${hours.toLocaleString("ca-ES")} h</span></div>
-      <div class="record-footer"><span>Progrés competencial</span>${gradeBadge(average)}</div><div class="record-actions"><span class="text-button subject-open-label">Obre seguiment ${icon("arrow-right")}</span><button class="text-button" type="button" data-open-level-sequence="${escapeHtml(level.id)}">Obre seqüència</button><button class="text-button" type="button" data-edit-level="${escapeHtml(level.id)}">${icon("edit-pencil")} Edita nivell</button></div></article>`;
+      <div class="record-footer"><span>Progrés competencial</span>${gradeBadge(average)}</div><div class="record-actions"><span class="text-button subject-open-label">Obre seguiment ${icon("arrow-right")}</span><button class="text-button" type="button" data-open-level-sequence="${escapeHtml(level.id)}">Obre seqüència</button>${levelEditButton}</div></article>`;
   }).join("");
   const responsibleTeachers = (subject.responsibleTeachers || []).filter(Boolean);
   const subjectDescription = subject.description || "Nivells, grups, seqüències i seguiment competencial.";
   const responsibleDescription = responsibleTeachers.length
     ? `Responsables: ${responsibleTeachers.join(", ")}`
     : subjectDescription;
+  const editButton = canTeacherEditSubjectRubric(data, subject.id, state.accountId)
+    ? `<button class="button" type="button" data-edit-subject="${escapeHtml(subject.id)}">${icon("edit-pencil")} Edita assignatura</button>`
+    : "";
   content.innerHTML = `<button class="detail-back" type="button" data-back="subjects">${icon("arrow-left")} Torna a les assignatures</button>
-    ${pageHeading("ASSIGNATURA", escapeHtml(subject.name), escapeHtml(responsibleTeachers.length ? `${subjectDescription} · ${responsibleDescription}` : subjectDescription), `<button class="button" type="button" data-edit-subject="${escapeHtml(subject.id)}">${icon("edit-pencil")} Edita assignatura</button>${action}`)}
+    ${pageHeading("ASSIGNATURA", escapeHtml(subject.name), escapeHtml(responsibleTeachers.length ? `${subjectDescription} · ${responsibleDescription}` : subjectDescription), `${editButton}${action}`)}
     ${subject.levels.length ? `<div class="card-grid">${levelCards}</div>` : emptyState("Encara no hi ha nivells", "Afegeix un nivell per assignar-hi els grups classe o addicionals, la seqüència i el progrés competencial.", "create-level", "Afegeix nivell")}`;
 }
 

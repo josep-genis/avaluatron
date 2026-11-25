@@ -2,6 +2,7 @@ export let data;
 
 export const state = {
   currentView: "overview",
+  accountId: null,
   selectedActivityId: null,
   selectedOfferingId: null,
   selectedStudentId: null,

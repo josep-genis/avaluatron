@@ -519,6 +519,7 @@ export function createCloud({ readLocal, applyData, validate, serialize, notify,
       }
     },
     isActive() { return Boolean(active); },
+    getAccountId() { return active?.userId || null; },
     save(payload) {
       if (!active) return false;
       if (stale) throw new Error("Una altra pestanya ha modificat aquesta còpia. Recarrega abans de desar.");

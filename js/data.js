@@ -48,27 +48,21 @@ export function getStudentEnrollment(student, academicYearId) {
       : null);
 }
 
-export function canTeacherEditSubjectRubric(data, subjectId, teacherName) {
+export function canTeacherEditSubjectRubric(data, subjectId, accountId) {
   if (!subjectId) return false;
   const subject = data.subjects.find(item => item.id === subjectId);
   if (!subject) return false;
-  const responsibleTeachers = (subject.responsibleTeachers || []).filter(name =>
-    typeof name === "string" && name.trim()
-  );
-  if (!responsibleTeachers.length) return true;
-  if (!teacherName?.trim()) return true;
-  return responsibleTeachers.some(name =>
-    name.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
-  );
+  if (!accountId) return true;
+  if (!subject.ownerId) return true;
+  if (subject.ownerId === accountId) return true;
+  return (subject.responsibleTeacherIds || []).includes(accountId);
 }
 
 export function canTeacherGradeEvidence(data, subjectId, classGroupId, teacherName) {
-  if (!subjectId || !classGroupId) return false;
-  const assignments = (data.subjectTeachers || []).filter(item =>
-    item.subjectId === subjectId && item.classGroupId === classGroupId
-  );
-  if (!teacherName?.trim()) return assignments.length > 0;
-  return assignments.some(item =>
+  if (!teacherName || !subjectId || !classGroupId) return false;
+  return (data.subjectTeachers || []).some(item =>
+    item.subjectId === subjectId &&
+    item.classGroupId === classGroupId &&
     item.teacherName?.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
   );
 }
@@ -234,6 +228,15 @@ export function validateData(value, makeId) {
   }
   for (const subject of value.subjects) {
     if (!subject || typeof subject !== "object") continue;
+    if (typeof subject.ownerId !== "string") subject.ownerId = null;
+    if (!Array.isArray(subject.responsibleTeacherIds)) {
+      subject.responsibleTeacherIds = [];
+    } else {
+      subject.responsibleTeacherIds = [...new Set(subject.responsibleTeacherIds
+        .filter(id => typeof id === "string")
+        .map(id => id.trim())
+        .filter(Boolean))];
+    }
     if (!Array.isArray(subject.responsibleTeachers)) {
       subject.responsibleTeachers = [];
     } else {
