@@ -14,10 +14,14 @@ export const EVALUATION_TYPES = {
     itemLabelPlural: "preguntes",
     editorLabel: "solucionari",
     achievementLabel: "solucionari",
-    itemFields: ["answerKey"],
-    defaultItem: () => ({ answerKey: "" })
+    itemFields: ["answerKey", "questionFormat"],
+    defaultItem: () => ({ answerKey: "", questionFormat: "desenvolupament" })
   }
 };
+
+export function getQuestionFormat(question) {
+  return question?.questionFormat === "test" ? "test" : "desenvolupament";
+}
 
 export function getEvaluationType(evaluation) {
   return EVALUATION_TYPES[evaluation?.type] ? evaluation.type : "Activitat";
@@ -31,7 +35,7 @@ export function getEvaluationItems(evaluation) {
   return evaluation?.[getEvaluationConfig(evaluation).itemCollection] || [];
 }
 
-export function convertEvaluationItems(evaluation, nextType) {
+export function convertEvaluationItems(evaluation, nextType, assessments = []) {
   if (!EVALUATION_TYPES[nextType]) throw new Error("Tipus d'element avaluable no vàlid.");
   const currentType = getEvaluationType(evaluation);
   if (currentType === nextType) return;
@@ -58,8 +62,24 @@ export function convertEvaluationItems(evaluation, nextType) {
     ...nextConfig.defaultItem(),
     ...(Object.hasOwn(evaluation.conversionData[nextType] || {}, item.id)
       ? evaluation.conversionData[nextType][item.id]
-      : {})
+      : {}),
+    ...(currentType === "Activitat" && nextType === "Prova" ? { questionFormat: "test" } : {})
   }));
+  for (const assessment of assessments) {
+    if (assessment.activityId !== evaluation.id || !assessment.levels) continue;
+    for (const item of items) {
+      if (!Object.hasOwn(assessment.levels, item.id)) continue;
+      const level = assessment.levels[item.id];
+      if (currentType === "Activitat" && nextType === "Prova") {
+        assessment.levels[item.id] = level === 5 || level === 1 ? 1 : level === 0 ? 0 : 4;
+      } else if (currentType === "Prova" && nextType === "Activitat") {
+        if (level === 5) assessment.levels[item.id] = 5;
+        else if (level === 1) assessment.levels[item.id] = 1;
+        else if (level === 0) assessment.levels[item.id] = 0;
+        else if (level >= 2 && level <= 4) assessment.levels[item.id] = 4;
+      }
+    }
+  }
   delete evaluation[currentConfig.itemCollection];
   evaluation.type = nextType;
 }

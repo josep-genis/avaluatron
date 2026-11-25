@@ -1,7 +1,7 @@
 import { DEFAULT_APPEARANCE, isValidAppearance } from "./themes.js";
 import { EDUCATIONAL_LEVEL_NAMES } from "./education.js";
 import { mergeCompetencyBank, migrateLegacyTransversalCompetencies } from "./competency-bank.js";
-import { EVALUATION_TYPES, getEvaluationItems } from "./assessment.js";
+import { EVALUATION_TYPES, getEvaluationItems, getQuestionFormat } from "./assessment.js";
 
 export const DAILY_FOLLOWUP_CRITERIA = [
   { id: "participation", name: "Participació" },
@@ -49,9 +49,15 @@ export function getStudentEnrollment(student, academicYearId) {
 }
 
 export function canTeacherEditSubjectRubric(data, subjectId, teacherName) {
-  if (!teacherName || !subjectId) return false;
+  if (!subjectId) return false;
   const subject = data.subjects.find(item => item.id === subjectId);
-  return subject && (subject.responsibleTeachers || []).some(name =>
+  if (!subject) return false;
+  const responsibleTeachers = (subject.responsibleTeachers || []).filter(name =>
+    typeof name === "string" && name.trim()
+  );
+  if (!responsibleTeachers.length) return true;
+  if (!teacherName) return false;
+  return responsibleTeachers.some(name =>
     name.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
   );
 }
@@ -449,7 +455,7 @@ export function validateData(value, makeId) {
         contributions: { [criterion.competencyId]: criterion.weight }
       }));
       if (activity.type === "Prova") {
-        activity.questions = legacyItems.map(item => ({ ...item, answerKey: "" }));
+        activity.questions = legacyItems.map(item => ({ ...item, answerKey: "", questionFormat: "desenvolupament" }));
       } else {
         activity.evidences = legacyItems;
       }
@@ -463,7 +469,8 @@ export function validateData(value, makeId) {
         id: evidence.id,
         name: evidence.name,
         contributions: evidence.contributions,
-        answerKey: evidence.descriptors?.["4"] || ""
+        answerKey: evidence.descriptors?.["4"] || "",
+        questionFormat: "desenvolupament"
       }));
       delete activity.evidences;
     }
@@ -484,7 +491,9 @@ export function validateData(value, makeId) {
       }
       if (activity.type === "Prova") {
         item.answerKey ??= "";
+        item.questionFormat ??= "desenvolupament";
         if (typeof item.answerKey !== "string" || item.answerKey.length > 2000 ||
+          !["test", "desenvolupament"].includes(item.questionFormat) ||
           "descriptors" in item || "preservedAchievementLevels" in item) {
           throw new Error("hi ha un solucionari invàlid a la prova.");
         }
@@ -530,6 +539,7 @@ export function validateData(value, makeId) {
             !currentItemIds.has(id) || !fields || typeof fields !== "object" || Array.isArray(fields) ||
             Object.keys(fields).some(field => !config.itemFields.includes(field)) ||
             config.itemFields.some(field => field in fields && typeof fields[field] !== (field === "descriptors" ? "object" : "string")) ||
+            fields.questionFormat !== undefined && !["test", "desenvolupament"].includes(fields.questionFormat) ||
             fields.descriptors && (Array.isArray(fields.descriptors) ||
               Object.entries(fields.descriptors).some(([level, descriptor]) =>
                 !["1", "2", "3", "4"].includes(level) || typeof descriptor !== "string" || descriptor.length > 500
@@ -711,8 +721,15 @@ export function validateData(value, makeId) {
     const key = `${assessment.offeringId || "legacy"}\u0000${assessment.studentId}\u0000${assessment.activityId}`;
     if (assessmentKeys.has(key)) throw new Error("hi ha avaluacions duplicades per alumne, activitat i oferta docent.");
     assessmentKeys.add(key);
-    for (const level of Object.values(assessment.levels)) {
+    const assessmentActivity = value.activities.find(activity => activity.id === assessment.activityId);
+    for (const [itemId, level] of Object.entries(assessment.levels)) {
       if (!Number.isInteger(level) || level < 0 || level > 5) throw new Error("hi ha un nivell d'avaluació invàlid.");
+      if (assessmentActivity?.type === "Prova") {
+        const question = getEvaluationItems(assessmentActivity).find(item => item.id === itemId);
+        if (getQuestionFormat(question) === "test" && level >= 2 && level <= 4) {
+          assessment.levels[itemId] = 4;
+        }
+      }
     }
   }
   const subjectIds = new Set(value.subjects.map(subject => subject.id));

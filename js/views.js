@@ -20,7 +20,7 @@ import {
 } from "./grades.js";
 import { escapeHtml, icon, formatDate, formatGrade, formatGradeWithCode, gradeColorClass, gradeValue, gradeWidth, gradeBadge } from "./formatting.js";
 import { getActivityStudentReportMarkup } from "./activity-report.js";
-import { getEvaluationConfig, getEvaluationItems, getEvaluationType } from "./assessment.js";
+import { getEvaluationConfig, getEvaluationItems, getEvaluationType, getQuestionFormat } from "./assessment.js";
 
 const content = document.querySelector("#app-content");
 let activityTableResizeObserver;
@@ -960,12 +960,21 @@ function renderActivityDetail() {
     const exempt = activityExempt || subjectExempt;
     const selectors = evaluationItems.map(evidence => {
       const selectedLevel = assessment?.levels[evidence.id] ?? 0;
+      const options = isTest && getQuestionFormat(evidence) === "test"
+        ? [
+          ["0", "Sense evidència"],
+          ["1", "No apte (2,5/10)"],
+          ["4", "Apte (10/10)"],
+          ["5", "No presentat (0/10)"]
+        ]
+        : null;
       return `<td><select class="grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}" aria-label="${escapeHtml(studentDisplayName(student))}: ${escapeHtml(evidence.name)}" data-assess-student="${escapeHtml(student.id)}" data-evidence="${escapeHtml(evidence.id)}" ${exempt ? "disabled" : ""}>
-        ${LEVEL_LABELS.map((label, index) => {
-          const descriptor = getStudentEvaluationDescriptor(activity, student, evidence, index);
-          return `<option class="${gradeColorClass(index ? SCORE_BY_LEVEL[index] : null)}" title="${escapeHtml(isTest ? "" : descriptor)}" value="${index}" ${selectedLevel === index ? "selected" : ""}>${index === 0 ? label : `${index} · ${label} (${formatGradeWithCode(SCORE_BY_LEVEL[index])})`}</option>`;
-        }).join("")}
-        <option class="${gradeColorClass(0)}" value="${NOT_SUBMITTED_LEVEL}" ${selectedLevel === NOT_SUBMITTED_LEVEL ? "selected" : ""}>${NOT_SUBMITTED_LABEL} (${formatGradeWithCode(0)})</option>
+        ${options
+          ? options.map(([value, label]) => `<option class="${gradeColorClass(value === "5" || value === "0" ? 0 : SCORE_BY_LEVEL[Number(value)])}" value="${value}" ${selectedLevel === Number(value) ? "selected" : ""}>${label}</option>`).join("")
+          : `${LEVEL_LABELS.map((label, index) => {
+            const descriptor = getStudentEvaluationDescriptor(activity, student, evidence, index);
+            return `<option class="${gradeColorClass(index ? SCORE_BY_LEVEL[index] : null)}" title="${escapeHtml(isTest ? "" : descriptor)}" value="${index}" ${selectedLevel === index ? "selected" : ""}>${index === 0 ? label : `${index} · ${label} (${formatGradeWithCode(SCORE_BY_LEVEL[index])})`}</option>`;
+          }).join("")}<option class="${gradeColorClass(0)}" value="${NOT_SUBMITTED_LEVEL}" ${selectedLevel === NOT_SUBMITTED_LEVEL ? "selected" : ""}>${NOT_SUBMITTED_LABEL} (${formatGradeWithCode(0)})</option>`}
       </select></td>`;
     }).join("");
     const activityGrade = selectedOffering
@@ -1091,8 +1100,11 @@ export function activityRubricEvidenceRowMarkup(index, evidence = null, rowKey =
   const achievementEditor = isTest
     ? `<td class="rubric-descriptor-cell"><label class="sr-only" for="rubric-${escapeHtml(rowKey)}-answer">Solucionari de ${escapeHtml(evidence?.name || `la pregunta ${index + 1}`)}</label><textarea id="rubric-${escapeHtml(rowKey)}-answer" name="rubricAnswerKey" maxlength="2000" required placeholder="Resposta o solució esperada">${escapeHtml(evidence?.answerKey || "")}</textarea></td>`
     : levelHeaders.map(([level, abbreviation, label]) => `<td class="rubric-descriptor-cell"><label class="sr-only" for="rubric-${escapeHtml(rowKey)}-level-${level}">${abbreviation}: criteri per a ${evidence?.name || `l'evidència ${index + 1}`}</label><textarea id="rubric-${escapeHtml(rowKey)}-level-${level}" name="rubricDescriptor${level}" maxlength="500" required placeholder="${abbreviation}: criteri observable" title="${label}">${escapeHtml(descriptors[level] || "")}</textarea></td>`).join("");
+  const questionFormatEditor = isTest
+    ? `<label for="rubric-${escapeHtml(rowKey)}-format">Tipus de pregunta</label><select id="rubric-${escapeHtml(rowKey)}-format" name="rubricQuestionFormat"><option value="test" ${(evidence?.questionFormat || "desenvolupament") === "test" ? "selected" : ""}>Test</option><option value="desenvolupament" ${(evidence?.questionFormat || "desenvolupament") === "desenvolupament" ? "selected" : ""}>Desenvolupament</option></select>`
+    : "";
   return `<tr data-rubric-evidence-row data-reorder-item>
-    <td class="rubric-evidence-name-cell"><div class="rubric-reorder-controls"><span class="reorder-handle" data-reorder-handle aria-hidden="true" title="Arrossega per reordenar">⠿</span><button class="text-button" type="button" data-move-rubric-evidence="-1" aria-label="Mou ${isTest ? "la pregunta" : "l'evidència"} amunt">${icon("nav-arrow-up")}</button><button class="text-button" type="button" data-move-rubric-evidence="1" aria-label="Mou ${isTest ? "la pregunta" : "l'evidència"} avall">${icon("nav-arrow-down")}</button></div><input type="hidden" name="rubricEvidenceId" value="${escapeHtml(evidence?.id || "")}"><label class="sr-only" data-rubric-name-label for="rubric-evidence-${escapeHtml(rowKey)}">${isTest ? "Pregunta" : "Evidència"} ${index + 1}</label><input id="rubric-evidence-${escapeHtml(rowKey)}" name="rubricEvidenceName" required maxlength="100" value="${escapeHtml(evidence?.name || "")}" placeholder="${isTest ? "Escriu la pregunta" : "Descriu l'evidència"}"><button class="text-button danger-text" type="button" data-remove-rubric-evidence>${icon("trash")} Elimina</button></td>
+    <td class="rubric-evidence-name-cell"><div class="rubric-reorder-controls"><span class="reorder-handle" data-reorder-handle aria-hidden="true" title="Arrossega per reordenar">⠿</span><button class="text-button" type="button" data-move-rubric-evidence="-1" aria-label="Mou ${isTest ? "la pregunta" : "l'evidència"} amunt">${icon("nav-arrow-up")}</button><button class="text-button" type="button" data-move-rubric-evidence="1" aria-label="Mou ${isTest ? "la pregunta" : "l'evidència"} avall">${icon("nav-arrow-down")}</button></div><input type="hidden" name="rubricEvidenceId" value="${escapeHtml(evidence?.id || "")}"><label class="sr-only" data-rubric-name-label for="rubric-evidence-${escapeHtml(rowKey)}">${isTest ? "Pregunta" : "Evidència"} ${index + 1}</label><input id="rubric-evidence-${escapeHtml(rowKey)}" name="rubricEvidenceName" required maxlength="100" value="${escapeHtml(evidence?.name || "")}" placeholder="${isTest ? "Escriu la pregunta" : "Descriu l'evidència"}">${questionFormatEditor}<button class="text-button danger-text" type="button" data-remove-rubric-evidence>${icon("trash")} Elimina</button></td>
     <td class="rubric-evidence-competencies"><div class="rubric-page-competency-list" data-rubric-competencies>${competencies.map(competency => activityRubricCompetencyMarkup(evidence, competency, evidence.contributions[competency.id])).join("")}</div><div class="evidence-competency-warning" role="status" ${competencies.length ? "hidden" : ""}>${icon("warning-triangle")} Afegeix almenys una competència.</div><div class="evidence-competency-add"><select data-rubric-competency-select aria-label="Afegeix una competència a ${isTest ? "la pregunta" : "l'evidència"} ${index + 1}" ${availableCompetencies.length ? "" : "disabled"}>${availableCompetencies.map(competency => `<option value="${escapeHtml(competency.id)}">${escapeHtml(competency.name)}</option>`).join("") || '<option value="">Totes les competències afegides</option>'}</select><button class="icon-button" type="button" data-add-rubric-competency aria-label="Afegeix competència" ${availableCompetencies.length ? "" : "disabled"}>${icon("plus")}</button></div></td>
     ${achievementEditor}
   </tr>`;

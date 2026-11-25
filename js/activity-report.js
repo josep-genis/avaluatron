@@ -7,7 +7,7 @@ import {
   isStudentExemptFromSubjectForActivity
 } from "./grades.js";
 import { escapeHtml, formatDate, formatGradeWithCode, gradeColorClass } from "./formatting.js";
-import { getEvaluationConfig, getEvaluationItems } from "./assessment.js";
+import { getEvaluationConfig, getEvaluationItems, getQuestionFormat } from "./assessment.js";
 
 export const RECOVERY_EXPLANATION = `Aquesta activitat s'ha qualificat com a recuperada. Per això la nota de cada evidència, i per tant la nota final de l'activitat, no pot superar ${formatGradeWithCode(RECOVERED_MAX_SCORE)}. Les evidències amb una nota inferior es mantenen sense canvis.`;
 
@@ -47,10 +47,13 @@ export function getStudentReportData(activity, student, subjectId, offeringId = 
   const evidences = items.map(evidence => {
     const level = assessment?.levels[evidence.id];
     const hasGrade = Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
+    const testLabel = getQuestionFormat(evidence) === "test"
+      ? level === 4 ? "Apte" : level === 1 ? "No apte" : null
+      : null;
     const result = exempt
       ? "No avaluable (exempció)"
       : hasGrade
-        ? `${level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : LEVEL_LABELS[level]} · ${formatGradeWithCode(SCORE_BY_LEVEL[level])}`
+        ? `${level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : testLabel || LEVEL_LABELS[level]} · ${formatGradeWithCode(SCORE_BY_LEVEL[level])}`
         : "Pendent d’avaluar";
     const descriptor = hasGrade && level !== NOT_SUBMITTED_LEVEL
       ? getStudentEvaluationDescriptor(activity, student, evidence, level)

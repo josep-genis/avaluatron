@@ -1974,7 +1974,7 @@ dialogForm.addEventListener("submit", event => {
     }
     const activityId = activity?.id || makeId("ac");
     const type = String(formData.get("type"));
-    if (activity) convertEvaluationItems(activity, type);
+    if (activity) convertEvaluationItems(activity, type, data.assessments);
     const updatedActivity = {
       id: activityId,
       title: String(formData.get("title")).trim(),
@@ -2048,6 +2048,9 @@ content.addEventListener("submit", event => {
       };
       if (isTest) {
         item.answerKey = String(row.querySelector('[name="rubricAnswerKey"]').value).trim();
+        item.questionFormat = row.querySelector('[name="rubricQuestionFormat"]')?.value === "test"
+          ? "test"
+          : "desenvolupament";
       } else {
         item.descriptors = Object.fromEntries(["1", "2", "3", "4"].map(level => [
           level, String(row.querySelector(`[name="rubricDescriptor${level}"]`).value).trim()

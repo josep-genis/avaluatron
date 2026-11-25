@@ -6,7 +6,7 @@ import {
   getEvidenceActivityWeight, isStudentExemptFromActivity, isStudentExemptFromSubjectForActivity
 } from "./grades.js";
 import { escapeHtml, formatDate, gradeAbbreviation } from "./formatting.js";
-import { getEvaluationConfig, getEvaluationItems } from "./assessment.js";
+import { getEvaluationConfig, getEvaluationItems, getQuestionFormat } from "./assessment.js";
 
 const DELIMITERS = { csv: ";", tsv: "\t" };
 
@@ -71,7 +71,12 @@ export function exportActivityTable(format) {
       ? (assessment?.recovered ? "Avaluat/ada (recuperada)" : "Avaluat/ada") : levels.some(level => level !== null) ? "Parcial" : "Pendent";
     const group = data.classGroups.find(item => item.id === student.classGroupId)?.name || "";
     const activityGroup = !activity.isGroup ? "" : activity.groups.find(item => item.studentIds.includes(student.id))?.name || "";
-    return [student.lastName, student.firstName, group, ...(activity.isGroup ? [activityGroup] : []), ...levels.map(level => level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : level ?? ""),
+    return [student.lastName, student.firstName, group, ...(activity.isGroup ? [activityGroup] : []), ...levels.map((level, index) =>
+      level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL
+        : level === null ? ""
+        : activity.type === "Prova" && getQuestionFormat(items[index]) === "test"
+          ? level === 4 ? "Apte" : level === 1 ? "No apte" : level
+          : level),
       ...levels.map(level => level === null ? "" : formatNumber(SCORE_BY_LEVEL[level])),
       formatNumber(grade), grade === null ? "" : gradeAbbreviation(grade), status];
   });
@@ -125,7 +130,7 @@ export function exportActivityRubricTable(format) {
   );
 
   const header = activity.type === "Prova"
-    ? ["Pregunta", "Pes de la pregunta (%)", "Competències i pesos", "Solucionari"]
+    ? ["Pregunta", "Tipus", "Pes de la pregunta (%)", "Competències i pesos", "Solucionari"]
     : ["Evidència", "Pes en l'activitat (%)", "Competències i pesos",
       ...LEVEL_LABELS.slice(1).map((_, index) => `${["NA", "AS", "AN", "AE"][index]} · ${formatNumber(SCORE_BY_LEVEL[index + 1])}/10`),
       ...adaptedHeaders];
@@ -135,7 +140,7 @@ export function exportActivityRubricTable(format) {
       return competency ? `${competency.name} (${Number(weight)}%)` : "";
     }).filter(Boolean).join(" · ");
     return activity.type === "Prova"
-      ? [evidence.name, getEvidenceActivityWeight(evidence), contributions, evidence.answerKey || ""]
+      ? [evidence.name, getQuestionFormat(evidence) === "test" ? "Test" : "Desenvolupament", getEvidenceActivityWeight(evidence), contributions, evidence.answerKey || ""]
       : [evidence.name, getEvidenceActivityWeight(evidence), contributions,
         ...["1", "2", "3", "4"].map(level => evidence.descriptors?.[level] || ""),
         ...adaptations.flatMap(([adaptation]) =>
