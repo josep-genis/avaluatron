@@ -64,7 +64,8 @@ export function exportActivityTable(format) {
       isStudentExemptFromSubjectForActivity(data, student.id, activity.id, offering.subjectId);
     const levels = items.map(evidence => {
       const level = assessment?.levels[evidence.id];
-      return Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length ? level : null;
+      if (assessment?.discardedEvidenceIds?.includes(evidence.id)) return "DESCARTADA";
+      return Number.isInteger(level) && level > 0 && level <= 5 ? level : null;
     });
     const grade = exempt ? null : getActivityGrade(data, student.id, activity, offering.subjectId, offering.id);
     const status = exempt ? "Exempt/a" : areAllActivityEvidencesAssessed(activity, assessment)
@@ -72,12 +73,13 @@ export function exportActivityTable(format) {
     const group = data.classGroups.find(item => item.id === student.classGroupId)?.name || "";
     const activityGroup = !activity.isGroup ? "" : activity.groups.find(item => item.studentIds.includes(student.id))?.name || "";
     return [student.lastName, student.firstName, group, ...(activity.isGroup ? [activityGroup] : []), ...levels.map((level, index) =>
-      level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL
+      level === "DESCARTADA" ? "Descartada"
+        : level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL
         : level === null ? ""
         : activity.type === "Prova" && getQuestionFormat(items[index]) === "test"
-          ? level === 4 ? "Apte" : level === 1 ? "No apte" : level
+          ? level === 4 ? "AE" : level === 3 ? "AN" : level === 2 ? "AS" : level === 1 ? "NA" : level
           : level),
-      ...levels.map(level => level === null ? "" : formatNumber(SCORE_BY_LEVEL[level])),
+      ...levels.map(level => level === null || level === "DESCARTADA" ? "" : formatNumber(SCORE_BY_LEVEL[level])),
       formatNumber(grade), grade === null ? "" : gradeAbbreviation(grade), status];
   });
 

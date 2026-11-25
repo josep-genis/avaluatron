@@ -1,11 +1,13 @@
 import { getActivityOffers, getSequenceActivities, isStudentAssociatedWithOffering } from "./data.js";
 import { getEvaluationItems } from "./assessment.js";
 
-export const SCORE_BY_LEVEL = [null, 2.5, 5, 7.5, 10, 0];
+export const SCORE_BY_LEVEL = [null, 2.5, 5, 7.5, 10, 0, null];
 export const RECOVERED_MAX_SCORE = 5;
 export const NOT_SUBMITTED_LEVEL = 5;
-export const NOT_SUBMITTED_LABEL = "No presentat";
-export const LEVEL_LABELS = ["Sense evidència", "Inicial", "En procés", "Assolit", "Avançat"];
+export const NOT_SUBMITTED_LABEL = "NP";
+export const DISCARDED_LEVEL = 6;
+export const DISCARDED_LABEL = "Descartada";
+export const LEVEL_LABELS = ["Sense evidència", "NA", "AS", "AN", "AE"];
 
 export function getAssessment(data, studentId, activityId, offeringId = null) {
   if (offeringId) {
@@ -71,11 +73,17 @@ export function isNonAssessedActivity(activity) {
   return !getEvaluationItems(activity).length;
 }
 
+export function isEvidenceDiscarded(assessment, evidenceId) {
+  return Array.isArray(assessment?.discardedEvidenceIds) &&
+    assessment.discardedEvidenceIds.includes(evidenceId);
+}
+
 export function areAllActivityEvidencesAssessed(activity, assessment) {
   const items = getEvaluationItems(activity);
   return items.length > 0 && items.every(evidence => {
+    if (isEvidenceDiscarded(assessment, evidence.id)) return true;
     const level = assessment?.levels[evidence.id];
-    return Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
+    return Number.isInteger(level) && level > 0 && level <= 5;
   });
 }
 
@@ -85,7 +93,7 @@ function capRecoveredScore(score, assessment) {
 }
 
 function isValidLevel(level) {
-  return Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
+  return Number.isInteger(level) && level > 0 && level <= 5;
 }
 
 export function getActivityGroupEvidenceScore(data, activity, group, offeringId, evidenceId) {
@@ -96,6 +104,7 @@ export function getActivityGroupEvidenceScore(data, activity, group, offeringId,
     if (isStudentExemptFromActivity(data, memberId, activity.id) ||
       offering && isStudentExemptFromSubject(data, memberId, offering.subjectId)) continue;
     const memberAssessment = getAssessment(data, memberId, activity.id, offeringId);
+    if (isEvidenceDiscarded(memberAssessment, evidenceId)) continue;
     const level = memberAssessment?.levels[evidenceId];
     if (isValidLevel(level)) scores.push(capRecoveredScore(SCORE_BY_LEVEL[level], memberAssessment));
   }
@@ -123,6 +132,7 @@ export function getEvidenceScore(data, activity, studentId, offeringId, evidence
     : null;
   if (!group) {
     const assessment = getAssessment(data, studentId, activity.id, offeringId);
+    if (isEvidenceDiscarded(assessment, evidenceId)) return null;
     const level = assessment?.levels[evidenceId];
     return isValidLevel(level) ? capRecoveredScore(SCORE_BY_LEVEL[level], assessment) : null;
   }

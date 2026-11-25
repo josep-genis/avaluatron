@@ -8,7 +8,7 @@ import {
   canTeacherEditSubjectRubric, canTeacherGradeEvidence
 } from "./data.js";
 import {
-  SCORE_BY_LEVEL, LEVEL_LABELS, NOT_SUBMITTED_LEVEL, NOT_SUBMITTED_LABEL,
+  SCORE_BY_LEVEL, LEVEL_LABELS, NOT_SUBMITTED_LEVEL, NOT_SUBMITTED_LABEL, DISCARDED_LEVEL, DISCARDED_LABEL,
   getAssessment as calculateAssessment, getCompetencyGrade as calculateCompetencyGrade,
   getActivityGrade as calculateActivityGrade, getEvidenceScore as calculateEvidenceScore, getActivityCompetencyGrade as calculateActivityCompetencyGrade,
   getLevelCompetencyGrade as calculateLevelCompetencyGrade, getLevelCompetencyAssessmentProgress,
@@ -959,13 +959,17 @@ function renderActivityDetail() {
     const subjectExempt = isStudentExemptFromSubjectForActivity(data, student.id, activity.id, selectedOffering?.subjectId);
     const exempt = activityExempt || subjectExempt;
     const selectors = evaluationItems.map(evidence => {
-      const selectedLevel = assessment?.levels[evidence.id] ?? 0;
+      const discarded = assessment?.discardedEvidenceIds?.includes(evidence.id) === true;
+      const selectedLevel = discarded ? DISCARDED_LEVEL : assessment?.levels[evidence.id] ?? 0;
       const options = isTest && getQuestionFormat(evidence) === "test"
         ? [
           ["0", "Sense evidència"],
-          ["1", "No apte (2,5/10)"],
-          ["4", "Apte (10/10)"],
-          ["5", "No presentat (0/10)"]
+          ["1", "NA (2,5/10)"],
+          ["2", "AS (5/10)"],
+          ["3", "AN (7,5/10)"],
+          ["4", "AE (10/10)"],
+          ["5", "NP (0/10)"],
+          ["6", "Descartada"]
         ]
         : null;
       return `<td><select class="grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}" aria-label="${escapeHtml(studentDisplayName(student))}: ${escapeHtml(evidence.name)}" data-assess-student="${escapeHtml(student.id)}" data-evidence="${escapeHtml(evidence.id)}" ${exempt ? "disabled" : ""}>
@@ -974,7 +978,7 @@ function renderActivityDetail() {
           : `${LEVEL_LABELS.map((label, index) => {
             const descriptor = getStudentEvaluationDescriptor(activity, student, evidence, index);
             return `<option class="${gradeColorClass(index ? SCORE_BY_LEVEL[index] : null)}" title="${escapeHtml(isTest ? "" : descriptor)}" value="${index}" ${selectedLevel === index ? "selected" : ""}>${index === 0 ? label : `${index} · ${label} (${formatGradeWithCode(SCORE_BY_LEVEL[index])})`}</option>`;
-          }).join("")}<option class="${gradeColorClass(0)}" value="${NOT_SUBMITTED_LEVEL}" ${selectedLevel === NOT_SUBMITTED_LEVEL ? "selected" : ""}>${NOT_SUBMITTED_LABEL} (${formatGradeWithCode(0)})</option>`}
+          }).join("")}<option class="${gradeColorClass(0)}" value="${NOT_SUBMITTED_LEVEL}" ${selectedLevel === NOT_SUBMITTED_LEVEL ? "selected" : ""}>${NOT_SUBMITTED_LEVEL} · ${NOT_SUBMITTED_LABEL} (${formatGradeWithCode(0)})</option><option value="${DISCARDED_LEVEL}" ${selectedLevel === DISCARDED_LEVEL ? "selected" : ""}>${DISCARDED_LABEL}</option>`}
       </select></td>`;
     }).join("");
     const activityGrade = selectedOffering
@@ -1206,14 +1210,23 @@ function getEvidenceSummary(evidence, students, activity) {
     !isStudentExemptFromActivity(data, student.id, activity.id) &&
     !isStudentExemptFromSubjectForActivity(data, student.id, activity.id, state.selectedSubjectId)
   );
-  const grades = eligibleStudents
-    .map(student => getAssessment(student.id, activity.id)?.levels[evidence.id])
-    .filter(level => Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length)
+  const assessments = eligibleStudents.map(student => getAssessment(student.id, activity.id));
+  const grades = assessments
+    .map(assessment => assessment?.discardedEvidenceIds?.includes(evidence.id)
+      ? null
+      : assessment?.levels[evidence.id])
+    .filter(level => Number.isInteger(level) && level > 0 && level <= 5)
     .map(level => SCORE_BY_LEVEL[level]);
   const average = grades.length
     ? grades.reduce((total, grade) => total + grade, 0) / grades.length
     : null;
-  const progress = eligibleStudents.length ? Math.round(grades.length / eligibleStudents.length * 100) : 0;
+  const assessedCount = assessments.filter(assessment =>
+    assessment?.discardedEvidenceIds?.includes(evidence.id) ||
+    Number.isInteger(assessment?.levels[evidence.id]) &&
+      assessment.levels[evidence.id] > 0 &&
+      assessment.levels[evidence.id] <= 5
+  ).length;
+  const progress = eligibleStudents.length ? Math.round(assessedCount / eligibleStudents.length * 100) : 0;
   return {
     average,
     progress: `<div class="evidence-assessment-progress"><div class="progress-track"><div class="progress-fill ${gradeColorClass(average)}" style="width:${progress}%"></div></div><div class="evidence-assessment-meta"><span>${grades.length}/${eligibleStudents.length} avaluats</span><strong>${progress}%</strong></div></div>`

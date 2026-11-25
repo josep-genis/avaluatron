@@ -735,6 +735,8 @@ export function validateData(value, makeId) {
     if (!assessment || !studentIds.has(assessment.studentId) || !activityIds.has(assessment.activityId) ||
       assessment.offeringId && !value.teachingOffers.some(offer => offer.id === assessment.offeringId) ||
       !assessment.levels || typeof assessment.levels !== "object" ||
+      assessment.discardedEvidenceIds !== undefined && (!Array.isArray(assessment.discardedEvidenceIds) ||
+        assessment.discardedEvidenceIds.some(id => typeof id !== "string")) ||
       assessment.recovered !== undefined && typeof assessment.recovered !== "boolean" ||
       assessment.feedback !== undefined && (typeof assessment.feedback !== "string" || assessment.feedback.length > 2000)) {
       throw new Error("hi ha una avaluació sense alumne o activitat vàlids.");
@@ -752,8 +754,13 @@ export function validateData(value, makeId) {
     if (assessmentKeys.has(key)) throw new Error("hi ha avaluacions duplicades per alumne, activitat i oferta docent.");
     assessmentKeys.add(key);
     const assessmentActivity = value.activities.find(activity => activity.id === assessment.activityId);
+    assessment.discardedEvidenceIds ??= [];
+    if (assessment.discardedEvidenceIds.some(id => !getEvaluationItems(assessmentActivity).some(item => item.id === id)) ||
+      new Set(assessment.discardedEvidenceIds).size !== assessment.discardedEvidenceIds.length) {
+      throw new Error("hi ha evidències descartades invàlides.");
+    }
     for (const [itemId, level] of Object.entries(assessment.levels)) {
-      if (!Number.isInteger(level) || level < 0 || level > 5) throw new Error("hi ha un nivell d'avaluació invàlid.");
+      if (!Number.isInteger(level) || level < 0 || level > 6) throw new Error("hi ha un nivell d'avaluació invàlid.");
       if (assessmentActivity?.type === "Prova") {
         const question = getEvaluationItems(assessmentActivity).find(item => item.id === itemId);
         if (getQuestionFormat(question) === "test" && level >= 2 && level <= 4) {

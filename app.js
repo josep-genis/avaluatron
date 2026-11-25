@@ -10,7 +10,7 @@ import {
   updateActivityAssessmentRow, refreshActivityGroups, competencyOutcomeMarkup, competencyCriterionMarkup, competencyTagChip
 } from "./js/views.js";
 import {
-  SCORE_BY_LEVEL, isStudentExemptFromSubject, getAssessment as calculateAssessment, getActivityGrade as calculateActivityGrade
+  SCORE_BY_LEVEL, DISCARDED_LEVEL, isStudentExemptFromSubject, getAssessment as calculateAssessment, getActivityGrade as calculateActivityGrade
 } from "./js/grades.js";
 import { appearanceFieldsMarkup, normalizeAppearance } from "./js/themes.js";
 import { startIconDecorator } from "./js/decorate-icons.js";
@@ -2455,7 +2455,7 @@ content.addEventListener("change", event => {
       assessment.recovered = true;
     } else if (assessment) {
       delete assessment.recovered;
-      if (!Object.keys(assessment.levels).length && !assessment.feedback) {
+      if (!Object.keys(assessment.levels).length && !assessment.discardedEvidenceIds?.length && !assessment.feedback) {
         data.assessments = data.assessments.filter(item => item !== assessment);
       }
     }
@@ -2502,14 +2502,25 @@ content.addEventListener("change", event => {
     data.assessments.push(assessment);
   }
   if (!offering.studentIds.includes(studentId)) offering.studentIds.push(studentId);
-  assessment.levels[evidenceId] = Number(select.value);
+  const selectedLevel = Number(select.value);
+  assessment.discardedEvidenceIds ??= [];
+  if (selectedLevel === DISCARDED_LEVEL) {
+    delete assessment.levels[evidenceId];
+    if (!assessment.discardedEvidenceIds.includes(evidenceId)) assessment.discardedEvidenceIds.push(evidenceId);
+  } else {
+    assessment.discardedEvidenceIds = assessment.discardedEvidenceIds.filter(id => id !== evidenceId);
+    assessment.levels[evidenceId] = selectedLevel;
+  }
+  if (!Object.keys(assessment.levels).length && !assessment.discardedEvidenceIds.length &&
+    !assessment.feedback && !assessment.recovered) {
+    data.assessments = data.assessments.filter(item => item !== assessment);
+  }
   if (!saveData()) {
     setData(previousData);
     renderActivityDetail();
     return;
   }
-  const selectedLevel = Number(select.value);
-  select.className = `grade-select ${gradeColorClass(selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}`;
+  select.className = `grade-select ${gradeColorClass(selectedLevel === DISCARDED_LEVEL ? null : selectedLevel ? SCORE_BY_LEVEL[selectedLevel] : null)}`;
   const activityGrade = calculateActivityGrade(data, studentId, activity, offering.subjectId, offering.id);
   updateActivityAssessmentRow(studentId, activityGrade);
   refreshActivityGroups(studentId);

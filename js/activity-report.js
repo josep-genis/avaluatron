@@ -39,18 +39,22 @@ export function getStudentReportData(activity, student, subjectId, offeringId = 
   const grade = getActivityGrade(data, student.id, activity, subjectId, offeringId);
   const evaluatedEvidenceCount = items.filter(evidence => {
     const level = assessment?.levels[evidence.id];
-    return Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
+    return assessment?.discardedEvidenceIds?.includes(evidence.id) ||
+      Number.isInteger(level) && level > 0 && level <= 5;
   }).length;
   const gradeLabel = exempt
     ? subjectExempt ? "Exempt/a de l’assignatura" : "Exempt/a de l’activitat"
     : grade === null ? "Pendent d’avaluar" : formatGradeWithCode(grade);
   const evidences = items.map(evidence => {
     const level = assessment?.levels[evidence.id];
-    const hasGrade = Number.isInteger(level) && level > 0 && level < SCORE_BY_LEVEL.length;
+    const discarded = assessment?.discardedEvidenceIds?.includes(evidence.id) === true;
+    const hasGrade = !discarded && Number.isInteger(level) && level > 0 && level <= 5;
     const testLabel = getQuestionFormat(evidence) === "test"
-      ? level === 4 ? "Apte" : level === 1 ? "No apte" : null
+      ? level === 4 ? "AE" : level === 3 ? "AN" : level === 2 ? "AS" : level === 1 ? "NA" : null
       : null;
-    const result = exempt
+    const result = discarded
+      ? "Descartada: no computa a la nota"
+      : exempt
       ? "No avaluable (exempció)"
       : hasGrade
         ? `${level === NOT_SUBMITTED_LEVEL ? NOT_SUBMITTED_LABEL : testLabel || LEVEL_LABELS[level]} · ${formatGradeWithCode(SCORE_BY_LEVEL[level])}`
