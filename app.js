@@ -424,7 +424,7 @@ function openSubjectDialog(subjectId = null) {
   openDialog(editing ? "Edita l'assignatura" : "Crea una assignatura", "Crea l'assignatura. Després hi podràs afegir targetes de nivell, cadascuna amb els seus grups, seqüència i progrés.", `<div class="form-grid">
     <div class="field full"><label for="subject-name">Nom de l'assignatura</label><input id="subject-name" name="name" required maxlength="100" placeholder="Ex.: Tecnologia i sostenibilitat" value="${escapeHtml(subject?.name || "")}"></div>
     <div class="field full"><label for="subject-description">Descripció (opcional)</label><textarea id="subject-description" name="description" maxlength="500" placeholder="Objectius o informació de l'assignatura">${escapeHtml(subject?.description || "")}</textarea></div>
-    <div class="field full"><label for="subject-responsible-teachers">Professors responsables (opcional)</label><textarea id="subject-responsible-teachers" name="responsibleTeachers" maxlength="2000" placeholder="Un nom per línia&#10;Maria Puig&#10;Joan Martí">${escapeHtml((subject?.responsibleTeachers || []).join("\n"))}</textarea><span class="field-hint">Els professors responsables poden editar la rúbrica, consultar qualificacions i qualificar les evidències en els grups assignats.</span></div>
+    <div class="field full"><label for="subject-responsible-teachers">Professors responsables (opcional)</label><textarea id="subject-responsible-teachers" name="responsibleTeachers" maxlength="2000" placeholder="Un nom per línia&#10;Maria Puig&#10;Joan Martí">${escapeHtml((subject?.responsibleTeachers || []).join("\n"))}</textarea><span class="field-hint">Els noms identifiquen les persones responsables de l'assignatura. La qualificació es configura a cada oferta docent vigent.</span></div>
   </div>`, editing ? "Desa els canvis" : "Crea assignatura");
   dialogForm.dataset.formType = editing ? "edit-subject" : "subject";
   dialogForm.dataset.recordId = subject?.id || "";
@@ -474,7 +474,7 @@ function teachingOfferGroupFields(academicYearId, classGroupIds = [], additional
   </fieldset>
   <fieldset class="teaching-offer-groups" id="teaching-offer-teachers-section">
     <legend>Professors per grup (opcional)</legend>
-    <p class="field-hint">Indica quin professor és responsable de cadascun dels grups. Pot ser diferent per a cada grup. Deixa en blanc si un grup es comparteix entre tots els responsables de l'assignatura.</p>
+    <p class="field-hint">Indica el professor responsable de cada grup. Només aquests noms podran qualificar evidències dins aquesta oferta vigent. Els grups addicionals també es poden configurar aquí.</p>
     ${allGroupIds.map(groupId => {
       const group = data.classGroups.find(g => g.id === groupId) || data.additionalGroups.find(g => g.id === groupId);
       const teacher = data.subjectTeachers?.find(t => t.subjectId === state.selectedSubjectId && t.classGroupId === groupId);
@@ -512,7 +512,7 @@ function openTeachingOfferDialog(offerId = null) {
       const teachersSection = dialogContent.querySelector('#teaching-offer-teachers-section');
       if (teachersSection) {
         teachersSection.innerHTML = `<legend>Professors per grup (opcional)</legend>
-    <p class="field-hint">Indica quin professor és responsable de cadascun dels grups. Pot ser diferent per a cada grup. Deixa en blanc si un grup es comparteix entre tots els responsables de l'assignatura.</p>
+    <p class="field-hint">Indica el professor responsable de cada grup. Només aquests noms podran qualificar evidències dins aquesta oferta vigent. Els grups addicionals també es poden configurar aquí.</p>
     ${[...selectedClassGroups, ...selectedAdditionalGroups].map(groupId => {
       const group = data.classGroups.find(g => g.id === groupId) || data.additionalGroups.find(g => g.id === groupId);
       const teacher = data.subjectTeachers?.find(t => t.subjectId === state.selectedSubjectId && t.classGroupId === groupId);
@@ -1880,19 +1880,35 @@ dialogForm.addEventListener("submit", event => {
 
     // Persist teacher assignments for each group
     const allGroupIds = [...classGroupIds, ...additionalGroupIds];
+    data.subjectTeachers = (data.subjectTeachers || []).filter(item =>
+      item.subjectId !== subject.id ||
+      (item.offeringId && item.offeringId !== updatedOffer.id) ||
+      allGroupIds.includes(item.classGroupId)
+    );
     for (const groupId of allGroupIds) {
       const teacherName = String(formData.get(`groupTeacher_${groupId}`) || "").trim();
       const existingAssignment = data.subjectTeachers?.find(
-        t => t.subjectId === subject.id && t.classGroupId === groupId
+        t => t.subjectId === subject.id &&
+          t.classGroupId === groupId &&
+          (!t.offeringId || t.offeringId === updatedOffer.id)
       );
       if (teacherName) {
+        const isSameTeacherName = existingAssignment?.teacherName?.trim().toLocaleLowerCase("ca") === teacherName.toLocaleLowerCase("ca");
+        const isCurrentProfile = teacherName.toLocaleLowerCase("ca") === data.teacherProfile?.name?.trim().toLocaleLowerCase("ca");
+        const teacherAccountId = isSameTeacherName
+          ? existingAssignment?.teacherAccountId || (isCurrentProfile ? cloud?.getAccountId?.() || null : null)
+          : (isCurrentProfile ? cloud?.getAccountId?.() || null : null);
         if (existingAssignment) {
           existingAssignment.teacherName = teacherName;
+          existingAssignment.offeringId = updatedOffer.id;
+          existingAssignment.teacherAccountId = teacherAccountId;
         } else {
           data.subjectTeachers.push({
             subjectId: subject.id,
             classGroupId: groupId,
-            teacherName
+            offeringId: updatedOffer.id,
+            teacherName,
+            teacherAccountId
           });
         }
       } else if (existingAssignment) {
@@ -2486,7 +2502,9 @@ content.addEventListener("change", event => {
   if (!canTeacherGradeEvidence(
     data,
     offering.subjectId,
+    offering.id,
     getStudentEnrollment(data.students.find(s => s.id === studentId), offering.academicYearId)?.classGroupId,
+    getStudentEnrollment(data.students.find(s => s.id === studentId), offering.academicYearId)?.additionalGroupIds || [],
     cloud?.getAccountId?.(),
     data.teacherProfile?.name
   )) {

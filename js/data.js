@@ -58,37 +58,38 @@ export function canTeacherEditSubjectRubric(data, subjectId, accountId) {
   return (subject.responsibleTeacherIds || []).includes(accountId);
 }
 
-export function canTeacherGradeEvidence(data, subjectId, classGroupId, accountId, teacherName) {
-  if (!subjectId || !classGroupId) return false;
+export function canTeacherGradeEvidence(data, subjectId, offeringId, classGroupId, additionalGroupIds, accountId, teacherName) {
+  if (!subjectId || !offeringId) return false;
   const subject = data.subjects.find(item => item.id === subjectId);
   if (!subject) return false;
-
-  if (accountId) {
-    if (subject.ownerId === accountId) return true;
-    if ((subject.responsibleTeacherIds || []).includes(accountId)) return true;
-  }
-
-  const assignments = (data.subjectTeachers || []).filter(item =>
-    item.subjectId === subjectId && item.classGroupId === classGroupId
+  const offering = data.teachingOffers.find(item =>
+    item.id === offeringId &&
+    item.subjectId === subjectId &&
+    item.status === "active" &&
+    item.academicYearId === data.currentAcademicYearId
   );
-  if (accountId) {
-    if (assignments.some(item => item.teacherAccountId === accountId)) return true;
-  }
-  if (!teacherName?.trim()) {
-    return assignments.length === 0 &&
-      (!subject.responsibleTeachers || subject.responsibleTeachers.length === 0);
-  }
+  if (!offering) return false;
 
-  if (assignments.length) {
-    return assignments.some(item =>
-      item.teacherName?.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
-    );
-  }
-  if (!subject.responsibleTeachers || subject.responsibleTeachers.length === 0) return true;
+  const studentGroupIds = new Set([
+    ...(classGroupId ? [classGroupId] : []),
+    ...(additionalGroupIds || [])
+  ]);
+  const configuredGroupIds = new Set([
+    ...offering.classGroupIds,
+    ...(offering.additionalGroupIds || [])
+  ]);
+  const assignments = (data.subjectTeachers || []).filter(item =>
+    item.subjectId === subjectId &&
+    studentGroupIds.has(item.classGroupId) &&
+    configuredGroupIds.has(item.classGroupId) &&
+    (!item.offeringId || item.offeringId === offeringId)
+  );
 
-  return (subject.responsibleTeachers || []).some(name =>
-    typeof name === "string" &&
-    name.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
+  if (accountId && assignments.some(item => item.teacherAccountId === accountId)) return true;
+  if (!teacherName?.trim()) return false;
+
+  return assignments.some(item =>
+    item.teacherName?.trim().toLocaleLowerCase("ca") === teacherName.trim().toLocaleLowerCase("ca")
   );
 }
 
