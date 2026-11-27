@@ -69,6 +69,26 @@ export function getActivityCompetencyContribution(activity, competencyId) {
   );
 }
 
+export function getSequenceCompetencyContribution(data, level, competencyId) {
+  const items = getSequenceActivities(level);
+  const totalHours = items.reduce((total, item) => total + Number(item.hours), 0);
+  if (!totalHours) return 0;
+  const weightedContribution = items.reduce((total, item) => {
+    const activity = data.activities.find(record => record.id === item.activityId);
+    if (!activity) return total;
+    return total + getActivityCompetencyContribution(activity, competencyId) * Number(item.hours);
+  }, 0);
+  return weightedContribution / totalHours;
+}
+
+export function getSequenceActivityCompetencyContribution(data, level, item, competencyId) {
+  const totalHours = getSequenceActivities(level).reduce((total, sequenceItem) => total + Number(sequenceItem.hours), 0);
+  if (!totalHours) return 0;
+  const activity = data.activities.find(record => record.id === item.activityId);
+  if (!activity) return 0;
+  return getActivityCompetencyContribution(activity, competencyId) * Number(item.hours) / totalHours;
+}
+
 export function isNonAssessedActivity(activity) {
   return !getEvaluationItems(activity).length;
 }

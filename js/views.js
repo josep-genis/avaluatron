@@ -12,7 +12,7 @@ import {
   getAssessment as calculateAssessment, getCompetencyGrade as calculateCompetencyGrade,
   getActivityGrade as calculateActivityGrade, getEvidenceScore as calculateEvidenceScore, getActivityCompetencyGrade as calculateActivityCompetencyGrade,
   getLevelCompetencyGrade as calculateLevelCompetencyGrade, getLevelCompetencyAssessmentProgress,
-  getActivityCompetencyContribution,
+  getActivityCompetencyContribution, getSequenceCompetencyContribution, getSequenceActivityCompetencyContribution,
   getStudentActivityCount as calculateStudentActivityCount, getEvidenceActivityWeight,
   areAllActivityEvidencesAssessed, isNonAssessedActivity,
   isActivityIncludedInStudentGrades, isStudentExemptFromActivity, isStudentExemptFromSubject,
@@ -1646,9 +1646,13 @@ function renderLevelDetail() {
     const activity = data.activities.find(record => record.id === item.activityId);
     if (!activity) return "";
     const contributions = competencies
-      .map(competency => ({ competency, weight: getActivityCompetencyContribution(activity, competency.id) }))
+      .map(competency => ({
+        competency,
+        weight: getActivityCompetencyContribution(activity, competency.id),
+        sequenceWeight: getSequenceActivityCompetencyContribution(data, level, item, competency.id)
+      }))
       .filter(contribution => contribution.weight > 0)
-      .map(({ competency, weight }) => `<span class="badge">${escapeHtml(competency.name)} · ${weight.toLocaleString("ca-ES")}%</span>`)
+      .map(({ competency, weight, sequenceWeight }) => `<span class="badge">${escapeHtml(competency.name)} · ${weight.toLocaleString("ca-ES")}% de l'activitat · ${sequenceWeight.toLocaleString("ca-ES", { maximumFractionDigits: 1 })}% de la seqüència</span>`)
       .join(" ");
     return `<tr><td>${index + 1}</td><td>${escapeHtml(item.situationName)}</td><td><strong>${escapeHtml(activity.title)}</strong><br><span class="section-caption">${escapeHtml(activity.type)} · ${formatDate(activity.date)}</span></td><td>${Number(item.hours).toLocaleString("ca-ES")} h</td><td>${contributions || '<span class="grade-empty">Sense contribucions configurades</span>'}</td><td><button class="text-button" type="button" data-open-activity="${escapeHtml(activity.id)}" data-subject-id="${escapeHtml(subject.id)}" data-level-id="${escapeHtml(level.id)}">Obre ${icon("arrow-right")}</button></td></tr>`;
   }).join("");
@@ -1656,7 +1660,8 @@ function renderLevelDetail() {
     const eligibleStudents = students.filter(student => !isStudentExemptFromSubject(data, student.id, subject.id));
     const grades = eligibleStudents.map(student => getLevelCompetencyGrade(level, student.id, competency.id, subject.id)).filter(grade => grade !== null);
     const average = grades.length ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length : null;
-    return `<div class="competency-row"><strong>${escapeHtml(competency.name)}</strong><div class="progress-track"><div class="progress-fill ${gradeColorClass(average)}" style="width:${gradeWidth(average)}%"></div></div><div class="progress-meta"><span>${grades.length}/${eligibleStudents.length} alumnes no exempts amb evidències</span><span>${average === null ? "—" : gradeValue(average)}</span></div></div>`;
+    const sequenceContribution = getSequenceCompetencyContribution(data, level, competency.id);
+    return `<div class="competency-row"><strong>${escapeHtml(competency.name)}</strong><div class="progress-track"><div class="progress-fill ${gradeColorClass(average)}" style="width:${gradeWidth(average)}%"></div></div><div class="progress-meta"><span>${grades.length}/${eligibleStudents.length} alumnes no exempts amb evidències · ${sequenceContribution.toLocaleString("ca-ES", { maximumFractionDigits: 1 })}% de contribució planificada</span><span>${average === null ? "—" : gradeValue(average)}</span></div></div>`;
   }).join("");
   const studentRows = students.map(student => {
     const exempt = isStudentExemptFromSubject(data, student.id, subject.id);
@@ -1733,9 +1738,13 @@ function renderLevelSequence() {
       const activity = data.activities.find(record => record.id === item.activityId);
       if (!activity) return "";
       const contributions = competencies
-        .map(competency => ({ competency, contribution: getActivityCompetencyContribution(activity, competency.id) }))
+        .map(competency => ({
+          competency,
+          contribution: getActivityCompetencyContribution(activity, competency.id),
+          sequenceContribution: getSequenceActivityCompetencyContribution(data, level, item, competency.id)
+        }))
         .filter(({ contribution }) => contribution > 0)
-        .map(({ competency, contribution }) => `<span class="badge">${escapeHtml(competency.name)} · ${contribution.toLocaleString("ca-ES")}%</span>`)
+        .map(({ competency, contribution, sequenceContribution }) => `<span class="badge">${escapeHtml(competency.name)} · ${contribution.toLocaleString("ca-ES")}% de l'activitat · ${sequenceContribution.toLocaleString("ca-ES", { maximumFractionDigits: 1 })}% de la seqüència</span>`)
         .join(" ");
       return `<article class="sequence-activity">
         <div class="sequence-activity-number">${String(sequenceNumber).padStart(2, "0")}</div>
