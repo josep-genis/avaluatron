@@ -1,4 +1,4 @@
-import { getActivityOffers, getSequenceActivities, isStudentAssociatedWithOffering } from "./data.js";
+import { getActivityOffers, getLevelOffers, getOfferingStudents, getSequenceActivities, isStudentAssociatedWithOffering } from "./data.js";
 import { getEvaluationItems } from "./assessment.js";
 
 export const SCORE_BY_LEVEL = [null, 2.5, 5, 7.5, 10, 0, null];
@@ -256,6 +256,29 @@ export function getLevelCompetencyAssessmentProgress(data, level, studentId, com
     }
   }
   return totalWeight ? assessedWeight / totalWeight * 100 : null;
+}
+
+export function getStudentCompetencyAverage(data, studentId) {
+  const subjectLevels = data.subjects.flatMap(subject => subject.levels
+    .filter(level => getLevelOffers(data, level.id, subject.id).some(offer =>
+      getOfferingStudents(data, offer).some(student => student.id === studentId)
+    ))
+    .map(level => ({ subject, level }))
+  );
+
+  if (subjectLevels.length === 1) {
+    const { subject, level } = subjectLevels[0];
+    const grades = data.competencies
+      .filter(competency => level.competencyIds.includes(competency.id))
+      .map(competency => getLevelCompetencyGrade(data, level, studentId, competency.id, subject.id))
+      .filter(grade => grade !== null);
+    return grades.length ? grades.reduce((total, grade) => total + grade, 0) / grades.length : null;
+  }
+
+  const grades = data.competencies
+    .map(competency => getCompetencyGrade(data, studentId, competency.id))
+    .filter(grade => grade !== null);
+  return grades.length ? grades.reduce((total, grade) => total + grade, 0) / grades.length : null;
 }
 
 export function getStudentActivityCount(data, studentId) {

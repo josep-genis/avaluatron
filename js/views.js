@@ -13,6 +13,7 @@ import {
   getActivityGrade as calculateActivityGrade, getEvidenceScore as calculateEvidenceScore, getActivityCompetencyGrade as calculateActivityCompetencyGrade,
   getLevelCompetencyGrade as calculateLevelCompetencyGrade, getLevelCompetencyAssessmentProgress,
   getActivityCompetencyContribution, getSequenceCompetencyContribution, getSequenceActivityCompetencyContribution,
+  getStudentCompetencyAverage,
   getStudentActivityCount as calculateStudentActivityCount, getEvidenceActivityWeight,
   areAllActivityEvidencesAssessed, isNonAssessedActivity,
   isActivityIncludedInStudentGrades, isStudentExemptFromActivity, isStudentExemptFromSubject,
@@ -576,8 +577,7 @@ function renderStudents() {
   content.innerHTML = `${pageHeading("GRUP I SEGUIMENT", "Alumnes", "Consulta els perfils i el progrés competencial del teu grup.", action)}
     ${filters}
     ${filtered.length ? `<ul class="student-list">${filtered.map(student => {
-      const grades = data.competencies.map(competency => getCompetencyGrade(student.id, competency.id)).filter(grade => grade !== null);
-      const average = grades.length ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length : null;
+      const average = getStudentCompetencyAverage(data, student.id);
       const evidenceCount = getStudentActivityCount(student.id);
       return `<li class="student-list-item"><button class="student-list-open" type="button" data-open-student="${student.id}"><span class="student-list-identity"><strong>${escapeHtml(studentDisplayName(student))}</strong><span>${escapeHtml(getStudentGroupLabel(student))} · ${evidenceCount} ${evidenceCount === 1 ? "activitat" : "activitats"}</span><span class="student-adaptation-badges">${studentAdaptationBadges(student)}</span></span><span class="student-list-grade"><span class="student-list-grade-label">Mitjana competencial</span>${gradeBadge(average)}</span></button><button class="text-button student-list-edit" type="button" data-edit-student="${student.id}">${icon("edit-pencil")} Edita alumne</button></li>`;
     }).join("")}</ul>` : emptyState(data.students.length ? "No hi ha coincidències" : "Encara no hi ha alumnes", data.students.length ? "Prova una altra cerca." : "Afegeix el teu primer alumne per començar.", "create-student", "Afegeix alumne")}`;
