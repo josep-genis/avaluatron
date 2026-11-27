@@ -421,10 +421,24 @@ function openSubjectDialog(subjectId = null) {
     return;
   }
   const editing = Boolean(subject);
-  openDialog(editing ? "Edita l'assignatura" : "Crea una assignatura", "Crea l'assignatura. Després hi podràs afegir targetes de nivell, cadascuna amb els seus grups, seqüència i progrés.", `<div class="form-grid">
+  const rubric = subject?.dailyRubric || {
+    weight: 0,
+    items: DAILY_FOLLOWUP_CRITERIA.map(criterion => ({ id: criterion.id, name: criterion.name, contributions: {} }))
+  };
+  const competencyIds = [...new Set((subject?.levels || []).flatMap(level => level.competencyIds || []))];
+  const rubricCompetencies = data.competencies.filter(competency => competencyIds.includes(competency.id));
+  const rubricRows = DAILY_FOLLOWUP_CRITERIA.map(criterion => {
+    const item = rubric.items.find(entry => entry.id === criterion.id) || { name: criterion.name, contributions: {} };
+    const contributionInputs = rubricCompetencies.map(competency =>
+      `<label class="field"><span>${escapeHtml(competency.name)}</span><input name="dailyContribution:${criterion.id}:${competency.id}" type="number" min="0" max="100" step="1" value="${Number(item.contributions[competency.id] || 0)}"></label>`
+    ).join("");
+    return `<div class="panel" style="padding:12px;margin-top:10px"><strong>${escapeHtml(item.name)}</strong>${rubricCompetencies.length ? `<div class="form-grid">${contributionInputs}</div><span class="field-hint">Percentatge de contribució de l'indicador a cada competència (0 si no hi contribueix).</span>` : '<p class="field-hint">Assigna competències a un nivell d’aquesta assignatura per configurar-les.</p>'}</div>`;
+  }).join("");
+  openDialog(editing ? "Edita l'assignatura" : "Crea una assignatura", "Crea l'assignatura i configura el pes del seguiment diari sobre les competències.", `<div class="form-grid">
     <div class="field full"><label for="subject-name">Nom de l'assignatura</label><input id="subject-name" name="name" required maxlength="100" placeholder="Ex.: Tecnologia i sostenibilitat" value="${escapeHtml(subject?.name || "")}"></div>
     <div class="field full"><label for="subject-description">Descripció (opcional)</label><textarea id="subject-description" name="description" maxlength="500" placeholder="Objectius o informació de l'assignatura">${escapeHtml(subject?.description || "")}</textarea></div>
     <div class="field full"><label for="subject-responsible-teachers">Professors responsables (opcional)</label><textarea id="subject-responsible-teachers" name="responsibleTeachers" maxlength="2000" placeholder="Un nom per línia&#10;Maria Puig&#10;Joan Martí">${escapeHtml((subject?.responsibleTeachers || []).join("\n"))}</textarea><span class="field-hint">Els noms identifiquen les persones responsables de l'assignatura. La qualificació es configura a cada oferta docent vigent.</span></div>
+    ${editing ? `<div class="field full"><label for="subject-daily-weight">Pes del seguiment diari a la nota final</label><input id="subject-daily-weight" name="dailyWeight" type="number" min="0" max="100" step="1" required value="${Number(rubric.weight || 0)}"><span class="field-hint">0% desactiva el pes diari; la resta de la nota prové de les activitats i proves.</span></div><div class="field full"><label>Rúbrica diària i contribució a les competències</label>${rubricRows}</div>` : ""}
   </div>`, editing ? "Desa els canvis" : "Crea assignatura");
   dialogForm.dataset.formType = editing ? "edit-subject" : "subject";
   dialogForm.dataset.recordId = subject?.id || "";
@@ -695,6 +709,7 @@ function openCompetencyDialog() {
   openDialog("Crea una competència", "Descriu una capacitat observable. Després hi podràs afegir resultats d'aprenentatge i criteris d'avaluació.", `<div class="form-grid">
     <div class="field full"><label for="competency-name">Nom de la competència</label><input id="competency-name" name="name" required maxlength="140" placeholder="Ex.: Avaluar l'impacte ecològic d'una tecnologia"></div>
     <div class="field full"><label for="competency-description">Descripció</label><textarea id="competency-description" name="description" maxlength="500" placeholder="Quines accions o coneixements demostren aquesta competència?"></textarea></div>
+    <div class="field full"><label for="competency-type">Tipus de competència</label><select id="competency-type" name="competencyType"><option value="specific">No transversal</option><option value="transversal">Transversal</option></select></div>
   </div>`, "Desa la competència");
   dialogForm.dataset.formType = "competency";
   dialogForm.dataset.recordId = "";
@@ -1823,6 +1838,23 @@ dialogForm.addEventListener("submit", event => {
       .split(/\r?\n/)
       .map(name => name.trim())
       .filter(Boolean))];
+    const dailyWeight = formType === "edit-subject"
+      ? Math.max(0, Math.min(100, Number(formData.get("dailyWeight") || 0) || 0))
+      : 0;
+    const dailyItems = DAILY_FOLLOWUP_CRITERIA.map(criterion => {
+      const contributions = {};
+      for (const entry of formData.entries()) {
+        const prefix = `dailyContribution:${criterion.id}:`;
+        if (!String(entry[0]).startsWith(prefix)) continue;
+        const competencyId = String(entry[0]).slice(prefix.length);
+        const contribution = Math.max(0, Math.min(100, Number(entry[1]) || 0));
+        if (contribution > 0) contributions[competencyId] = Math.round(contribution);
+      }
+      return { id: criterion.id, name: criterion.name, contributions };
+    });
+    const dailyRubric = subject?.dailyRubric
+      ? { ...subject.dailyRubric, weight: dailyWeight, items: dailyItems }
+      : { weight: dailyWeight, items: dailyItems };
     const updatedSubject = {
       id: subjectId,
       name,
@@ -1830,6 +1862,7 @@ dialogForm.addEventListener("submit", event => {
       responsibleTeachers,
       ownerId: subject?.ownerId || (cloud?.isActive() ? cloud.getAccountId() : null),
       responsibleTeacherIds: subject?.responsibleTeacherIds || [],
+      dailyRubric,
       levels: subject?.levels || []
     };
     if (subject) Object.assign(subject, updatedSubject);
@@ -1987,7 +2020,8 @@ dialogForm.addEventListener("submit", event => {
     state.selectedSequence = formType === "edit-level" && dialogForm.dataset.returnToSequence === "true";
   }
   if (formType === "competency") {
-    const competency = { id: makeId("co"), name: String(formData.get("name")).trim(), description: String(formData.get("description")).trim(), learningOutcomes: [], educationalLevels: [], subjects: [] };
+    const competencyType = formData.get("competencyType") === "transversal" ? "transversal" : "specific";
+    const competency = { id: makeId("co"), competencyType, name: String(formData.get("name")).trim(), description: String(formData.get("description")).trim(), learningOutcomes: [], educationalLevels: [], subjects: competencyType === "transversal" ? ["Competències transversals"] : [] };
     data.competencies.push(competency);
     state.selectedCompetencyId = competency.id;
     state.currentView = "competencies";
@@ -2185,7 +2219,8 @@ content.addEventListener("submit", event => {
   }));
   const educationalLevels = [...form.querySelectorAll('[name="educationalLevel"]')].map(input => input.value);
   const subjects = [...form.querySelectorAll('[name="subject"]')].map(input => input.value);
-  Object.assign(competency, { name: field(form, "name"), description: field(form, "description"), educationalLevels, subjects, learningOutcomes });
+  const competencyType = form.querySelector('[name="competencyType"]')?.value === "transversal" ? "transversal" : "specific";
+  Object.assign(competency, { competencyType, name: field(form, "name"), description: field(form, "description"), educationalLevels, subjects, learningOutcomes });
   if (!saveData()) {
     setData(previousData);
     return;

@@ -67,7 +67,13 @@ export function migrateLegacyTransversalCompetencies(value) {
 export function withoutUnmodifiedBank(value) {
   const unchanged = competency => {
     const original = COMPETENCY_BANK.find(item => item.id === competency.id);
-    return original && JSON.stringify(original) === JSON.stringify(competency);
+    if (!original) return false;
+    const normalizeType = item => ({
+      ...item,
+      competencyType: item.competencyType ||
+        ((item.subjects || []).includes("Competències transversals") ? "transversal" : "specific")
+    });
+    return JSON.stringify(normalizeType(original)) === JSON.stringify(normalizeType(competency));
   };
   return { ...value, competencies: value.competencies.filter(competency => !unchanged(competency)) };
 }

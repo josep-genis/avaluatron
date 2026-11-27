@@ -219,6 +219,25 @@ export function getActivityCompetencyGrade(data, studentId, activity, competency
   return totalWeight ? weightedScore / totalWeight : null;
 }
 
+export function getSubjectDailyCompetencyGrade(data, subjectId, studentId, competencyId) {
+  const subject = data.subjects.find(item => item.id === subjectId);
+  if (!subject?.dailyRubric || subject.dailyRubric.weight <= 0) return null;
+  let weightedScore = 0;
+  let totalContribution = 0;
+  for (const assessment of data.dailyAssessments.filter(item =>
+    item.subjectId === subjectId && item.studentId === studentId && !item.absent
+  )) {
+    for (const item of subject.dailyRubric.items || []) {
+      const contribution = Number(item.contributions?.[competencyId] || 0);
+      const level = assessment.levels[item.id];
+      if (contribution <= 0 || !SCORE_BY_LEVEL[level]) continue;
+      weightedScore += SCORE_BY_LEVEL[level] * contribution;
+      totalContribution += contribution;
+    }
+  }
+  return totalContribution ? weightedScore / totalContribution : null;
+}
+
 export function getLevelCompetencyGrade(data, level, studentId, competencyId, subjectId = null) {
   if (subjectId && isStudentExemptFromSubject(data, studentId, subjectId)) return null;
   let weightedScore = 0;
@@ -234,7 +253,18 @@ export function getLevelCompetencyGrade(data, level, studentId, competencyId, su
       totalContribution += contribution;
     }
   }
-  return totalContribution ? weightedScore / totalContribution : null;
+  const activityGrade = totalContribution ? weightedScore / totalContribution : null;
+  const dailyGrade = subjectId ? getSubjectDailyCompetencyGrade(data, subjectId, studentId, competencyId) : null;
+  if (!subjectId) return activityGrade;
+  const subject = data.subjects.find(item => item.id === subjectId);
+  const dailyWeight = subject?.dailyRubric?.weight;
+  const normalizedDailyWeight = Number.isFinite(Number(dailyWeight))
+    ? Math.max(0, Math.min(100, Number(dailyWeight)))
+    : 0;
+  if (activityGrade !== null && dailyGrade !== null) {
+    return activityGrade * (100 - normalizedDailyWeight) / 100 + dailyGrade * normalizedDailyWeight / 100;
+  }
+  return activityGrade ?? dailyGrade;
 }
 
 export function getLevelCompetencyAssessmentProgress(data, level, studentId, competencyId, subjectId) {
@@ -255,7 +285,17 @@ export function getLevelCompetencyAssessmentProgress(data, level, studentId, com
       }
     }
   }
-  return totalWeight ? assessedWeight / totalWeight * 100 : null;
+  const activityProgress = totalWeight ? assessedWeight / totalWeight * 100 : null;
+  const subject = data.subjects.find(item => item.id === subjectId);
+  const dailyWeight = Number(subject?.dailyRubric?.weight || 0);
+  const dailyGrade = subjectId
+    ? getSubjectDailyCompetencyGrade(data, subjectId, studentId, competencyId)
+    : null;
+  if (activityProgress !== null && dailyGrade !== null) {
+    return activityProgress * (100 - dailyWeight) / 100 + 100 * dailyWeight / 100;
+  }
+  if (dailyGrade !== null) return 100;
+  return activityProgress;
 }
 
 export function getStudentCompetencyAverage(data, studentId) {

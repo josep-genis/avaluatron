@@ -20,6 +20,7 @@ export const state = {
   competencySource: "",
   competencyLevel: "",
   competencySubject: "",
+  competencyType: "",
   studentQuery: "",
   studentSort: "name",
   studentAdaptationFilter: "",

@@ -10,6 +10,17 @@ export const DAILY_FOLLOWUP_CRITERIA = [
   { id: "collaboration", name: "Col·laboració" }
 ];
 
+export function getDefaultDailyRubric() {
+  return {
+    weight: 0,
+    items: DAILY_FOLLOWUP_CRITERIA.map(criterion => ({
+      id: criterion.id,
+      name: criterion.name,
+      contributions: {}
+    }))
+  };
+}
+
 export const STUDENT_ADAPTATIONS = {
   methodological: "Adaptació metodològica",
   curricular: "Adaptació curricular"
@@ -255,6 +266,30 @@ export function validateData(value, makeId) {
   for (const subject of value.subjects) {
     if (!subject || typeof subject !== "object") continue;
     if (typeof subject.ownerId !== "string") subject.ownerId = null;
+    if (!subject.dailyRubric || typeof subject.dailyRubric !== "object" || Array.isArray(subject.dailyRubric)) {
+      subject.dailyRubric = getDefaultDailyRubric();
+    } else {
+      const weight = Number(subject.dailyRubric.weight);
+      subject.dailyRubric.weight = Number.isFinite(weight) ? Math.max(0, Math.min(100, Math.round(weight))) : 0;
+      if (!Array.isArray(subject.dailyRubric.items)) subject.dailyRubric.items = getDefaultDailyRubric().items;
+      for (const criterion of DAILY_FOLLOWUP_CRITERIA) {
+        let item = subject.dailyRubric.items.find(entry => entry?.id === criterion.id);
+        if (!item) {
+          item = { id: criterion.id, name: criterion.name, contributions: {} };
+          subject.dailyRubric.items.push(item);
+        }
+        item.name = typeof item.name === "string" && item.name.trim() ? item.name.trim() : criterion.name;
+        if (!item.contributions || typeof item.contributions !== "object" || Array.isArray(item.contributions)) item.contributions = {};
+        for (const [competencyId, contribution] of Object.entries(item.contributions)) {
+          const amount = Number(contribution);
+          if (!Number.isFinite(amount) || amount <= 0 || amount > 100) delete item.contributions[competencyId];
+          else item.contributions[competencyId] = Math.round(amount);
+        }
+      }
+      subject.dailyRubric.items = subject.dailyRubric.items.filter(item =>
+        item && DAILY_FOLLOWUP_CRITERIA.some(criterion => criterion.id === item.id)
+      );
+    }
     if (!Array.isArray(subject.responsibleTeacherIds)) {
       subject.responsibleTeacherIds = [];
     } else {
@@ -333,6 +368,11 @@ export function validateData(value, makeId) {
   for (const competency of value.competencies) {
     if (!competency || typeof competency !== "object") continue;
     competency.description ??= "";
+    if (!["transversal", "specific"].includes(competency.competencyType)) {
+      competency.competencyType = (competency.subjects || []).includes("Competències transversals")
+        ? "transversal"
+        : "specific";
+    }
     competency.learningOutcomes ??= [];
     for (const tagList of ["educationalLevels", "subjects"]) {
       competency[tagList] ??= [];
@@ -600,6 +640,15 @@ export function validateData(value, makeId) {
   for (const subject of value.subjects) {
     if (!subject || typeof subject.id !== "string" || !subject.id || typeof subject.name !== "string") {
       throw new Error("hi ha una assignatura invàlida.");
+    }
+    if (subject.dailyRubric?.items) {
+      for (const item of subject.dailyRubric.items) {
+        if (!item || typeof item !== "object" || !DAILY_FOLLOWUP_CRITERIA.some(criterion => criterion.id === item.id) ||
+          typeof item.name !== "string" || !item.name.trim() ||
+          !item.contributions || typeof item.contributions !== "object" || Array.isArray(item.contributions)) {
+          throw new Error("hi ha una rúbrica diària invàlida.");
+        }
+      }
     }
     if (ids.has(subject.id)) throw new Error("hi ha identificadors duplicats.");
     ids.add(subject.id);
