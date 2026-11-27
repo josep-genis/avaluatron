@@ -107,6 +107,64 @@ function getLevelCompetencyGrade(level, studentId, competencyId, subjectId = sta
   return calculateLevelCompetencyGrade(data, level, studentId, competencyId, subjectId);
 }
 
+export function getStudentCompetencyEvidenceSummaryMarkup(studentId, subjectId, levelId, competencyId) {
+  const student = data.students.find(item => item.id === studentId);
+  const subject = data.subjects.find(item => item.id === subjectId);
+  const level = subject?.levels.find(item => item.id === levelId);
+  const competency = data.competencies.find(item => item.id === competencyId);
+  if (!student || !subject || !level || !competency) return '<div class="empty-state">No s’ha pogut carregar el resum de la competència.</div>';
+  if (isStudentExemptFromSubject(data, studentId, subjectId)) {
+    return '<div class="empty-state">L’alumne està exempt d’aquesta assignatura. La qualificació de la competència no inclou evidències.</div>';
+  }
+
+  const evidenceRows = [];
+  for (const sequenceItem of getSequenceActivities(level)) {
+    const activity = data.activities.find(item => item.id === sequenceItem.activityId);
+    if (!activity || isStudentExemptFromActivity(data, studentId, activity.id)) continue;
+    const offering = getActivityOffers(data, activity.id).find(item =>
+      item.subjectId === subjectId && item.levelId === levelId &&
+      getOfferingStudents(data, item).some(candidate => candidate.id === studentId)
+    );
+    if (!offering) continue;
+    for (const evidence of getEvaluationItems(activity)) {
+      const contribution = Number(evidence.contributions?.[competencyId] || 0);
+      if (contribution <= 0) continue;
+      const score = calculateEvidenceScore(data, activity, studentId, offering.id, evidence.id);
+      if (score === null) continue;
+      evidenceRows.push(`<li><button class="competency-evidence-row" type="button" data-open-activity="${escapeHtml(activity.id)}" data-offering-id="${escapeHtml(offering.id)}" data-subject-id="${escapeHtml(subjectId)}" data-level-id="${escapeHtml(levelId)}">
+        <span class="competency-evidence-copy"><strong>${escapeHtml(activity.title)}</strong><span>${escapeHtml(evidence.name)} · ${contribution}% de contribució · ${Number(sequenceItem.hours)} h</span></span>
+        ${gradeBadge(score)}${icon("arrow-right", "competency-evidence-arrow")}
+      </button></li>`);
+    }
+  }
+
+  const dailyRows = [];
+  const dailyWeight = Number(subject.dailyRubric?.weight || 0);
+  if (dailyWeight > 0) {
+    for (const assessment of data.dailyAssessments
+      .filter(item => item.studentId === studentId && item.subjectId === subjectId && !item.absent)
+      .sort((a, b) => b.date.localeCompare(a.date))) {
+      for (const item of subject.dailyRubric.items || []) {
+        const contribution = Number(item.contributions?.[competencyId] || 0);
+        const levelValue = assessment.levels[item.id];
+        if (contribution <= 0 || !SCORE_BY_LEVEL[levelValue]) continue;
+        dailyRows.push(`<li class="competency-evidence-row">
+          <span class="competency-evidence-copy"><strong>${escapeHtml(formatDate(assessment.date))}</strong><span>${escapeHtml(item.name)} · ${contribution}% de contribució · Seguiment diari</span></span>
+          ${gradeBadge(SCORE_BY_LEVEL[levelValue])}
+        </li>`);
+      }
+    }
+  }
+
+  const grade = calculateLevelCompetencyGrade(data, level, studentId, competencyId, subjectId);
+  return `<div class="competency-evidence-summary">
+    <div class="competency-evidence-summary-heading"><div><strong>${escapeHtml(competency.name)}</strong><span>Qualificació final de la competència</span></div>${gradeBadge(grade)}</div>
+    ${evidenceRows.length ? `<div class="competency-evidence-section"><h3>Activitats i evidències</h3><ul>${evidenceRows.join("")}</ul></div>` : ""}
+    ${dailyRows.length ? `<div class="competency-evidence-section"><h3>Seguiment diari</h3><ul>${dailyRows.join("")}</ul></div>` : ""}
+    ${!evidenceRows.length && !dailyRows.length ? '<div class="empty-state">Encara no hi ha evidències avaluades que contribueixin a aquesta qualificació.</div>' : ""}
+  </div>`;
+}
+
 function getStudentActivityCount(studentId) {
   return calculateStudentActivityCount(data, studentId);
 }
@@ -704,8 +762,10 @@ function renderStudentSubjectReport() {
   }).join("");
   const competencyRows = competencyGrades.map(({ competency, grade, progress }) => {
     const progressLabel = progress === null ? "" : `${progress.toLocaleString("ca-ES", { maximumFractionDigits: 1 })}%`;
-    return `<div class="student-subject-competency"><div class="student-subject-competency-details"><strong>${escapeHtml(competency.name)}</strong>
-      ${exempt ? '<span>Exempt/a de l’assignatura</span>' : progress === null ? '<span>Sense evidències avaluables programades</span>' : `<div class="student-competency-progress"><div class="student-competency-progress-label"><span>Percentatge avaluat</span><strong>${progressLabel}</strong></div><div class="progress-track" role="progressbar" aria-label="Percentatge avaluat: ${escapeHtml(competency.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}" aria-valuetext="${progressLabel}"><div class="progress-fill student-competency-progress-fill" style="width:${progress}%"></div></div></div>`}</div>${exempt ? '<span class="badge exemption-badge">Exempt/a</span>' : gradeBadge(grade)}</div>`;
+    return `<button class="student-subject-competency" type="button" data-open-student-competency-summary="${escapeHtml(student.id)}" data-summary-subject-id="${escapeHtml(subject.id)}" data-summary-level-id="${escapeHtml(level.id)}" data-summary-competency-id="${escapeHtml(competency.id)}">
+      <span class="student-subject-competency-details"><strong>${escapeHtml(competency.name)}</strong>
+      ${exempt ? '<span>Exempt/a de l’assignatura</span>' : progress === null ? '<span>Sense evidències avaluables programades</span>' : `<span class="student-competency-progress"><span class="student-competency-progress-label"><span>Percentatge avaluat</span><strong>${progressLabel}</strong></span><span class="progress-track" role="progressbar" aria-label="Percentatge avaluat: ${escapeHtml(competency.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}" aria-valuetext="${progressLabel}"><span class="progress-fill student-competency-progress-fill" style="width:${progress}%"></span></span></span>`}</span>${exempt ? '<span class="badge exemption-badge">Exempt/a</span>' : gradeBadge(grade)}${icon("arrow-right", "student-subject-competency-arrow")}
+    </button>`;
   }).join("");
   const dailyHistory = exempt ? [] : data.dailyAssessments
     .filter(item => item.studentId === student.id && item.subjectId === subject.id)

@@ -306,8 +306,11 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .student-subject-summary-metric > span { color: var(--muted); font-size: 9px; }
 .student-subject-summary-metric > strong { color: var(--ink); font: 700 22px "Manrope", sans-serif; }
 .student-subject-report-section { margin-top: 14px; }
-.student-subject-competency { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+.student-subject-competency { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 3px; border: 0; border-top: 1px solid var(--line); background: var(--surface); color: inherit; text-align: left; cursor: pointer; }
 .student-subject-competency:first-child { border-top: 0; }
+.student-subject-competency:hover { background: var(--surface-soft); }
+.student-subject-competency:hover strong { color: var(--green); }
+.student-subject-competency-arrow { width: 14px; flex: 0 0 14px; color: var(--muted); }
 .student-subject-competency-details { display: grid; flex: 1; min-width: 0; gap: 6px; }
 .student-subject-competency strong { color: var(--ink); font-size: 10px; }
 .student-subject-competency-details > span { color: var(--muted); font-size: 9px; }
@@ -318,6 +321,20 @@ h1 { margin-bottom: 7px; font: 700 27px "Manrope", sans-serif; letter-spacing: -
 .student-subject-activity-list { display: grid; }
 .student-subject-activity { display: grid; width: 100%; grid-template-columns: 31px minmax(0, 1fr) auto 14px; align-items: center; gap: 11px; padding: 12px 3px; border: 0; border-top: 1px solid var(--line); background: var(--surface); color: inherit; text-align: left; }
 .student-subject-activity:hover .student-subject-activity-copy strong { color: var(--green); }
+.competency-evidence-summary { display: grid; gap: 16px; }
+.competency-evidence-summary-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
+.competency-evidence-summary-heading > div { display: grid; gap: 4px; }
+.competency-evidence-summary-heading span { color: var(--muted); font-size: 9px; }
+.competency-evidence-section { display: grid; gap: 7px; }
+.competency-evidence-section h3 { margin: 0; color: var(--text-2); font-size: 10px; }
+.competency-evidence-section ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.competency-evidence-row { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: inherit; text-align: left; cursor: pointer; }
+.competency-evidence-row:hover { border-color: var(--green); background: var(--surface-soft); }
+.competency-evidence-row:hover .competency-evidence-copy strong { color: var(--green); }
+.competency-evidence-arrow { width: 14px; flex: 0 0 14px; color: var(--muted); }
+.competency-evidence-copy { display: grid; min-width: 0; gap: 3px; }
+.competency-evidence-copy strong { color: var(--ink); font-size: 10px; }
+.competency-evidence-copy span { color: var(--muted); font-size: 9px; }
 .student-subject-activity-number { color: var(--muted); font: 600 10px "Manrope", sans-serif; }
 .student-subject-activity-copy { display: grid; min-width: 0; gap: 4px; }
 .student-subject-activity-copy strong { overflow: hidden; color: var(--ink); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }

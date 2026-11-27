@@ -7,7 +7,8 @@ import { data, state, setData } from "./js/state.js";
 import {
   setView, render, getClassGroup, classGroupOptions, subgroupOptions,
   renderClassGroups, renderSubjectDetail, renderLevelDetail, renderLevelSequence, renderActivityDetail, renderActivityStudentReport, renderActivityRubric, renderStudentDetail, renderStudentSubjectReport, activityRubricEvidenceRowMarkup, activityRubricAdaptedDescriptorRowMarkup, activityRubricCompetencyMarkup, studentDisplayName,
-  updateActivityAssessmentRow, refreshActivityGroups, competencyOutcomeMarkup, competencyCriterionMarkup, competencyTagChip
+  updateActivityAssessmentRow, refreshActivityGroups, competencyOutcomeMarkup, competencyCriterionMarkup, competencyTagChip,
+  getStudentCompetencyEvidenceSummaryMarkup
 } from "./js/views.js";
 import {
   SCORE_BY_LEVEL, DISCARDED_LEVEL, isStudentExemptFromSubject, getAssessment as calculateAssessment, getActivityGrade as calculateActivityGrade
@@ -142,6 +143,14 @@ function openDialog(title, subtitle, body, submitLabel) {
     <div class="form-actions"><span></span><div class="form-actions-right"><button class="button" type="button" data-close-dialog>${icon("xmark")} Cancel·la</button><button class="button button-primary" type="submit">${icon("check")} ${submitLabel}</button></div></div>`;
   dialog.showModal();
   dialogContent.querySelector("input, select, textarea")?.focus();
+}
+
+function openInfoDialog(title, subtitle, body) {
+  dialogForm.dataset.formType = "info";
+  dialogForm.dataset.recordId = "";
+  dialogContent.innerHTML = `<div class="dialog-heading"><div><h2>${title}</h2><p>${subtitle}</p></div><button class="icon-button" type="button" data-close-dialog aria-label="Tanca">${icon("xmark")}</button></div>${body}`;
+  dialog.showModal();
+  dialogContent.querySelector("[data-close-dialog]")?.focus();
 }
 
 function openTeacherProfileDialog() {
@@ -1065,6 +1074,7 @@ document.addEventListener("click", event => {
   if (archiveTeachingOfferButton) archiveTeachingOffer(archiveTeachingOfferButton.dataset.archiveTeachingOffer);
   const activityButton = event.target.closest("[data-open-activity]");
   if (activityButton) {
+    if (dialog.open) dialog.close();
     state.selectedActivityId = activityButton.dataset.openActivity;
     state.activityReturnToSequence = state.currentView === "subjects" && state.selectedSequence;
     state.selectedSubjectId = activityButton.dataset.subjectId || null;
@@ -1197,6 +1207,24 @@ document.addEventListener("click", event => {
       }
       renderActivityDetail();
       showToast("Agrupament eliminat.");
+    }
+    return;
+  }
+  const competencySummaryButton = event.target.closest("[data-open-student-competency-summary]");
+  if (competencySummaryButton) {
+    const studentId = competencySummaryButton.dataset.openStudentCompetencySummary;
+    const subjectId = competencySummaryButton.dataset.summarySubjectId;
+    const levelId = competencySummaryButton.dataset.summaryLevelId;
+    const competencyId = competencySummaryButton.dataset.summaryCompetencyId;
+    const student = data.students.find(item => item.id === studentId);
+    const subject = data.subjects.find(item => item.id === subjectId);
+    const competency = data.competencies.find(item => item.id === competencyId);
+    if (student && subject && competency) {
+      openInfoDialog(
+        "Evidències de la competència",
+        `${studentDisplayName(student)} · ${subject.name} · ${competency.name}`,
+        getStudentCompetencyEvidenceSummaryMarkup(studentId, subjectId, levelId, competencyId)
+      );
     }
     return;
   }
